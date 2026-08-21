@@ -234,10 +234,7 @@ fn ball_for_tokens(keys: &[f64], head_dim: usize, tokens: &[usize]) -> (Vec<f64>
 }
 
 fn dot(left: &[f64], right: &[f64]) -> f64 {
-    left.iter()
-        .zip(right.iter())
-        .map(|(&a, &b)| a * b)
-        .sum()
+    left.iter().zip(right.iter()).map(|(&a, &b)| a * b).sum()
 }
 
 fn projection(keys: &[f64], head_dim: usize, token: usize, direction: &[f64]) -> f64 {
@@ -268,16 +265,21 @@ fn content_partition(keys: &[f64], head_dim: usize, tokens: &mut [usize]) {
     if tokens.len() <= 1 {
         return;
     }
+
     let center = center_for_tokens(keys, head_dim, tokens);
-    let pivot_a = farthest_token_from_point(keys, head_dim, tokens, &center);
-    let pivot_a_row = key_row(keys, head_dim, pivot_a);
-    let pivot_b = farthest_token_from_point(keys, head_dim, tokens, pivot_a_row);
-    let pivot_b_row = key_row(keys, head_dim, pivot_b);
-    let direction: Vec<f64> = pivot_a_row
+
+    let anchor_token = farthest_token_from_point(keys, head_dim, tokens, &center);
+    let anchor_row = key_row(keys, head_dim, anchor_token);
+
+    let opposite_token = farthest_token_from_point(keys, head_dim, tokens, anchor_row);
+    let opposite_row = key_row(keys, head_dim, opposite_token);
+
+    let direction: Vec<f64> = anchor_row
         .iter()
-        .zip(pivot_b_row.iter())
-        .map(|(&a, &b)| b - a)
+        .zip(opposite_row.iter())
+        .map(|(&anchor, &opposite)| opposite - anchor)
         .collect();
+
     let direction_norm_squared = dot(&direction, &direction);
 
     if direction_norm_squared > 0.0 {
@@ -291,10 +293,14 @@ fn content_partition(keys: &[f64], head_dim: usize, tokens: &mut [usize]) {
     }
 }
 
-fn build_subtree(
-    keys: &[f64],
+struct TreeBuildConfig<'a> {
+    keys: &'a [f64],
     head_dim: usize,
     leaf_size: usize,
+}
+
+fn build_subtree(
+    config: &TreeBuildConfig<'_>,
     permutation: &mut [usize],
     start: usize,
     end: usize,
@@ -303,11 +309,13 @@ fn build_subtree(
 ) -> usize {
     let token_count = end - start;
     let tokens = &permutation[start..end];
-    let key_box = box_for_tokens(keys, head_dim, tokens);
-    let (ball_center, ball_radius) = ball_for_tokens(keys, head_dim, tokens);
 
-    if token_count <= leaf_size {
+    let key_box = box_for_tokens(config.keys, config.head_dim, tokens);
+    let (ball_center, ball_radius) = ball_for_tokens(config.keys, config.head_dim, tokens);
+
+    if token_count <= config.leaf_size {
         let node_index = nodes.len();
+
         nodes.push(ContentAwareNode {
             permutation_start: start,
             permutation_end: end,
@@ -317,33 +325,21 @@ fn build_subtree(
             left: None,
             right: None,
         });
+
         leaves.push(node_index);
         return node_index;
     }
 
-    content_partition(keys, head_dim, &mut permutation[start..end]);
+    content_partition(config.keys, config.head_dim, &mut permutation[start..end]);
+
     let midpoint = start + token_count / 2;
-    let left = build_subtree(
-        keys,
-        head_dim,
-        leaf_size,
-        permutation,
-        start,
-        midpoint,
-        nodes,
-        leaves,
-    );
-    let right = build_subtree(
-        keys,
-        head_dim,
-        leaf_size,
-        permutation,
-        midpoint,
-        end,
-        nodes,
-        leaves,
-    );
+
+    let left = build_subtree(config, permutation, start, midpoint, nodes, leaves);
+
+    let right = build_subtree(config, permutation, midpoint, end, nodes, leaves);
+
     let node_index = nodes.len();
+
     nodes.push(ContentAwareNode {
         permutation_start: start,
         permutation_end: end,
@@ -353,6 +349,7 @@ fn build_subtree(
         left: Some(left),
         right: Some(right),
     });
+
     node_index
 }
 
@@ -381,12 +378,16 @@ pub fn build_content_aware_key_index(
     let mut roots = Vec::with_capacity(key_count.div_ceil(page_size));
     let mut leaves = Vec::new();
 
+    let build_config = TreeBuildConfig {
+        keys,
+        head_dim,
+        leaf_size,
+    };
+
     for page_start in (0..key_count).step_by(page_size) {
         let page_end = (page_start + page_size).min(key_count);
         roots.push(build_subtree(
-            keys,
-            head_dim,
-            leaf_size,
+            &build_config,
             &mut permutation,
             page_start,
             page_end,
@@ -747,20 +748,19 @@ mod tests {
 
     fn assert_close(left: f64, right: f64, tolerance: f64) {
         let scale = left.abs().max(right.abs()).max(1.0);
-        assert!((left - right).abs() <= tolerance * scale, "{left} != {right}");
+        assert!(
+            (left - right).abs() <= tolerance * scale,
+            "{left} != {right}"
+        );
     }
 
     fn assert_candidate_matches_dense(
         case: &QueryKeyPagedCase,
         leaf_size: usize,
     ) -> ContentAwareResult {
-        let index = build_content_aware_key_index(
-            &case.keys,
-            case.head_dim,
-            case.page_size,
-            leaf_size,
-        )
-        .unwrap();
+        let index =
+            build_content_aware_key_index(&case.keys, case.head_dim, case.page_size, leaf_size)
+                .unwrap();
         let dense_scores = dense_qk_scores(case).unwrap();
         let dense = dense_entmax(&dense_scores, case.alpha).unwrap();
         let candidate = branch_and_bound_entmax_content_aware(case, &index).unwrap();
@@ -837,8 +837,8 @@ mod tests {
         let case = QueryKeyPagedCase {
             query: vec![1.0, 0.0],
             keys: vec![
-                10.0, 0.0, -20.0, 7.0, 9.5, 0.0, -21.0, -7.0, 9.0, 0.0, -30.0, 9.0,
-                8.5, 0.0, -31.0, -9.0,
+                10.0, 0.0, -20.0, 7.0, 9.5, 0.0, -21.0, -7.0, 9.0, 0.0, -30.0, 9.0, 8.5, 0.0,
+                -31.0, -9.0,
             ],
             head_dim: 2,
             page_size: 8,
