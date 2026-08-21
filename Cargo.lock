@@ -7,6 +7,13 @@ name = "ada-a4-entmax-bnb"
 version = "0.1.0"
 
 [[package]]
+name = "ada-a4-qk-box"
+version = "0.1.0"
+dependencies = [
+ "ada-a4-entmax-bnb",
+]
+
+[[package]]
 name = "ada-core"
 version = "0.1.0"
 
