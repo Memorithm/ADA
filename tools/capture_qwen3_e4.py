@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""Capture post-QK-normalization/post-RoPE Q/K vectors from Qwen3 into ADA E4.
+"""Capture Qwen3 attention-score-input Q/K vectors into the ADA E4 trace format.
 
-The adapter intentionally runs Transformers' eager attention path and monkey-patches
-only Qwen3's module-level eager fallback. The wrapper observes query/key tensors at
-the exact attention-score input boundary and immediately delegates to the original
-eager implementation, leaving Transformers' causal-mask construction unchanged.
+The adapter deliberately keeps Transformers' built-in eager attention backend.
+It replaces only the Qwen3 module-level eager fallback with a wrapper that
+observes Q/K and immediately delegates to the original implementation. This
+preserves the model's ordinary causal-mask construction.
 
-E4 v1 assumptions enforced here:
+E4 v1 restrictions enforced here:
 - Qwen3 causal self-attention;
 - no sliding-window attention;
-- batch size 1, no padding;
+- batch size 1 and no padding;
 - prefill-only capture with use_cache=False;
 - contiguous visible prefix [0, query_position + 1);
-- Q/K tensors are serialized as little-endian IEEE-754 f32.
+- post-Q/K-normalization, post-RoPE vectors consumed by the score dot product;
+- little-endian IEEE-754 f32 tensor storage.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from typing import Any
 TRACE_MAGIC = b"ADAQK01\x00"
 TRACE_VERSION = 1
 TENSOR_STAGE = "attention_score_input"
+
 DEFAULT_MODEL_ID = "Qwen/Qwen3-0.6B"
 DEFAULT_MODEL_REVISION = "c1899de289a04d12100db370d81485cdf75e47ca"
 DEFAULT_LAYERS = (0, 13, 27)
@@ -61,14 +63,19 @@ class CapturedRecord:
 
 
 class CaptureSession:
-    def __init__(self, layers: set[int], query_heads: tuple[int, ...], positions: tuple[int, ...]):
+    def __init__(
+        self,
+        layers: set[int],
+        query_heads: tuple[int, ...],
+        positions: tuple[int, ...],
+    ) -> None:
         self.layers = layers
         self.query_heads = query_heads
         self.positions = positions
         self.current_sample_id: str | None = None
-        self.records: list[CapturedRecord] = []
-        self.source_dtype: str | None = None
         self.expected_sequence_length: int | None = None
+        self.source_dtype: str | None = None
+        self.records: list[CapturedRecord] = []
 
     def begin_sample(self, sample_id: str, sequence_length: int) -> None:
         if self.current_sample_id is not None:
@@ -85,7 +92,9 @@ def parse_int_list(value: str, name: str) -> tuple[int, ...]:
     try:
         values = tuple(int(item.strip()) for item in value.split(",") if item.strip())
     except ValueError as error:
-        raise argparse.ArgumentTypeError(f"{name} must be a comma-separated integer list") from error
+        raise argparse.ArgumentTypeError(
+            f"{name} must be a comma-separated integer list"
+        ) from error
     if not values:
         raise argparse.ArgumentTypeError(f"{name} must not be empty")
     if any(item < 0 for item in values):
@@ -120,7 +129,7 @@ def parse_args() -> argparse.Namespace:
     if max(args.positions) >= args.max_tokens:
         parser.error("largest --positions entry must be smaller than --max-tokens")
     if not args.revision or len(args.revision) < 12:
-        parser.error("--revision must be an immutable model revision, not a floating tag")
+        parser.error("--revision must be an immutable model revision")
     if args.tokenizer_revision is not None and len(args.tokenizer_revision) < 12:
         parser.error("--tokenizer-revision must be immutable")
     return args
@@ -151,11 +160,11 @@ def load_samples(path: Path) -> list[Sample]:
             sample_id = item.get("sample_id")
             text = item.get("text")
             if not isinstance(sample_id, str) or not sample_id:
-                raise ValueError(f"line {line_number}: sample_id must be a non-empty string")
+                raise ValueError(f"line {line_number}: sample_id must be non-empty")
             if sample_id in seen_ids:
                 raise ValueError(f"duplicate sample_id: {sample_id}")
             if not isinstance(text, str) or not text:
-                raise ValueError(f"line {line_number}: text must be a non-empty string")
+                raise ValueError(f"line {line_number}: text must be non-empty")
             seen_ids.add(sample_id)
             samples.append(Sample(sample_id=sample_id, text=text))
     if not samples:
@@ -167,41 +176,42 @@ def choose_device(torch: Any, requested: str) -> str:
     if requested == "auto":
         return "cuda" if torch.cuda.is_available() else "cpu"
     if requested == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("--device=cuda requested but torch.cuda.is_available() is false")
+        raise RuntimeError("--device=cuda requested but CUDA is unavailable")
     return requested
 
 
-def validate_model_config(config: Any, layers: tuple[int, ...], heads: tuple[int, ...]) -> None:
+def validate_model_config(
+    config: Any,
+    layers: tuple[int, ...],
+    query_heads: tuple[int, ...],
+) -> None:
     if getattr(config, "model_type", None) != "qwen3":
-        raise RuntimeError(f"E4 Qwen3 adapter requires model_type=qwen3, got {config.model_type!r}")
-    if bool(getattr(config, "use_sliding_window", False)) or getattr(config, "sliding_window", None):
+        raise RuntimeError(
+            f"E4 Qwen3 adapter requires model_type=qwen3, got {getattr(config, 'model_type', None)!r}"
+        )
+    if bool(getattr(config, "use_sliding_window", False)) or getattr(
+        config, "sliding_window", None
+    ):
         raise RuntimeError("E4 v1 Qwen3 adapter rejects sliding-window attention")
+
     num_layers = int(config.num_hidden_layers)
     num_heads = int(config.num_attention_heads)
     num_kv_heads = int(config.num_key_value_heads)
     if any(layer >= num_layers for layer in layers):
-        raise RuntimeError(f"selected layer outside model range 0..{num_layers - 1}")
-    if any(head >= num_heads for head in heads):
-        raise RuntimeError(f"selected query head outside model range 0..{num_heads - 1}")
+        raise RuntimeError(f"selected layer outside range 0..{num_layers - 1}")
+    if any(head >= num_heads for head in query_heads):
+        raise RuntimeError(f"selected query head outside range 0..{num_heads - 1}")
     if num_heads % num_kv_heads != 0:
         raise RuntimeError("Qwen3 Q-head count is not divisible by KV-head count")
 
 
-def install_qwen3_capture(torch: Any, qwen3_module: Any, session: CaptureSession) -> Any:
+def install_qwen3_capture(
+    torch: Any,
+    qwen3_module: Any,
+    session: CaptureSession,
+) -> Any:
     original_eager = qwen3_module.eager_attention_forward
 
-    def capture_eager_attention_forward(
-        module: Any,
-        query: Any,
-        key: Any,
-        value: Any,
-        attention_mask: Any,
-        **kwargs: Any,
-    ) -> Any:
-        del value  # only Q/K are captured; the original call receives value below via closure argument name workaround
-        raise AssertionError("unreachable")
-
-    # Define separately so value is retained without confusing linters/readers.
     def wrapper(
         module: Any,
         query: Any,
@@ -210,50 +220,67 @@ def install_qwen3_capture(torch: Any, qwen3_module: Any, session: CaptureSession
         attention_mask: Any,
         **kwargs: Any,
     ) -> Any:
-        if session.current_sample_id is not None and int(module.layer_idx) in session.layers:
+        layer_index = int(module.layer_idx)
+        if session.current_sample_id is not None and layer_index in session.layers:
             if query.ndim != 4 or key.ndim != 4:
-                raise RuntimeError(f"expected [B,H,T,D] Q/K, got {tuple(query.shape)} and {tuple(key.shape)}")
+                raise RuntimeError(
+                    f"expected [B,H,T,D] Q/K, got {tuple(query.shape)} and {tuple(key.shape)}"
+                )
             if query.shape[0] != 1 or key.shape[0] != 1:
                 raise RuntimeError("E4 v1 capture requires batch size 1")
             if query.shape[2] != key.shape[2]:
-                raise RuntimeError("E4 prefill capture requires Q and K sequence lengths to match")
+                raise RuntimeError("E4 prefill requires equal Q and K sequence lengths")
             if session.expected_sequence_length != int(query.shape[2]):
-                raise RuntimeError("attention sequence length differs from tokenizer input length")
+                raise RuntimeError("attention sequence length differs from tokenizer input")
 
-            dtype_name = str(query.dtype).removeprefix("torch.")
-            if session.source_dtype is None:
-                session.source_dtype = dtype_name
-            elif session.source_dtype != dtype_name:
-                raise RuntimeError("capture observed more than one Q source dtype")
-            if str(key.dtype).removeprefix("torch.") != session.source_dtype:
+            query_dtype = str(query.dtype).removeprefix("torch.")
+            key_dtype = str(key.dtype).removeprefix("torch.")
+            if query_dtype != key_dtype:
                 raise RuntimeError("Q and K source dtypes differ")
+            if session.source_dtype is None:
+                session.source_dtype = query_dtype
+            elif session.source_dtype != query_dtype:
+                raise RuntimeError("capture observed more than one Q/K source dtype")
 
             q_heads = int(query.shape[1])
             kv_heads = int(key.shape[1])
             if q_heads % kv_heads != 0:
                 raise RuntimeError("Q/K head ratio is not integral")
             q_per_kv = q_heads // kv_heads
+
             scaling = float(kwargs.get("scaling", getattr(module, "scaling", math.nan)))
             if not math.isfinite(scaling) or scaling <= 0.0:
-                raise RuntimeError("attention scaling is not finite and positive")
+                raise RuntimeError("attention scaling must be finite and positive")
 
             for q_head in session.query_heads:
                 kv_head = q_head // q_per_kv
                 if kv_head >= kv_heads:
-                    raise RuntimeError("derived Q-to-KV mapping is outside captured K heads")
+                    raise RuntimeError("Q-to-KV mapping falls outside captured K heads")
                 for position in session.positions:
                     if position >= query.shape[2]:
                         raise RuntimeError(
                             f"sample {session.current_sample_id!r} has only {query.shape[2]} tokens; "
-                            f"cannot capture requested position {position}"
+                            f"cannot capture position {position}"
                         )
                     visible_count = position + 1
-                    q_cpu = query[0, q_head, position, :].detach().to(torch.float32).cpu().contiguous()
-                    k_cpu = key[0, kv_head, :visible_count, :].detach().to(torch.float32).cpu().contiguous()
+                    q_cpu = (
+                        query[0, q_head, position, :]
+                        .detach()
+                        .to(torch.float32)
+                        .cpu()
+                        .contiguous()
+                    )
+                    k_cpu = (
+                        key[0, kv_head, :visible_count, :]
+                        .detach()
+                        .to(torch.float32)
+                        .cpu()
+                        .contiguous()
+                    )
                     session.records.append(
                         CapturedRecord(
                             sample_id=session.current_sample_id,
-                            layer_index=int(module.layer_idx),
+                            layer_index=layer_index,
                             query_head_index=q_head,
                             kv_head_index=kv_head,
                             query_position=position,
@@ -284,10 +311,6 @@ def push_u64(buffer: bytearray, value: int) -> None:
     buffer += struct.pack("<Q", value)
 
 
-def push_f64(buffer: bytearray, value: float) -> None:
-    buffer += struct.pack("<d", value)
-
-
 def push_string(buffer: bytearray, value: str) -> None:
     encoded = value.encode("utf-8")
     push_u32(buffer, len(encoded))
@@ -295,12 +318,11 @@ def push_string(buffer: bytearray, value: str) -> None:
 
 
 def append_tensor_f32(buffer: bytearray, tensor: Any) -> None:
-    # Tensor is already contiguous CPU float32. NumPy is intentionally avoided.
-    flat = tensor.reshape(-1).tolist()
-    for value in flat:
-        if not math.isfinite(float(value)):
+    for value in tensor.reshape(-1).tolist():
+        numeric = float(value)
+        if not math.isfinite(numeric):
             raise ValueError("non-finite Q/K value encountered during serialization")
-        buffer += struct.pack("<f", float(value))
+        buffer += struct.pack("<f", numeric)
 
 
 def serialize_trace(
@@ -312,8 +334,7 @@ def serialize_trace(
     capture_id: str,
     source_dtype: str,
 ) -> bytes:
-    buffer = bytearray()
-    buffer += TRACE_MAGIC
+    buffer = bytearray(TRACE_MAGIC)
     push_u32(buffer, TRACE_VERSION)
     for value in (
         model_id,
@@ -336,11 +357,11 @@ def serialize_trace(
         push_u64(buffer, record.key_start_position)
         push_u32(buffer, record.head_dim)
         push_u32(buffer, record.key_count)
-        push_f64(buffer, record.score_scale)
+        buffer += struct.pack("<d", record.score_scale)
         if tuple(record.query.shape) != (record.head_dim,):
-            raise ValueError("captured Q shape does not match record metadata")
+            raise ValueError("captured Q shape does not match metadata")
         if tuple(record.keys.shape) != (record.key_count, record.head_dim):
-            raise ValueError("captured K shape does not match record metadata")
+            raise ValueError("captured K shape does not match metadata")
         append_tensor_f32(buffer, record.query)
         append_tensor_f32(buffer, record.keys)
     return bytes(buffer)
@@ -377,6 +398,8 @@ def main() -> int:
         torch_dtype=torch.bfloat16,
     )
     validate_model_config(model.config, args.layers, args.query_heads)
+    if getattr(model.config, "_attn_implementation", None) != "eager":
+        raise RuntimeError("loaded model did not retain attn_implementation=eager")
     model.eval()
     model.to(device)
 
@@ -404,20 +427,31 @@ def main() -> int:
                         f"need at least {max(args.positions) + 1}"
                     )
                 if "attention_mask" in encoded and not bool(encoded["attention_mask"].all()):
-                    raise RuntimeError("E4 v1 Qwen3 capture rejects padded samples")
+                    raise RuntimeError("E4 v1 capture rejects padded samples")
 
                 session.begin_sample(sample.sample_id, sequence_length)
-                device_inputs = {name: tensor.to(device) for name, tensor in encoded.items()}
-                model(**device_inputs, use_cache=False, output_attentions=False)
+                device_inputs = {
+                    name: tensor.to(device) for name, tensor in encoded.items()
+                }
+                model(
+                    **device_inputs,
+                    use_cache=False,
+                    output_attentions=False,
+                )
                 session.end_sample()
     finally:
         modeling_qwen3.eager_attention_forward = original_eager
 
-    expected_records = len(samples) * len(args.layers) * len(args.query_heads) * len(args.positions)
+    expected_records = (
+        len(samples)
+        * len(args.layers)
+        * len(args.query_heads)
+        * len(args.positions)
+    )
     if len(session.records) != expected_records:
         raise RuntimeError(
             f"capture produced {len(session.records)} records; expected {expected_records}. "
-            "The installed Transformers Qwen3 attention path may not match the E4 adapter contract."
+            "Installed Transformers Qwen3 attention may not match the E4 adapter contract."
         )
     if session.source_dtype is None:
         raise RuntimeError("capture produced no Q/K tensors")
@@ -428,9 +462,15 @@ def main() -> int:
         "positions": list(args.positions),
         "max_tokens": args.max_tokens,
     }
-    selection_bytes = json.dumps(selection, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    selection_bytes = json.dumps(
+        selection,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
     selection_sha = hashlib.sha256(selection_bytes).hexdigest()
-    capture_id = args.capture_id or f"qwen3-e4-{samples_sha[:12]}-{selection_sha[:12]}"
+    capture_id = args.capture_id or (
+        f"qwen3-e4-{samples_sha[:12]}-{selection_sha[:12]}"
+    )
 
     trace_bytes = serialize_trace(
         session.records,
@@ -445,7 +485,9 @@ def main() -> int:
     args.output.write_bytes(trace_bytes)
     trace_sha = hashlib.sha256(trace_bytes).hexdigest()
 
-    metadata_path = args.metadata_json or args.output.with_suffix(args.output.suffix + ".json")
+    metadata_path = args.metadata_json or args.output.with_suffix(
+        args.output.suffix + ".json"
+    )
     metadata = {
         "format": "ADAQK01\\0",
         "format_version": TRACE_VERSION,
@@ -474,10 +516,15 @@ def main() -> int:
             "num_key_value_heads": int(model.config.num_key_value_heads),
             "head_dim": int(model.config.head_dim),
             "rope_theta": float(model.config.rope_theta),
-            "use_sliding_window": bool(getattr(model.config, "use_sliding_window", False)),
+            "use_sliding_window": bool(
+                getattr(model.config, "use_sliding_window", False)
+            ),
         },
     }
-    metadata_path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    metadata_path.write_text(
+        json.dumps(metadata, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
     print("capture_status=complete")
     print(f"model_id={args.model_id}")
