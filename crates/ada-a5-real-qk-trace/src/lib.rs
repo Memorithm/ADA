@@ -7,7 +7,7 @@ use std::path::Path;
 
 use ada_a4_qk_box::QueryKeyPagedCase;
 
-pub const TRACE_MAGIC: [u8; 8] = *b"ADAQK01";
+pub const TRACE_MAGIC: [u8; 8] = *b"ADAQK01\0";
 pub const TRACE_VERSION: u32 = 1;
 pub const ATTENTION_SCORE_INPUT_STAGE: &str = "attention_score_input";
 
@@ -265,10 +265,7 @@ fn read_metadata(reader: &mut ByteReader<'_>) -> Result<TraceMetadata, TraceErro
         "ADA-A5 E4 tokenizer_revision must be non-empty",
     )?;
     validate_non_empty(&capture_id, "ADA-A5 E4 capture_id must be non-empty")?;
-    validate_non_empty(
-        &source_dtype,
-        "ADA-A5 E4 source_dtype must be non-empty",
-    )?;
+    validate_non_empty(&source_dtype, "ADA-A5 E4 source_dtype must be non-empty")?;
     if tensor_stage != ATTENTION_SCORE_INPUT_STAGE {
         return Err(TraceError::Invalid(
             "ADA-A5 E4 tensor_stage must be attention_score_input",
@@ -325,7 +322,9 @@ fn read_record(reader: &mut ByteReader<'_>) -> Result<TraceRecord, TraceError> {
         .map_err(|_| TraceError::Invalid("ADA-A5 E4 key_count does not fit in u64"))?;
     let visible_end = key_start_position
         .checked_add(key_count_u64)
-        .ok_or(TraceError::Invalid("ADA-A5 E4 visible key interval overflow"))?;
+        .ok_or(TraceError::Invalid(
+            "ADA-A5 E4 visible key interval overflow",
+        ))?;
     if query_position < key_start_position || query_position >= visible_end {
         return Err(TraceError::Invalid(
             "ADA-A5 E4 query_position must lie inside the visible key interval",
@@ -373,7 +372,9 @@ pub fn parse_trace_bytes(bytes: &[u8]) -> Result<TraceCorpus, TraceError> {
         return Err(TraceError::Invalid("ADA-A5 E4 trace magic mismatch"));
     }
     if reader.read_u32()? != TRACE_VERSION {
-        return Err(TraceError::Invalid("ADA-A5 E4 trace version is unsupported"));
+        return Err(TraceError::Invalid(
+            "ADA-A5 E4 trace version is unsupported",
+        ));
     }
 
     let metadata = read_metadata(&mut reader)?;

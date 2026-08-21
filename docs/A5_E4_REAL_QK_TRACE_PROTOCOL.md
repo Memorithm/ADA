@@ -75,7 +75,7 @@ All integers are little-endian unsigned values. All strings are UTF-8 and encode
 
 ### Global header
 
-1. 8-byte magic: ASCII `ADAQK01`
+1. 8-byte magic: ASCII `ADAQK01` followed by one `0x00` byte
 2. `u32 format_version` = 1
 3. string `model_id`
 4. string `model_revision`

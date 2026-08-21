@@ -218,23 +218,15 @@ fn measure_divisor(
     leaf_divisor: usize,
 ) -> Result<CaseMetrics, String> {
     let leaf_size = case.page_size.div_ceil(leaf_divisor);
-    let contiguous_index = build_hierarchical_key_index(
-        &case.keys,
-        case.head_dim,
-        case.page_size,
-        leaf_size,
-    )
-    .map_err(str::to_owned)?;
-    let contiguous = branch_and_bound_entmax_hierarchical(case, &contiguous_index)
-        .map_err(str::to_owned)?;
+    let contiguous_index =
+        build_hierarchical_key_index(&case.keys, case.head_dim, case.page_size, leaf_size)
+            .map_err(str::to_owned)?;
+    let contiguous =
+        branch_and_bound_entmax_hierarchical(case, &contiguous_index).map_err(str::to_owned)?;
 
-    let content_index = build_content_aware_key_index(
-        &case.keys,
-        case.head_dim,
-        case.page_size,
-        leaf_size,
-    )
-    .map_err(str::to_owned)?;
+    let content_index =
+        build_content_aware_key_index(&case.keys, case.head_dim, case.page_size, leaf_size)
+            .map_err(str::to_owned)?;
     let content =
         branch_and_bound_entmax_content_aware(case, &content_index).map_err(str::to_owned)?;
 
@@ -282,12 +274,7 @@ fn measure_divisor(
     })
 }
 
-fn print_case(
-    record_index: usize,
-    record: &TraceRecord,
-    config: ConfigKey,
-    metrics: &CaseMetrics,
-) {
+fn print_case(record_index: usize, record: &TraceRecord, config: ConfigKey, metrics: &CaseMetrics) {
     println!(
         "case,record_index={record_index},sample_fingerprint={:016x},layer={},query_head={},kv_head={},query_position={},key_start_position={},key_count={},head_dim={},alpha={:.1},page_size={},leaf_divisor={},leaf_size={},support_fraction={:.6},flat_score_avoidance={:.6},contiguous_score_avoidance={:.6},content_score_avoidance={:.6},content_gain_over_flat={:.6},content_gain_over_contiguous={:.6},contiguous_bound_evaluations_per_token={:.6},content_bound_evaluations_per_token={:.6},ball_bound_win_fraction={:.6},contiguous_nodes_expanded={},content_nodes_expanded={},contiguous_threshold_solves={},content_threshold_solves={},flat_probability_difference={:.3e},contiguous_probability_difference={:.3e},content_probability_difference={:.3e},flat_tau_difference={:.3e},contiguous_tau_difference={:.3e},content_tau_difference={:.3e}",
         record.sample_fingerprint(),
@@ -372,7 +359,10 @@ fn main() -> Result<(), String> {
                     let config = ConfigKey::new(alpha, page_size, leaf_divisor);
                     let metrics = measure_divisor(&case, &dense, &flat, leaf_divisor)?;
                     print_case(record_index, record, config, &metrics);
-                    global_aggregates.entry(config).or_default().record(&metrics);
+                    global_aggregates
+                        .entry(config)
+                        .or_default()
+                        .record(&metrics);
                     layer_aggregates
                         .entry(LayerConfigKey {
                             layer_index: record.layer_index,
