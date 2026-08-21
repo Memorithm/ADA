@@ -71,7 +71,9 @@ fn main() {
 
     println!("ADA-A1 deterministic CPU evidence");
     println!("seed={SEED:#018x} iterations={iterations}");
-    println!("seq_len,head_dim,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_ns,candidate_ns,speedup");
+    println!(
+        "seq_len,head_dim,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_ns,candidate_ns,speedup"
+    );
 
     for (index, &(seq_len, head_dim)) in shapes.iter().enumerate() {
         let case = make_case(seq_len, head_dim, SEED.wrapping_add(index as u64));
@@ -94,10 +96,11 @@ fn main() {
 
         println!(
             "{seq_len},{head_dim},{max_o:.9e},{max_lse:.9e},{},{},{baseline_ns},{candidate_ns},{speedup:.6}",
-            baseline.metrics.exp_evaluations,
-            candidate.metrics.exp_evaluations,
+            baseline.metrics.exp_evaluations, candidate.metrics.exp_evaluations,
         );
     }
 
-    println!("NOTE: CPU timings are local evidence only; they are not GPU/FLAT performance claims.");
+    println!(
+        "NOTE: CPU timings are local evidence only; they are not GPU/FLAT performance claims."
+    );
 }
