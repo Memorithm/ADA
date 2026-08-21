@@ -14,6 +14,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-a5-content-aware-bounds"
+version = "0.1.0"
+dependencies = [
+ "ada-a4-entmax-bnb",
+ "ada-a4-qk-box",
+ "ada-a5-hierarchical-bounds",
+]
+
+[[package]]
 name = "ada-a5-hierarchical-bounds"
 version = "0.1.0"
 dependencies = [
