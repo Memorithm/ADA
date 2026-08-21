@@ -1,0 +1,97 @@
+ADA experiment: ADA-A1 One-Exp Online Softmax
+ada_sha=8c7be0025fdc8dad3996d6f27d2e70830282b7f6
+utc=20260821T190508Z
+
+=== SYSTEM ===
+Linux tarek 6.8.12-tegra #1 SMP PREEMPT Tue Dec 30 15:40:41 PST 2025 aarch64 aarch64 aarch64 GNU/Linux
+
+PRETTY_NAME="Ubuntu 24.04.4 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.4 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+
+rustc 1.89.0 (29483883e 2025-08-04)
+cargo 1.89.0 (c24e10642 2025-06-23)
+
+=== CPU ===
+Architecture:                         aarch64
+CPU op-mode(s):                       64-bit
+Byte Order:                           Little Endian
+CPU(s):                               14
+On-line CPU(s) list:                  0-13
+Vendor ID:                            ARM
+BIOS Vendor ID:                       NVIDIA
+Model name:                           -
+BIOS Model name:                      Thor Not Specified CPU @ 2.6GHz
+BIOS CPU family:                      257
+Model:                                0
+Thread(s) per core:                   1
+Core(s) per cluster:                  14
+Socket(s):                            1
+Cluster(s):                           1
+Stepping:                             r0p0
+CPU(s) scaling MHz:                   53%
+CPU max MHz:                          2601.0000
+CPU min MHz:                          54.0000
+BogoMIPS:                             2000.00
+Flags:                                fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 sve asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp sve2 sveaes svepmull svebitperm svesha3 svesm4 flagm2 frint svei8mm svebf16 i8mm bf16 dgh bti ecv afp wfxt
+L1d cache:                            896 KiB (14 instances)
+L1i cache:                            896 KiB (14 instances)
+L2 cache:                             14 MiB (14 instances)
+NUMA node(s):                         1
+NUMA node0 CPU(s):                    0-13
+Vulnerability Gather data sampling:   Not affected
+Vulnerability Itlb multihit:          Not affected
+Vulnerability L1tf:                   Not affected
+Vulnerability Mds:                    Not affected
+Vulnerability Meltdown:               Not affected
+Vulnerability Mmio stale data:        Not affected
+Vulnerability Reg file data sampling: Not affected
+Vulnerability Retbleed:               Not affected
+Vulnerability Spec rstack overflow:   Not affected
+Vulnerability Spec store bypass:      Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:             Mitigation; __user pointer sanitization
+Vulnerability Spectre v2:             Not affected
+Vulnerability Srbds:                  Not affected
+Vulnerability Tsx async abort:        Not affected
+
+=== NVIDIA ===
+Fri Aug 21 21:05:08 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.00                 Driver Version: 580.00         CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA Thor                    Off |   00000000:01:00.0 Off |                  N/A |
+| N/A   33C  N/A               3W /  N/A  | Not Supported          |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+
+=== ADA-A1 RELEASE BENCH ===
+ADA-A1 deterministic CPU evidence v1
+seed=0xada0000000000001 rounds=21 warmup_calls=20
+seq_len,head_dim,iterations,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_median_ns,candidate_median_ns,baseline_p95_ns,candidate_p95_ns,baseline_mad_ns,candidate_mad_ns,speedup_ppm
+128,64,512,0.000000000e0,0.000000000e0,255,127,7001,6293,18326,16487,158,195,1112505
+512,64,128,0.000000000e0,0.000000000e0,1023,511,26927,24420,26980,24453,18,15,1102661
+2048,128,16,0.000000000e0,0.000000000e0,4095,2047,186199,170081,189003,177787,1073,1349,1094766
+4096,128,8,0.000000000e0,0.000000000e0,8191,4095,371729,338699,381425,353492,2825,1075,1097520
+NOTE: CPU timings are local Thor evidence only; speedup_ppm is baseline_median/candidate_median * 1e6. No GPU/FLAT performance claim is implied.
