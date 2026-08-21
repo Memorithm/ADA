@@ -98,8 +98,8 @@ fn main() {
         let candidate_time = bench(&case, iterations, true);
         let baseline_ns = baseline_time.as_nanos() / iterations_u128;
         let candidate_ns = candidate_time.as_nanos() / iterations_u128;
-        let speedup = baseline_time.as_secs_f64()
-            / candidate_time.as_secs_f64().max(f64::MIN_POSITIVE);
+        let speedup =
+            baseline_time.as_secs_f64() / candidate_time.as_secs_f64().max(f64::MIN_POSITIVE);
 
         println!(
             "{seq_len},{head_dim},{max_o:.9e},{max_lse:.9e},{},{},{baseline_ns},{candidate_ns},{speedup:.6}",
