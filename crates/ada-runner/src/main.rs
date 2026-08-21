@@ -147,7 +147,7 @@ fn main() {
         let mut candidate_samples = Vec::with_capacity(ROUNDS);
 
         for round in 0..ROUNDS {
-            if round.is_multiple_of(2) {
+            if round % 2 == 0 {
                 baseline_samples.push(bench_ns_per_iteration(&case, shape.iterations, false));
                 candidate_samples.push(bench_ns_per_iteration(&case, shape.iterations, true));
             } else {
