@@ -106,17 +106,51 @@ The crucial result is A1B: it reaches the NVIDIA driver with one static SPIR-V `
 
 Therefore Naga is not already collapsing Q4 to the same one-`Exp` SPIR-V form. The unexplained performance difference is localized below or within the NVIDIA compilation / scheduling layer (or to dependency structure presented to that compiler), not to a WGSL-to-SPIR-V elimination of the second Q4 exponential.
 
+## Generic optimized SPIR-V (`spirv-opt -O`)
+
+The already-preserved SPIR-V modules were optimized offline with SPIRV-Tools `spirv-opt -O`, validated, and disassembled. The optimizer did not collapse the qualitative difference between Q4 and A1B.
+
+Summary SHA-256:
+
+`55911a236425347047e36fdc74e9b541474aaccf5189cd3eea2bd617e4a47601`
+
+Optimized sizes:
+
+| Variant | Original | `-O` | Reduction |
+| --- | ---: | ---: | ---: |
+| Q4 | 13848 B | 11888 B | 14.15% |
+| A1 branched | 14364 B | 12184 B | 15.18% |
+| A1B branchless | 14260 B | 12096 B | 15.18% |
+
+After generic optimization, A1 is still about 2.49% larger than Q4 and A1B is still about 1.75% larger than Q4.
+
+Static key-op counts after `spirv-opt -O`:
+
+| Op | Q4 | A1 branched | A1B branchless |
+| --- | ---: | ---: | ---: |
+| `Exp` | 2 | 2 | 1 |
+| `FAbs` | 0 | 0 | 1 |
+| `FMax` | 1 | 0 | 1 |
+| `OpSelect` | 45 | 46 | 47 |
+| `OpBranchConditional` | 42 | 44 | 43 |
+| `OpPhi` | 59 | 63 | 61 |
+
+`spirv-opt -O` introduced SSA `OpPhi` structure but did not remove either Q4 exponential and did not transform Q4 toward the A1B one-`Exp` recurrence. Q4 remains the smallest module before and after optimization.
+
+Mechanistic consequence: the generic WGSL -> Naga -> SPIR-V -> generic SPIR-V optimization path is now exhausted as an explanation for Q4's measured advantage. The remaining performance gap must be investigated at the NVIDIA backend / machine scheduling level, or as a consequence of the dependency graph presented to that backend.
+
 ## Current falsified / weakened hypotheses
 
 - **Falsified for these direct mappings:** halving the logical/static exponential count is sufficient to improve this Q4 GPU kernel on Thor.
 - **Strongly weakened:** dynamic branch divergence is the dominant cause of the A1 slowdown. A1B removes the steady-state branch and recovers only a small part of the loss.
 - **Not supported by the Vulkan statistics:** increased register count or shared-memory allocation explains the slowdown.
+- **Falsified:** a generic SPIR-V optimization pass collapses Q4 into a one-`Exp` form before the NVIDIA backend.
 
 ## Active hypotheses
 
 The remaining serious mechanisms include:
 
-1. NVIDIA backend optimization of the Q4 dependency graph despite two SPIR-V `Exp` instructions.
+1. NVIDIA backend optimization / scheduling of the Q4 dependency graph despite two SPIR-V `Exp` instructions.
 2. Better instruction-level parallelism / latency hiding in Q4 than in the one-`Exp` forms.
 3. A longer serialized dependency chain in A1B (`sub -> abs -> exp -> compare/select -> recurrence update`).
 4. Different lower-level instruction selection or scheduling for `select`, `abs`, comparisons, and control flow.
@@ -124,10 +158,6 @@ The remaining serious mechanisms include:
 
 ## Next experiment
 
-Run an offline `spirv-opt -O` pass on the three already-preserved SPIR-V modules, then disassemble and compare:
+Preserve the optimized-SPIR-V evidence, then stop creating new direct WGSL A1 mappings.
 
-- optimized module size;
-- static `Exp`, `FAbs`, `FMax`, `OpSelect`, `OpBranchConditional`, and `OpPhi` counts;
-- whether generic SPIR-V optimization changes Q4 toward A1B or preserves the same qualitative structure.
-
-If optimized SPIR-V still leaves Q4 with two `Exp` and A1B with one, then further explanation requires NVIDIA-specific lower-level evidence (for example cubin/SASS or a native NVIDIA profiling/compiler path), not another unmotivated WGSL recurrence variant.
+The next mechanistic gate requires NVIDIA-specific lower-level evidence: native NVIDIA compiler/profiler output, cubin/SASS, or equivalent machine-level scheduling evidence. That work may be performed through the separate NVIDIA Native Inference Stack project, while ADA retains the hypothesis, oracle, evidence contract, and promotion/rejection decision.
