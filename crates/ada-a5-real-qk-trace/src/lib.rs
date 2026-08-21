@@ -468,12 +468,14 @@ mod tests {
         assert_eq!(record.kv_head_index, 1);
         assert_eq!(record.query_position, 2);
         assert_eq!(record.key_count, 3);
-        assert_eq!(record.query, vec![1.0, -2.0]);
+        assert_eq!(record.query.len(), 2);
+        assert_eq!(record.query[0].to_bits(), 1.0_f64.to_bits());
+        assert_eq!(record.query[1].to_bits(), (-2.0_f64).to_bits());
         assert_eq!(record.keys.len(), 6);
         let case = record.to_query_key_case(2, 1.5).unwrap();
         assert_eq!(case.page_size, 2);
-        assert_eq!(case.alpha, 1.5);
-        assert_eq!(case.score_scale, 0.5);
+        assert_eq!(case.alpha.to_bits(), 1.5_f64.to_bits());
+        assert_eq!(case.score_scale.to_bits(), 0.5_f64.to_bits());
     }
 
     #[test]
