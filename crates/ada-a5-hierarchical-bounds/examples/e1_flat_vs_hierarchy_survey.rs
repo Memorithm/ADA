@@ -363,13 +363,12 @@ fn measure_case(
     let score_total = case.key_count();
     let flat_scores_loaded = flat.metrics.scores_loaded;
     let hierarchical_tokens_loaded = hierarchical.metrics.tokens_loaded;
-    let flat_score_avoidance =
-        1.0 - usize_as_f64(flat_scores_loaded) / usize_as_f64(score_total);
+    let flat_score_avoidance = 1.0 - usize_as_f64(flat_scores_loaded) / usize_as_f64(score_total);
     let hierarchical_score_avoidance =
         1.0 - usize_as_f64(hierarchical_tokens_loaded) / usize_as_f64(score_total);
-    let additional_score_avoidance =
-        (usize_as_f64(flat_scores_loaded) - usize_as_f64(hierarchical_tokens_loaded))
-            / usize_as_f64(score_total);
+    let additional_score_avoidance = (usize_as_f64(flat_scores_loaded)
+        - usize_as_f64(hierarchical_tokens_loaded))
+        / usize_as_f64(score_total);
     let hierarchical_load_vs_flat =
         usize_as_f64(hierarchical_tokens_loaded) / usize_as_f64(flat_scores_loaded);
     let hierarchy_bound_evaluations_per_token =
@@ -475,11 +474,7 @@ fn main() -> Result<(), &'static str> {
     );
     println!(
         "comparison_case_count={}",
-        SHAPES.len()
-            * REGIMES.len()
-            * ALPHAS.len()
-            * SEEDS.len()
-            * LEAF_DIVISORS.len()
+        SHAPES.len() * REGIMES.len() * ALPHAS.len() * SEEDS.len() * LEAF_DIVISORS.len()
     );
 
     let mut aggregates = build_aggregates();
@@ -491,7 +486,8 @@ fn main() -> Result<(), &'static str> {
                     for leaf_divisor in LEAF_DIVISORS {
                         let metrics = measure_case(&case, leaf_divisor)?;
                         print_case(shape, regime, alpha, seed, leaf_divisor, &metrics);
-                        aggregate_for(&mut aggregates, regime, alpha, leaf_divisor).record(&metrics);
+                        aggregate_for(&mut aggregates, regime, alpha, leaf_divisor)
+                            .record(&metrics);
                     }
                 }
             }
