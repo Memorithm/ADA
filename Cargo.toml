@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "crates/ada-a4-entmax-bnb",
     "crates/ada-a4-qk-box",
+    "crates/ada-a5-content-aware-bounds",
     "crates/ada-a5-hierarchical-bounds",
     "crates/ada-core",
     "crates/ada-oracle",
