@@ -6,7 +6,7 @@
 | ADA-A2 | K-first / V-late staging and scheduling | PLANNED |
 | ADA-A3 | Certified error-budgeted Softmax | PLANNED |
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
-| ADA-A5 | Hierarchical safe Pre-KV bounds | RESEARCH |
+| ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CANDIDATE |
 | ADA-A6 | Specialized tau solvers | RESEARCH |
 | ADA-A7 | Moment / composable Entmax | INVESTIGATE |
 | ADA-A8 | Attention recurrence program synthesis | PLANNED |
@@ -21,6 +21,7 @@
 - `CPU-E0-CORRECTNESS` means the isolated A4 score-level subset-threshold branch-and-bound candidate has passed its declared local correctness gates on CPU: workspace fmt, strict clippy, all unit/doc tests, subset-threshold monotonicity, adversarial support preservation, dense-oracle parity, exhaustive small states for alpha=1.5 and alpha=2.0, and safe dense fallback under loose bounds. This is correctness qualification only, not a performance or production claim.
 - `E1-QK-BOX-CORRECTNESS` means the A4 coordinate-box follow-on has passed its declared local correctness gates: query/key min-max page bounds dominate every dense page score in the tested mixed-sign and exhaustive fixtures; exact branch-and-bound parity and support preservation hold for alpha=1.5 and alpha=2.0; positive attention scaling is covered; loose boxes degrade safely; and strict crate/workspace Clippy plus unit/doc tests are green. This is still scalar CPU correctness evidence, not a claim that the boxes are tight enough to save useful work on model distributions.
 - `E2-SYNTHETIC-SURVEY-QUALIFIED` means the deterministic A4 pruning survey ran from a clean committed tree, passed its build/test gates, completed all 126 declared synthetic cases, preserved no dense-support false negatives, and has raw evidence with a recorded SHA-256 digest. It qualifies the reported synthetic algorithmic pruning observations only. It is not a wall-clock benchmark, model-distribution qualification, hardware speedup claim, or production qualification.
+- `E0-HIERARCHICAL-BOUND-CANDIDATE` means A5 has an isolated scalar candidate that recursively refines coordinate-box bounds within outer KV pages while retaining the exact A4 subset-threshold pruning certificate. The candidate is not correctness-qualified until its declared local gates pass. Its current dense-score checks are oracle-side numerical safety checks, not a production directed-rounding proof.
 - The rejected branch-specialized and branchless A1 mappings must remain preserved as negative evidence and must not be silently re-labelled as qualified.
 - None of these statuses means production-qualified, novel, or adopted by FLAT-ATTENTION.
 
