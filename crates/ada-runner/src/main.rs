@@ -23,8 +23,12 @@ impl Rng {
     }
 
     fn f32_signed(&mut self) -> f32 {
-        let mantissa = (self.next_u64() >> 40) as u32;
-        let unit = mantissa as f32 / ((1_u32 << 24) as f32);
+        // Construct a uniform value in [0, 1) directly from the 23 explicit
+        // mantissa bits of an IEEE-754 f32. This avoids integer-to-float casts
+        // whose precision semantics would otherwise be ambiguous to Clippy.
+        let mantissa_bits = u32::try_from((self.next_u64() >> 41) & 0x007f_ffff)
+            .expect("23 mantissa bits always fit in u32");
+        let unit = f32::from_bits(0x3f80_0000 | mantissa_bits) - 1.0;
         2.0 * unit - 1.0
     }
 }
@@ -68,6 +72,7 @@ fn bench(case: &AttentionCase, iterations: usize, candidate: bool) -> Duration {
 fn main() {
     let shapes = [(128, 64), (512, 64), (2048, 128), (4096, 128)];
     let iterations = 200_usize;
+    let iterations_u128 = u128::try_from(iterations).expect("iteration count fits in u128");
 
     println!("ADA-A1 deterministic CPU evidence");
     println!("seed={SEED:#018x} iterations={iterations}");
@@ -76,7 +81,8 @@ fn main() {
     );
 
     for (index, &(seq_len, head_dim)) in shapes.iter().enumerate() {
-        let case = make_case(seq_len, head_dim, SEED.wrapping_add(index as u64));
+        let index_u64 = u64::try_from(index).expect("shape index fits in u64");
+        let case = make_case(seq_len, head_dim, SEED.wrapping_add(index_u64));
         let baseline = online_softmax_baseline(&case).expect("generated case must validate");
         let candidate = online_softmax_one_exp(&case).expect("generated case must validate");
         let max_o = max_abs_diff(&baseline.output, &candidate.output);
@@ -90,9 +96,10 @@ fn main() {
 
         let baseline_time = bench(&case, iterations, false);
         let candidate_time = bench(&case, iterations, true);
-        let baseline_ns = baseline_time.as_nanos() / iterations as u128;
-        let candidate_ns = candidate_time.as_nanos() / iterations as u128;
-        let speedup = baseline_ns as f64 / candidate_ns.max(1) as f64;
+        let baseline_ns = baseline_time.as_nanos() / iterations_u128;
+        let candidate_ns = candidate_time.as_nanos() / iterations_u128;
+        let speedup = baseline_time.as_secs_f64()
+            / candidate_time.as_secs_f64().max(f64::MIN_POSITIVE);
 
         println!(
             "{seq_len},{head_dim},{max_o:.9e},{max_lse:.9e},{},{},{baseline_ns},{candidate_ns},{speedup:.6}",
