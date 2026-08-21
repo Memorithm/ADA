@@ -6,6 +6,11 @@ use ada_core::{AttentionCase, AttentionResult, LogicalMetrics};
 ///
 /// For `n` logits this evaluates `2n-1` non-trivial/explicit `exp` calls in
 /// this scalar formulation and one final `ln` for LSE.
+///
+/// # Errors
+///
+/// Returns an error when the supplied [`AttentionCase`] violates the ADA-A1 E0
+/// input contract, as determined by [`AttentionCase::validate`].
 pub fn online_softmax_baseline(case: &AttentionCase) -> Result<AttentionResult, &'static str> {
     case.validate()?;
 
@@ -55,6 +60,11 @@ pub fn online_softmax_baseline(case: &AttentionCase) -> Result<AttentionResult, 
 /// The first score initializes `(m, l, O) = (s0, 1, V0)`. Each later score
 /// evaluates exactly one `exp`: either the new score is below the running max,
 /// or it becomes the new max and rescales the previous state.
+///
+/// # Errors
+///
+/// Returns an error when the supplied [`AttentionCase`] violates the ADA-A1 E0
+/// input contract, as determined by [`AttentionCase::validate`].
 pub fn online_softmax_one_exp(case: &AttentionCase) -> Result<AttentionResult, &'static str> {
     case.validate()?;
 
@@ -115,7 +125,9 @@ mod tests {
         let mut values = Vec::with_capacity(logits.len() * head_dim);
         for key in 0..logits.len() {
             for lane in 0..head_dim {
-                values.push((key * head_dim + lane) as f32 * 0.03125 - 0.5);
+                let linear_index = u16::try_from(key * head_dim + lane)
+                    .expect("ADA-A1 unit-test value index fits in u16");
+                values.push(f32::from(linear_index) * 0.03125 - 0.5);
             }
         }
         AttentionCase {
