@@ -1,4 +1,4 @@
-use ada_a4_entmax_bnb::{branch_and_bound_entmax, BranchAndBoundResult, EntmaxPagedCase};
+use ada_a4_entmax_bnb::{BranchAndBoundResult, EntmaxPagedCase, branch_and_bound_entmax};
 
 /// Coordinate-wise min/max metadata for one key page.
 ///
@@ -127,10 +127,8 @@ pub fn build_page_key_boxes(
 
         let page_values = &keys[first_start..page_end * head_dim];
         for row in page_values.chunks_exact(head_dim).skip(1) {
-            for ((min_value, max_value), &value) in minimum
-                .iter_mut()
-                .zip(maximum.iter_mut())
-                .zip(row.iter())
+            for ((min_value, max_value), &value) in
+                minimum.iter_mut().zip(maximum.iter_mut()).zip(row.iter())
             {
                 *min_value = min_value.min(value);
                 *max_value = max_value.max(value);
@@ -323,11 +321,7 @@ mod tests {
         let case = QueryKeyPagedCase {
             query: vec![2.0, -3.0, 0.5],
             keys: vec![
-                1.0, 4.0, -2.0,
-                3.0, -1.0, 5.0,
-                -4.0, 2.0, 1.0,
-                0.5, -3.0, 7.0,
-                2.0, 2.0, 2.0,
+                1.0, 4.0, -2.0, 3.0, -1.0, 5.0, -4.0, 2.0, 1.0, 0.5, -3.0, 7.0, 2.0, 2.0, 2.0,
             ],
             head_dim: 3,
             page_size: 2,
@@ -340,12 +334,7 @@ mod tests {
     #[test]
     fn qk_box_branch_and_bound_prunes_obvious_pages_exactly() {
         let keys = vec![
-            8.0, 0.0,
-            7.0, 0.0,
-            -10.0, 0.0,
-            -12.0, 1.0,
-            0.0, 9.0,
-            1.0, 10.0,
+            8.0, 0.0, 7.0, 0.0, -10.0, 0.0, -12.0, 1.0, 0.0, 9.0, 1.0, 10.0,
         ];
         for alpha in [1.5, 2.0] {
             let case = QueryKeyPagedCase {
@@ -383,10 +372,7 @@ mod tests {
         let case = QueryKeyPagedCase {
             query: vec![1.0, -2.0, 0.5, 3.0],
             keys: vec![
-                2.0, 0.0, 1.0, -1.0,
-                1.0, 1.0, 0.0, -2.0,
-                -3.0, 2.0, 1.0, 0.0,
-                0.0, -1.0, -2.0, 1.0,
+                2.0, 0.0, 1.0, -1.0, 1.0, 1.0, 0.0, -2.0, -3.0, 2.0, 1.0, 0.0, 0.0, -1.0, -2.0, 1.0,
             ],
             head_dim: 4,
             page_size: 2,
