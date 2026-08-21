@@ -92,7 +92,12 @@ fn p95(mut samples: Vec<u128>) -> u128 {
 }
 
 fn mad(samples: &[u128], center: u128) -> u128 {
-    median(samples.iter().map(|sample| sample.abs_diff(center)).collect())
+    median(
+        samples
+            .iter()
+            .map(|sample| sample.abs_diff(center))
+            .collect(),
+    )
 }
 
 fn main() {
@@ -127,11 +132,7 @@ fn main() {
 
     for (index, shape) in shapes.iter().copied().enumerate() {
         let index_u64 = u64::try_from(index).expect("shape index fits in u64");
-        let case = make_case(
-            shape.seq_len,
-            shape.head_dim,
-            SEED.wrapping_add(index_u64),
-        );
+        let case = make_case(shape.seq_len, shape.head_dim, SEED.wrapping_add(index_u64));
         let baseline = online_softmax_baseline(&case).expect("generated case must validate");
         let candidate = online_softmax_one_exp(&case).expect("generated case must validate");
         let max_o = max_abs_diff(&baseline.output, &candidate.output);
