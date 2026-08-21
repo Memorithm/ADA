@@ -16,12 +16,18 @@ if ! [[ "${REPEATS}" =~ ^[1-9][0-9]*$ ]]; then
     exit 2
 fi
 
-for command in git cargo rustc taskset nvpmodel jetson_clocks lscpu; do
+for command in git cargo rustc taskset nvpmodel jetson_clocks lscpu sha256sum seq ps head; do
     if ! command -v "${command}" >/dev/null 2>&1; then
         echo "error: required command not found: ${command}" >&2
         exit 2
     fi
 done
+
+if [[ -n "$(git status --porcelain)" ]]; then
+    echo "error: ADA L2 requires a clean Git working tree" >&2
+    git status --short >&2
+    exit 3
+fi
 
 CPU_DIR="/sys/devices/system/cpu/cpu${CORE}/cpufreq"
 if [[ ! -d "${CPU_DIR}" ]]; then
@@ -79,12 +85,9 @@ thermal_snapshot() {
     echo "evidence_level=L2"
     echo "ada_sha=${SHA}"
     echo "utc=${STAMP}"
+    echo "working_tree_before=clean"
     echo "cpu_core=${CORE}"
     echo "process_repeats=${REPEATS}"
-    echo
-
-    echo "=== GIT ==="
-    git status --short
     echo
 
     echo "=== SYSTEM ==="
