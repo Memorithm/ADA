@@ -1,10 +1,9 @@
 use std::collections::BTreeMap;
 use std::env;
+use std::path::PathBuf;
 
-use ada_a4_entmax_bnb::{EntmaxDistribution, dense_entmax};
-use ada_a4_qk_box::{
-    BranchAndBoundResult, QueryKeyPagedCase, branch_and_bound_entmax_qk_box, dense_qk_scores,
-};
+use ada_a4_entmax_bnb::{BranchAndBoundResult, EntmaxDistribution, dense_entmax};
+use ada_a4_qk_box::{QueryKeyPagedCase, branch_and_bound_entmax_qk_box, dense_qk_scores};
 use ada_a5_content_aware_bounds::{
     ContentAwareResult, branch_and_bound_entmax_content_aware, build_content_aware_key_index,
 };
@@ -328,6 +327,7 @@ fn print_case(
 fn main() -> Result<(), String> {
     let trace_path = env::args_os()
         .nth(1)
+        .map(PathBuf::from)
         .ok_or_else(|| "usage: e4_trace_replay <trace.adaqk>".to_owned())?;
     let corpus = read_trace_file(&trace_path).map_err(|error| error.to_string())?;
     let metadata = corpus.metadata();
