@@ -5,6 +5,7 @@ members = [
     "crates/ada-a4-qk-box",
     "crates/ada-a5-content-aware-bounds",
     "crates/ada-a5-hierarchical-bounds",
+    "crates/ada-a5-real-qk-trace",
     "crates/ada-core",
     "crates/ada-oracle",
     "crates/ada-runner",
