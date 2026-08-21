@@ -3,9 +3,11 @@
 use ada_core::AttentionCase;
 use ada_oracle::{online_softmax_baseline, online_softmax_one_exp};
 use std::hint::black_box;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 const SEED: u64 = 0xADA0_0000_0000_0001;
+const ROUNDS: usize = 21;
+const WARMUP_CALLS: usize = 20;
 
 #[derive(Clone, Copy)]
 struct Rng(u64);
@@ -33,6 +35,13 @@ impl Rng {
     }
 }
 
+#[derive(Clone, Copy)]
+struct BenchShape {
+    seq_len: usize,
+    head_dim: usize,
+    iterations: usize,
+}
+
 fn make_case(seq_len: usize, head_dim: usize, seed: u64) -> AttentionCase {
     let mut rng = Rng::new(seed);
     let logits = (0..seq_len)
@@ -55,7 +64,7 @@ fn max_abs_diff(left: &[f32], right: &[f32]) -> f32 {
         .fold(0.0_f32, f32::max)
 }
 
-fn bench(case: &AttentionCase, iterations: usize, candidate: bool) -> Duration {
+fn bench_ns_per_iteration(case: &AttentionCase, iterations: usize, candidate: bool) -> u128 {
     let start = Instant::now();
     for _ in 0..iterations {
         let result = if candidate {
@@ -66,48 +75,105 @@ fn bench(case: &AttentionCase, iterations: usize, candidate: bool) -> Duration {
         .expect("validated deterministic case");
         black_box(result);
     }
-    start.elapsed()
+    let iterations_u128 = u128::try_from(iterations).expect("iteration count fits in u128");
+    start.elapsed().as_nanos() / iterations_u128
+}
+
+fn median(mut samples: Vec<u128>) -> u128 {
+    samples.sort_unstable();
+    samples[samples.len() / 2]
+}
+
+fn p95(mut samples: Vec<u128>) -> u128 {
+    samples.sort_unstable();
+    let rank = samples.len().saturating_mul(95).div_ceil(100);
+    let index = rank.saturating_sub(1).min(samples.len() - 1);
+    samples[index]
+}
+
+fn mad(samples: &[u128], center: u128) -> u128 {
+    median(samples.iter().map(|sample| sample.abs_diff(center)).collect())
 }
 
 fn main() {
-    let shapes = [(128, 64), (512, 64), (2048, 128), (4096, 128)];
-    let iterations = 200_usize;
-    let iterations_u128 = u128::try_from(iterations).expect("iteration count fits in u128");
+    let shapes = [
+        BenchShape {
+            seq_len: 128,
+            head_dim: 64,
+            iterations: 512,
+        },
+        BenchShape {
+            seq_len: 512,
+            head_dim: 64,
+            iterations: 128,
+        },
+        BenchShape {
+            seq_len: 2048,
+            head_dim: 128,
+            iterations: 16,
+        },
+        BenchShape {
+            seq_len: 4096,
+            head_dim: 128,
+            iterations: 8,
+        },
+    ];
 
-    println!("ADA-A1 deterministic CPU evidence");
-    println!("seed={SEED:#018x} iterations={iterations}");
+    println!("ADA-A1 deterministic CPU evidence v1");
+    println!("seed={SEED:#018x} rounds={ROUNDS} warmup_calls={WARMUP_CALLS}");
     println!(
-        "seq_len,head_dim,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_ns,candidate_ns,speedup"
+        "seq_len,head_dim,iterations,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_median_ns,candidate_median_ns,baseline_p95_ns,candidate_p95_ns,baseline_mad_ns,candidate_mad_ns,speedup_ppm"
     );
 
-    for (index, &(seq_len, head_dim)) in shapes.iter().enumerate() {
+    for (index, shape) in shapes.iter().copied().enumerate() {
         let index_u64 = u64::try_from(index).expect("shape index fits in u64");
-        let case = make_case(seq_len, head_dim, SEED.wrapping_add(index_u64));
+        let case = make_case(
+            shape.seq_len,
+            shape.head_dim,
+            SEED.wrapping_add(index_u64),
+        );
         let baseline = online_softmax_baseline(&case).expect("generated case must validate");
         let candidate = online_softmax_one_exp(&case).expect("generated case must validate");
         let max_o = max_abs_diff(&baseline.output, &candidate.output);
         let max_lse = (baseline.lse - candidate.lse).abs();
 
-        // Warm both code paths before collecting wall-clock evidence.
-        for _ in 0..20 {
+        for _ in 0..WARMUP_CALLS {
             black_box(online_softmax_baseline(black_box(&case)).unwrap());
             black_box(online_softmax_one_exp(black_box(&case)).unwrap());
         }
 
-        let baseline_time = bench(&case, iterations, false);
-        let candidate_time = bench(&case, iterations, true);
-        let baseline_ns = baseline_time.as_nanos() / iterations_u128;
-        let candidate_ns = candidate_time.as_nanos() / iterations_u128;
-        let speedup =
-            baseline_time.as_secs_f64() / candidate_time.as_secs_f64().max(f64::MIN_POSITIVE);
+        let mut baseline_samples = Vec::with_capacity(ROUNDS);
+        let mut candidate_samples = Vec::with_capacity(ROUNDS);
+
+        for round in 0..ROUNDS {
+            if round.is_multiple_of(2) {
+                baseline_samples.push(bench_ns_per_iteration(&case, shape.iterations, false));
+                candidate_samples.push(bench_ns_per_iteration(&case, shape.iterations, true));
+            } else {
+                candidate_samples.push(bench_ns_per_iteration(&case, shape.iterations, true));
+                baseline_samples.push(bench_ns_per_iteration(&case, shape.iterations, false));
+            }
+        }
+
+        let baseline_median = median(baseline_samples.clone());
+        let candidate_median = median(candidate_samples.clone());
+        let baseline_p95 = p95(baseline_samples.clone());
+        let candidate_p95 = p95(candidate_samples.clone());
+        let baseline_mad = mad(&baseline_samples, baseline_median);
+        let candidate_mad = mad(&candidate_samples, candidate_median);
+        let speedup_ppm = baseline_median.saturating_mul(1_000_000) / candidate_median.max(1);
 
         println!(
-            "{seq_len},{head_dim},{max_o:.9e},{max_lse:.9e},{},{},{baseline_ns},{candidate_ns},{speedup:.6}",
-            baseline.metrics.exp_evaluations, candidate.metrics.exp_evaluations,
+            "{},{},{},{max_o:.9e},{max_lse:.9e},{},{},{baseline_median},{candidate_median},{baseline_p95},{candidate_p95},{baseline_mad},{candidate_mad},{speedup_ppm}",
+            shape.seq_len,
+            shape.head_dim,
+            shape.iterations,
+            baseline.metrics.exp_evaluations,
+            candidate.metrics.exp_evaluations,
         );
     }
 
     println!(
-        "NOTE: CPU timings are local evidence only; they are not GPU/FLAT performance claims."
+        "NOTE: CPU timings are local Thor evidence only; speedup_ppm is baseline_median/candidate_median * 1e6. No GPU/FLAT performance claim is implied."
     );
 }
