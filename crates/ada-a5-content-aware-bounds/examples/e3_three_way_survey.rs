@@ -1,14 +1,10 @@
 use ada_a4_entmax_bnb::{EntmaxDistribution, dense_entmax};
-use ada_a4_qk_box::{
-    QueryKeyPagedCase, branch_and_bound_entmax_qk_box, dense_qk_scores,
-};
+use ada_a4_qk_box::{QueryKeyPagedCase, branch_and_bound_entmax_qk_box, dense_qk_scores};
 use ada_a5_content_aware_bounds::{
-    ContentAwareResult, branch_and_bound_entmax_content_aware,
-    build_content_aware_key_index,
+    ContentAwareResult, branch_and_bound_entmax_content_aware, build_content_aware_key_index,
 };
 use ada_a5_hierarchical_bounds::{
-    HierarchicalResult, branch_and_bound_entmax_hierarchical,
-    build_hierarchical_key_index,
+    HierarchicalResult, branch_and_bound_entmax_hierarchical, build_hierarchical_key_index,
 };
 
 const SUPPORT_EPSILON: f64 = 1.0e-12;
@@ -303,12 +299,7 @@ fn generate_dominant_page_keys(
     keys
 }
 
-fn generate_case(
-    shape: SurveyShape,
-    regime: Regime,
-    alpha: f64,
-    seed: u64,
-) -> QueryKeyPagedCase {
+fn generate_case(shape: SurveyShape, regime: Regime, alpha: f64, seed: u64) -> QueryKeyPagedCase {
     let mut rng = DeterministicRng::new(seed);
     let query = generate_query(&mut rng, shape.head_dim);
     let keys = match regime {
@@ -383,20 +374,12 @@ fn measure_case(
     let flat = branch_and_bound_entmax_qk_box(case)?;
     let leaf_size = case.page_size.div_ceil(leaf_divisor);
 
-    let ordered_index = build_hierarchical_key_index(
-        &case.keys,
-        case.head_dim,
-        case.page_size,
-        leaf_size,
-    )?;
+    let ordered_index =
+        build_hierarchical_key_index(&case.keys, case.head_dim, case.page_size, leaf_size)?;
     let ordered = branch_and_bound_entmax_hierarchical(case, &ordered_index)?;
 
-    let geometry_index = build_content_aware_key_index(
-        &case.keys,
-        case.head_dim,
-        case.page_size,
-        leaf_size,
-    )?;
+    let geometry_index =
+        build_content_aware_key_index(&case.keys, case.head_dim, case.page_size, leaf_size)?;
     let geometry = branch_and_bound_entmax_content_aware(case, &geometry_index)?;
 
     let (flat_prob_error, flat_tau_error) = distribution_error(&dense, &flat.distribution);
