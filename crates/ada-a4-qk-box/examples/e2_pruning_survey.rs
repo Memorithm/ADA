@@ -1,9 +1,7 @@
 #![forbid(unsafe_code)]
 
 use ada_a4_entmax_bnb::dense_entmax;
-use ada_a4_qk_box::{
-    QueryKeyPagedCase, branch_and_bound_entmax_qk_box, qk_box_entmax_case,
-};
+use ada_a4_qk_box::{QueryKeyPagedCase, branch_and_bound_entmax_qk_box, qk_box_entmax_case};
 
 const SUPPORT_EPSILON: f64 = 1.0e-12;
 const PROBABILITY_TOLERANCE: f64 = 2.0e-10;
@@ -208,10 +206,7 @@ fn generate_iid_keys(
     (0..element_count).map(|_| rng.centered()).collect()
 }
 
-fn generate_clustered_keys(
-    rng: &mut DeterministicRng,
-    shape: SurveyShape,
-) -> Vec<f64> {
+fn generate_clustered_keys(rng: &mut DeterministicRng, shape: SurveyShape) -> Vec<f64> {
     let page_count = shape.sequence_length.div_ceil(shape.page_size);
     let mut centroids = Vec::with_capacity(page_count * shape.head_dim);
     for _ in 0..page_count * shape.head_dim {
@@ -250,18 +245,11 @@ fn generate_dominant_page_keys(
     keys
 }
 
-fn generate_case(
-    shape: SurveyShape,
-    regime: Regime,
-    alpha: f64,
-    seed: u64,
-) -> QueryKeyPagedCase {
+fn generate_case(shape: SurveyShape, regime: Regime, alpha: f64, seed: u64) -> QueryKeyPagedCase {
     let mut rng = DeterministicRng::new(seed);
     let query = generate_query(&mut rng, shape.head_dim);
     let keys = match regime {
-        Regime::IidUniform => {
-            generate_iid_keys(&mut rng, shape.sequence_length, shape.head_dim)
-        }
+        Regime::IidUniform => generate_iid_keys(&mut rng, shape.sequence_length, shape.head_dim),
         Regime::PageClustered => generate_clustered_keys(&mut rng, shape),
         Regime::DominantPage => generate_dominant_page_keys(&mut rng, &query, shape),
     };
@@ -356,13 +344,7 @@ fn measure_case(case: &QueryKeyPagedCase) -> Result<CaseMetrics, &'static str> {
     })
 }
 
-fn print_case(
-    shape: SurveyShape,
-    regime: Regime,
-    alpha: f64,
-    seed: u64,
-    metrics: &CaseMetrics,
-) {
+fn print_case(shape: SurveyShape, regime: Regime, alpha: f64, seed: u64, metrics: &CaseMetrics) {
     println!(
         "case,regime={},seed={seed:#018x},n={},d={},page_size={},alpha={alpha:.1},support_tokens={},support_pages={},pages_loaded={},pages_total={},page_load_ratio={:.6},scores_loaded={},score_avoidance={:.6},slack_mean={:.9},slack_p95={:.9},slack_max={:.9},max_probability_difference={:.3e},tau_difference={:.3e}",
         regime.name(),
@@ -394,11 +376,7 @@ fn build_aggregates() -> Vec<Aggregate> {
     aggregates
 }
 
-fn aggregate_for(
-    aggregates: &mut [Aggregate],
-    regime: Regime,
-    alpha: f64,
-) -> &mut Aggregate {
+fn aggregate_for(aggregates: &mut [Aggregate], regime: Regime, alpha: f64) -> &mut Aggregate {
     aggregates
         .iter_mut()
         .find(|aggregate| {
