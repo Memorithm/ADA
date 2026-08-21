@@ -222,8 +222,8 @@ fn generate_clustered_keys(
     for token in 0..shape.sequence_length {
         let page = token / shape.page_size;
         let centroid_start = page * shape.head_dim;
-        for lane in 0..shape.head_dim {
-            let centroid = centroids[centroid_start + lane];
+        let centroid_end = centroid_start + shape.head_dim;
+        for &centroid in &centroids[centroid_start..centroid_end] {
             keys.push(centroid + 0.08 * rng.centered());
         }
     }
