@@ -44,8 +44,7 @@ impl AttentionCase {
         if self.values.len() != self.logits.len() * self.head_dim {
             return Err("values must have seq_len * head_dim elements");
         }
-        if self.logits.iter().any(|x| !x.is_finite())
-            || self.values.iter().any(|x| !x.is_finite())
+        if self.logits.iter().any(|x| !x.is_finite()) || self.values.iter().any(|x| !x.is_finite())
         {
             return Err("ADA-A1 E0 cases must be finite");
         }
