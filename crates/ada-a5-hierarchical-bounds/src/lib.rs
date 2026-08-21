@@ -130,7 +130,12 @@ fn fingerprint_keys(keys: &[f64]) -> u64 {
     fingerprint
 }
 
-fn validate_key_matrix(keys: &[f64], head_dim: usize, page_size: usize, leaf_size: usize) -> Result<(), &'static str> {
+fn validate_key_matrix(
+    keys: &[f64],
+    head_dim: usize,
+    page_size: usize,
+    leaf_size: usize,
+) -> Result<(), &'static str> {
     if head_dim == 0 {
         return Err("ADA-A5 head_dim must be non-zero");
     }
@@ -155,7 +160,12 @@ fn validate_key_matrix(keys: &[f64], head_dim: usize, page_size: usize, leaf_siz
     Ok(())
 }
 
-fn box_for_range(keys: &[f64], head_dim: usize, start_token: usize, end_token: usize) -> PageKeyBox {
+fn box_for_range(
+    keys: &[f64],
+    head_dim: usize,
+    start_token: usize,
+    end_token: usize,
+) -> PageKeyBox {
     debug_assert!(start_token < end_token);
     let first_start = start_token * head_dim;
     let first = &keys[first_start..first_start + head_dim];
@@ -164,10 +174,8 @@ fn box_for_range(keys: &[f64], head_dim: usize, start_token: usize, end_token: u
     let values = &keys[first_start..end_token * head_dim];
 
     for row in values.chunks_exact(head_dim).skip(1) {
-        for ((min_value, max_value), &value) in minimum
-            .iter_mut()
-            .zip(maximum.iter_mut())
-            .zip(row.iter())
+        for ((min_value, max_value), &value) in
+            minimum.iter_mut().zip(maximum.iter_mut()).zip(row.iter())
         {
             *min_value = min_value.min(value);
             *max_value = max_value.max(value);
@@ -236,13 +244,7 @@ fn build_subtree(
         leaves,
     );
     let right = build_subtree(
-        keys,
-        head_dim,
-        leaf_size,
-        midpoint,
-        end_token,
-        nodes,
-        leaves,
+        keys, head_dim, leaf_size, midpoint, end_token, nodes, leaves,
     );
     let key_box = merge_boxes(&nodes[left].key_box, &nodes[right].key_box);
     let node_index = nodes.len();
@@ -322,7 +324,11 @@ fn validate_query_index(
     Ok(())
 }
 
-fn query_box_bound(query: &[f64], key_box: &PageKeyBox, score_scale: f64) -> Result<f64, &'static str> {
+fn query_box_bound(
+    query: &[f64],
+    key_box: &PageKeyBox,
+    score_scale: f64,
+) -> Result<f64, &'static str> {
     if key_box.minimum.len() != query.len() || key_box.maximum.len() != query.len() {
         return Err("ADA-A5 node-box dimension mismatch");
     }
@@ -386,9 +392,13 @@ fn load_leaf(
     metrics: &mut HierarchicalMetrics,
 ) {
     debug_assert!(node.is_leaf());
-    for token in node.start_token..node.end_token {
-        debug_assert!(!loaded_tokens[token]);
-        loaded_tokens[token] = true;
+    for (offset, loaded) in loaded_tokens[node.start_token..node.end_token]
+        .iter_mut()
+        .enumerate()
+    {
+        let token = node.start_token + offset;
+        debug_assert!(!*loaded);
+        *loaded = true;
         loaded_indices.push(token);
         metrics.tokens_loaded += 1;
     }
@@ -435,12 +445,7 @@ fn seed_highest_bound_leaf(
                 current = right;
             }
         } else {
-            load_leaf(
-                node,
-                loaded_tokens,
-                loaded_indices,
-                metrics,
-            );
+            load_leaf(node, loaded_tokens, loaded_indices, metrics);
             return;
         }
     }
@@ -537,7 +542,10 @@ pub fn branch_and_bound_entmax_hierarchical(
             frontier = unresolved;
 
             if frontier.is_empty() {
-                debug_assert_eq!(metrics.tokens_loaded + metrics.tokens_pruned, index.key_count);
+                debug_assert_eq!(
+                    metrics.tokens_loaded + metrics.tokens_pruned,
+                    index.key_count
+                );
                 return Ok(HierarchicalResult {
                     distribution: finalize_distribution(case, &dense_scores, &loaded_indices)?,
                     loaded_tokens,
@@ -555,12 +563,7 @@ pub fn branch_and_bound_entmax_hierarchical(
                 continue;
             }
 
-            load_leaf(
-                node,
-                &mut loaded_tokens,
-                &mut loaded_indices,
-                &mut metrics,
-            );
+            load_leaf(node, &mut loaded_tokens, &mut loaded_indices, &mut metrics);
             break;
         }
     }
@@ -583,13 +586,9 @@ mod tests {
         case: &QueryKeyPagedCase,
         leaf_size: usize,
     ) -> HierarchicalResult {
-        let index = build_hierarchical_key_index(
-            &case.keys,
-            case.head_dim,
-            case.page_size,
-            leaf_size,
-        )
-        .unwrap();
+        let index =
+            build_hierarchical_key_index(&case.keys, case.head_dim, case.page_size, leaf_size)
+                .unwrap();
         let paged = qk_box_entmax_case(case).unwrap();
         let dense = dense_entmax(&paged.scores, case.alpha).unwrap();
         let candidate = branch_and_bound_entmax_hierarchical(case, &index).unwrap();
@@ -614,8 +613,8 @@ mod tests {
         let case = QueryKeyPagedCase {
             query: vec![2.0, -3.0, 0.5],
             keys: vec![
-                1.0, 4.0, -2.0, 3.0, -1.0, 5.0, -4.0, 2.0, 1.0, 0.5, -3.0, 7.0,
-                2.0, 2.0, 2.0, -1.0, -4.0, 3.0, 5.0, 0.0, -2.0, 1.0, 3.0, -5.0,
+                1.0, 4.0, -2.0, 3.0, -1.0, 5.0, -4.0, 2.0, 1.0, 0.5, -3.0, 7.0, 2.0, 2.0, 2.0,
+                -1.0, -4.0, 3.0, 5.0, 0.0, -2.0, 1.0, 3.0, -5.0,
             ],
             head_dim: 3,
             page_size: 4,
@@ -638,8 +637,7 @@ mod tests {
     #[test]
     fn hierarchical_candidate_matches_dense_for_entmax15_and_sparsemax() {
         let keys = vec![
-            9.0, 0.0, 8.5, 0.2, -8.0, 1.0, -9.0, -1.0, 0.0, 7.0, 0.2, 6.5, -4.0,
-            -4.0, -5.0, -3.0,
+            9.0, 0.0, 8.5, 0.2, -8.0, 1.0, -9.0, -1.0, 0.0, 7.0, 0.2, 6.5, -4.0, -4.0, -5.0, -3.0,
         ];
         for alpha in [1.5, 2.0] {
             let case = QueryKeyPagedCase {
@@ -659,8 +657,8 @@ mod tests {
         let case = QueryKeyPagedCase {
             query: vec![1.0, 0.0],
             keys: vec![
-                10.0, 0.0, 9.5, 0.0, -10.0, 4.0, -11.0, -4.0, -20.0, 7.0, -21.0,
-                -7.0, -30.0, 9.0, -31.0, -9.0,
+                10.0, 0.0, 9.5, 0.0, -10.0, 4.0, -11.0, -4.0, -20.0, 7.0, -21.0, -7.0, -30.0, 9.0,
+                -31.0, -9.0,
             ],
             head_dim: 2,
             page_size: 8,
@@ -679,8 +677,7 @@ mod tests {
         let case = QueryKeyPagedCase {
             query: vec![1.0, 0.0],
             keys: vec![
-                1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0,
-                1.0, 0.0,
+                1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0,
             ],
             head_dim: 2,
             page_size: 8,
