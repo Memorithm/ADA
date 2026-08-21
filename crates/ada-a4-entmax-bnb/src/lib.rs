@@ -62,7 +62,11 @@ impl EntmaxPagedCase {
         if self.page_upper_bounds.len() != self.page_count() {
             return Err("ADA-A4 requires exactly one upper bound per page");
         }
-        if self.page_upper_bounds.iter().any(|bound| !bound.is_finite()) {
+        if self
+            .page_upper_bounds
+            .iter()
+            .any(|bound| !bound.is_finite())
+        {
             return Err("ADA-A4 page upper bounds must be finite");
         }
 
@@ -155,7 +159,10 @@ pub fn entmax_threshold_bracket(
 
     let lower_value = objective(scores, alpha, lower);
     if lower_value == 0.0 {
-        return Ok(ThresholdBracket { lower, upper: lower });
+        return Ok(ThresholdBracket {
+            lower,
+            upper: lower,
+        });
     }
     if lower_value < 0.0 {
         return Err("ADA-A4 numerical bracket invariant failed at lower endpoint");
@@ -163,7 +170,7 @@ pub fn entmax_threshold_bracket(
 
     for _ in 0..BISECTION_STEPS {
         let midpoint = lower + (upper - lower) * 0.5;
-        if midpoint == lower || midpoint == upper {
+        if midpoint.to_bits() == lower.to_bits() || midpoint.to_bits() == upper.to_bits() {
             break;
         }
         let value = objective(scores, alpha, midpoint);
