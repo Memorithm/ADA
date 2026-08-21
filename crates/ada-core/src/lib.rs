@@ -34,6 +34,13 @@ pub struct AttentionCase {
 }
 
 impl AttentionCase {
+    /// Validate the structural and numerical preconditions of an ADA-A1 case.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the case has no logits, `head_dim` is zero,
+    /// `values` does not contain exactly `seq_len * head_dim` elements, or any
+    /// input value is non-finite.
     pub fn validate(&self) -> Result<(), &'static str> {
         if self.logits.is_empty() {
             return Err("ADA-A1 requires at least one logit");
