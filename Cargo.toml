@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "crates/ada-a4-entmax-bnb",
     "crates/ada-core",
     "crates/ada-oracle",
     "crates/ada-runner",
