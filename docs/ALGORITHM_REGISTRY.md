@@ -5,7 +5,7 @@
 | ADA-A1 | Exact Online Softmax recurrence search | CPU-L2-QUALIFIED / GPU-Q4-DIRECT-MAPPINGS-REJECTED / NVIDIA-BACKEND-INVESTIGATE |
 | ADA-A2 | K-first / V-late staging and scheduling | PLANNED |
 | ADA-A3 | Certified error-budgeted Softmax | PLANNED |
-| ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-PRUNING-SURVEY-CANDIDATE |
+| ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
 | ADA-A5 | Hierarchical safe Pre-KV bounds | RESEARCH |
 | ADA-A6 | Specialized tau solvers | RESEARCH |
 | ADA-A7 | Moment / composable Entmax | INVESTIGATE |
@@ -20,7 +20,7 @@
 - `NVIDIA-BACKEND-INVESTIGATE` means the remaining A1 GPU work has been localized below the generic WGSL/Naga/SPIR-V optimization layer. Preserved evidence shows Q4 retains two static SPIR-V `Exp` instructions while A1B retains one both before and after `spirv-opt -O`, yet Q4 is faster; Vulkan executable statistics also show equal register count, shared-memory allocation, stack allocation, and subgroup size. Any further A1 GPU work therefore requires NVIDIA-specific backend/machine evidence rather than another unmotivated direct WGSL recurrence rewrite.
 - `CPU-E0-CORRECTNESS` means the isolated A4 score-level subset-threshold branch-and-bound candidate has passed its declared local correctness gates on CPU: workspace fmt, strict clippy, all unit/doc tests, subset-threshold monotonicity, adversarial support preservation, dense-oracle parity, exhaustive small states for alpha=1.5 and alpha=2.0, and safe dense fallback under loose bounds. This is correctness qualification only, not a performance or production claim.
 - `E1-QK-BOX-CORRECTNESS` means the A4 coordinate-box follow-on has passed its declared local correctness gates: query/key min-max page bounds dominate every dense page score in the tested mixed-sign and exhaustive fixtures; exact branch-and-bound parity and support preservation hold for alpha=1.5 and alpha=2.0; positive attention scaling is covered; loose boxes degrade safely; and strict crate/workspace Clippy plus unit/doc tests are green. This is still scalar CPU correctness evidence, not a claim that the boxes are tight enough to save useful work on model distributions.
-- `E2-PRUNING-SURVEY-CANDIDATE` means A4 has a deterministic quantitative survey harness intended to measure bound slack, support sparsity, page-load ratio, and score avoidance across synthetic Q/K regimes and multiple shapes. E2 is not a performance benchmark and is not qualified until its build/tests and first reproducible survey run are green and preserved.
+- `E2-SYNTHETIC-SURVEY-QUALIFIED` means the deterministic A4 pruning survey ran from a clean committed tree, passed its build/test gates, completed all 126 declared synthetic cases, preserved no dense-support false negatives, and has raw evidence with a recorded SHA-256 digest. It qualifies the reported synthetic algorithmic pruning observations only. It is not a wall-clock benchmark, model-distribution qualification, hardware speedup claim, or production qualification.
 - The rejected branch-specialized and branchless A1 mappings must remain preserved as negative evidence and must not be silently re-labelled as qualified.
 - None of these statuses means production-qualified, novel, or adopted by FLAT-ATTENTION.
 
