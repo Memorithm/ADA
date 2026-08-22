@@ -119,6 +119,22 @@ fn validate_scores_alpha(scores: &[f64], alpha: f64) -> Result<(), &'static str>
     Ok(())
 }
 
+fn next_down(value: f64) -> f64 {
+    if value.is_nan() || value == f64::NEG_INFINITY {
+        return value;
+    }
+    if value == 0.0 {
+        return -f64::from_bits(1);
+    }
+
+    let bits = value.to_bits();
+    if value > 0.0 {
+        f64::from_bits(bits - 1)
+    } else {
+        f64::from_bits(bits + 1)
+    }
+}
+
 fn objective(scores: &[f64], alpha: f64, tau: f64) -> f64 {
     let scale = alpha - 1.0;
     let exponent = scale.recip();
@@ -157,7 +173,19 @@ pub fn entmax_threshold_bracket(
     let mut lower = max_scaled - 1.0;
     let mut upper = max_scaled;
 
-    let lower_value = objective(scores, alpha, lower);
+    let mut lower_value = objective(scores, alpha, lower);
+
+    // In exact arithmetic, max_scaled - 1 is always on the
+    // non-negative-objective side because the maximum score contributes
+    // exactly one. Binary64 subtraction can round the difference slightly
+    // below one, making the computed objective spuriously negative by a few
+    // ulps. Move the endpoint one representable value toward -infinity only
+    // when that numerical invariant is violated.
+    if lower_value < 0.0 {
+        lower = next_down(lower);
+        lower_value = objective(scores, alpha, lower);
+    }
+
     if lower_value == 0.0 {
         return Ok(ThresholdBracket {
             lower,
@@ -365,6 +393,30 @@ mod tests {
             }
         }
         candidate
+    }
+
+    #[test]
+    fn repairs_sparsemax_lower_endpoint_rounding_conservatively() {
+        // This value is derived from the Qwen3 E4 real-Q/K smoke trace.
+        // For alpha=2, exact arithmetic gives score - (score - 1) == 1,
+        // but binary64 subtraction evaluates the nominal endpoint slightly
+        // below one and therefore produces a spuriously negative objective.
+        let score = f64::from_bits(0xbfe6_5fb9_f9e6_0d95);
+        let nominal_lower = score - 1.0;
+        let nominal_value = objective(&[score], 2.0, nominal_lower);
+
+        assert!(nominal_value < 0.0);
+
+        let repaired = next_down(nominal_lower);
+        assert!(repaired < nominal_lower);
+        assert!(objective(&[score], 2.0, repaired) >= 0.0);
+
+        let bracket = entmax_threshold_bracket(&[score], 2.0).unwrap();
+        assert!(objective(&[score], 2.0, bracket.lower) >= 0.0);
+        assert!(objective(&[score], 2.0, bracket.upper) <= 0.0);
+
+        let dense = dense_entmax(&[score], 2.0).unwrap();
+        assert_close(dense.probabilities[0], 1.0, 2.0e-15);
     }
 
     #[test]
