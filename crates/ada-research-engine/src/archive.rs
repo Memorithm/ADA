@@ -17,7 +17,7 @@ use crate::problem::{SearchBudget, Tolerances};
 use crate::proposer::{ProposalDescriptor, ProposalSource, ProposalSourceKind};
 
 /// Archive schema version.
-pub const ARCHIVE_SCHEMA_VERSION: u32 = 2;
+pub const ARCHIVE_SCHEMA_VERSION: u32 = 3;
 
 pub(crate) const SURVIVAL_CONTRACT: &str = "Finite deterministic cases can falsify a candidate; survival is not mathematical proof, and promotion is external.";
 
@@ -93,6 +93,14 @@ pub struct ExperimentManifest {
     pub seed: u64,
     pub search_budget: SearchBudget,
     pub tolerances: Tolerances,
+    /// Optional component-wise structural-cost ceiling applied after all
+    /// numerical gates. `None` means cost is measured and ranked but is not a
+    /// rejection gate.
+    pub structural_cost_budget: Option<CostVector>,
+    /// Whether finalization stops after the first candidate survives every
+    /// configured gate. This changes which finalists are evaluated and must
+    /// therefore participate in experiment identity.
+    pub stop_finalize_on_first_qualified: bool,
     /// Sorted by role.
     pub corpora: Vec<CorpusIdentity>,
     /// Pipeline order; full configurations, not just coarse source kinds.
@@ -302,7 +310,7 @@ impl ExperimentArchive {
     /// Recompute the versioned canonical content digest.
     #[must_use]
     pub fn recompute_digest(&self) -> String {
-        let mut writer = DigestWriter::new(b"ADA-RESEARCH-ARCHIVE-v2\0");
+        let mut writer = DigestWriter::new(b"ADA-RESEARCH-ARCHIVE-v3\0");
         write_manifest(&self.manifest, &mut writer);
         write_termination(self.termination, &mut writer);
         write_stats(&self.stats, &mut writer);
@@ -378,6 +386,14 @@ fn write_manifest(manifest: &ExperimentManifest, writer: &mut DigestWriter) {
     writer.f64(manifest.tolerances.probe_max_rel_error);
     writer.f64(manifest.tolerances.oracle_max_rel_error);
     writer.f64(manifest.tolerances.holdout_max_rel_error);
+    match manifest.structural_cost_budget {
+        None => writer.bool(false),
+        Some(cost) => {
+            writer.bool(true);
+            write_cost(&cost, writer);
+        }
+    }
+    writer.bool(manifest.stop_finalize_on_first_qualified);
     write_len(writer, manifest.corpora.len());
     for corpus in &manifest.corpora {
         write_str(writer, &corpus.role);

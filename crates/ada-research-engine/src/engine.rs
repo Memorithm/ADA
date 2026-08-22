@@ -525,7 +525,13 @@ pub fn run_experiment(
         .iter()
         .map(|proposer| proposer.descriptor())
         .collect();
-    let manifest = build_manifest(problem, &options.source_revision, descriptors);
+    let manifest = build_manifest(
+        problem,
+        &options.source_revision,
+        descriptors,
+        options.structural_cost_budget,
+        options.stop_finalize_on_first_qualified,
+    );
     let mut state = SearchState {
         problem,
         stats: ArchiveStats::default(),
@@ -869,6 +875,8 @@ fn build_manifest(
     problem: &ResearchProblem,
     source_revision: &str,
     proposers: Vec<ProposalDescriptor>,
+    structural_cost_budget: Option<CostVector>,
+    stop_finalize_on_first_qualified: bool,
 ) -> ExperimentManifest {
     let mut corpora = vec![
         corpus_identity(problem.discovery_corpus()),
@@ -877,7 +885,14 @@ fn build_manifest(
         corpus_identity(problem.adversarial_holdout()),
     ];
     corpora.sort_by(|left, right| left.role.cmp(&right.role));
-    let experiment_id = experiment_id(problem, source_revision, &corpora, &proposers);
+    let experiment_id = experiment_id(
+        problem,
+        source_revision,
+        &corpora,
+        &proposers,
+        structural_cost_budget,
+        stop_finalize_on_first_qualified,
+    );
     ExperimentManifest {
         schema_version: ARCHIVE_SCHEMA_VERSION,
         engine_version: env!("CARGO_PKG_VERSION").into(),
@@ -891,6 +906,8 @@ fn build_manifest(
         seed: problem.seed,
         search_budget: problem.budget,
         tolerances: problem.tolerances,
+        structural_cost_budget,
+        stop_finalize_on_first_qualified,
         corpora,
         proposers,
         survival_contract: SURVIVAL_CONTRACT.into(),
@@ -910,8 +927,10 @@ fn experiment_id(
     source_revision: &str,
     corpora: &[CorpusIdentity],
     proposers: &[ProposalDescriptor],
+    structural_cost_budget: Option<CostVector>,
+    stop_finalize_on_first_qualified: bool,
 ) -> String {
-    let mut writer = DigestWriter::new(b"ADA-EXPERIMENT-ID-v2\0");
+    let mut writer = DigestWriter::new(b"ADA-EXPERIMENT-ID-v3\0");
     let _ = writer.str(env!("CARGO_PKG_VERSION"));
     let _ = writer.str(source_revision);
     let _ = writer.str(&numeric_semantics());
@@ -930,7 +949,26 @@ fn experiment_id(
     for proposer in proposers {
         let _ = writer.str(&proposer.digest);
     }
+    match structural_cost_budget {
+        None => writer.bool(false),
+        Some(cost) => {
+            writer.bool(true);
+            write_cost_identity(&cost, &mut writer);
+        }
+    }
+    writer.bool(stop_finalize_on_first_qualified);
     hex(&writer.finish())
+}
+
+fn write_cost_identity(cost: &CostVector, writer: &mut DigestWriter) {
+    writer.u32(cost.total_operators);
+    writer.u32(cost.exp_count);
+    writer.u32(cost.max_count);
+    writer.u32(cost.mul_count);
+    writer.u32(cost.add_sub_count);
+    writer.u32(cost.depth);
+    writer.u32(cost.state_outputs);
+    writer.u32(cost.temporary_count);
 }
 
 fn write_budget_identity(problem: &ResearchProblem, writer: &mut DigestWriter) {
@@ -958,7 +996,10 @@ fn text_digest(domain: &[u8], text: &str) -> String {
 
 fn numeric_semantics() -> String {
     format!(
-        "ieee754-f64;ordered-tree-evaluation;nonfinite-reject;std-exp;target={}-{}",
+        concat!(
+            "ieee754-f64;ordered-tree-evaluation;nonfinite-reject;",
+            "std-exp;std-ln1p;std-powf;target={}-{}"
+        ),
         std::env::consts::ARCH,
         std::env::consts::OS,
     )

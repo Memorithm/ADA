@@ -194,11 +194,12 @@ magic score.
 
 ## Archive and replay semantics
 
-Archive schema v2 contains:
+Archive schema v3 contains:
 
 - engine/schema version and committed source revision;
 - declared numeric semantics and target architecture/OS;
 - experiment ID, seed, grammar digest, all counter budgets, and tolerances;
+- structural-cost and finalization policies that can change gate coverage;
 - role, case count, and content digest for every corpus;
 - full proposer descriptors and configuration digests;
 - search termination and aggregate gate accounting;
@@ -223,9 +224,11 @@ also compare pretty JSON byte for byte.
 
 The logical determinism contract is strongest on the recorded target and
 numeric environment. IEEE-754 operations use ordered evaluation, but Rust's
-platform `exp` implementation is not claimed bit-identical across every
-libm/architecture. The manifest makes that limitation explicit rather than
-silently claiming universal cross-platform bit identity.
+platform `exp`, `ln_1p`, and `powf` implementations are not claimed
+bit-identical across every libm/architecture. The manifest names those
+operations and records the target; corpus digests then expose any generated
+case drift rather than silently claiming universal cross-platform bit
+identity.
 
 ## First discovery challenge
 

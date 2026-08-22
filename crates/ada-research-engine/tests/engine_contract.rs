@@ -435,6 +435,46 @@ fn cost_rejection_is_not_mislabeled_as_numerical_falsification() {
 }
 
 #[test]
+fn manifest_and_experiment_id_commit_to_engine_policies() {
+    let run = |cost_budget, stop_after_first| {
+        let mut engine_options = options(Box::new(ManualProposer::new(vec![
+            ManualCandidate::recurrence("identity", identity()),
+        ])));
+        engine_options.structural_cost_budget = cost_budget;
+        engine_options.stop_finalize_on_first_qualified = stop_after_first;
+        run_experiment(&problem(15, SearchBudget::tiny()), engine_options).unwrap()
+    };
+
+    let default = run(None, false);
+    let stop_early = run(None, true);
+    let cost_budget = CostVector {
+        total_operators: 1,
+        state_outputs: 1,
+        ..CostVector::default()
+    };
+    let cost_limited = run(Some(cost_budget), false);
+
+    assert_eq!(default.manifest.structural_cost_budget, None);
+    assert!(!default.manifest.stop_finalize_on_first_qualified);
+    assert!(stop_early.manifest.stop_finalize_on_first_qualified);
+    assert_eq!(
+        cost_limited.manifest.structural_cost_budget,
+        Some(cost_budget)
+    );
+    assert_ne!(
+        default.manifest.experiment_id,
+        stop_early.manifest.experiment_id
+    );
+    assert_ne!(
+        default.manifest.experiment_id,
+        cost_limited.manifest.experiment_id
+    );
+    default.verify().unwrap();
+    stop_early.verify().unwrap();
+    cost_limited.verify().unwrap();
+}
+
+#[test]
 fn built_in_proposer_sources_have_no_oracle_or_holdout_dependency() {
     let boundary = include_str!("../src/proposer.rs");
     let enumeration = include_str!("../src/proposers/enumerative.rs");
