@@ -2,3 +2,4 @@
 /evidence/*.jsonl
 /evidence/*.csv
 !/evidence/README.md
+__pycache__/

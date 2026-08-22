@@ -395,7 +395,7 @@ def main() -> int:
         revision=args.revision,
         trust_remote_code=False,
         attn_implementation="eager",
-        torch_dtype=torch.bfloat16,
+        dtype=torch.bfloat16,
     )
     validate_model_config(model.config, args.layers, args.query_heads)
     if getattr(model.config, "_attn_implementation", None) != "eager":
@@ -488,6 +488,26 @@ def main() -> int:
     metadata_path = args.metadata_json or args.output.with_suffix(
         args.output.suffix + ".json"
     )
+
+    model_config_dict = model.config.to_dict()
+    rope_parameters = model_config_dict.get("rope_parameters")
+    if not isinstance(rope_parameters, dict):
+        raise RuntimeError(
+            "Qwen3 config does not expose serialized rope_parameters"
+        )
+
+    rope_theta = rope_parameters.get("rope_theta")
+    if not isinstance(rope_theta, (int, float)):
+        raise RuntimeError(
+            "Qwen3 rope_parameters does not contain numeric rope_theta"
+        )
+
+    rope_theta = float(rope_theta)
+    if not math.isfinite(rope_theta) or rope_theta <= 0.0:
+        raise RuntimeError(
+            "Qwen3 rope_theta must be finite and positive"
+        )
+
     metadata = {
         "format": "ADAQK01\\0",
         "format_version": TRACE_VERSION,
@@ -515,7 +535,8 @@ def main() -> int:
             "num_attention_heads": int(model.config.num_attention_heads),
             "num_key_value_heads": int(model.config.num_key_value_heads),
             "head_dim": int(model.config.head_dim),
-            "rope_theta": float(model.config.rope_theta),
+            "rope_parameters": rope_parameters,
+            "rope_theta": rope_theta,
             "use_sliding_window": bool(
                 getattr(model.config, "use_sliding_window", False)
             ),
