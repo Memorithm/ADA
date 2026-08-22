@@ -3,7 +3,7 @@
 | ID | Mission | Current status |
 | --- | --- | --- |
 | ADA-A1 | Exact Online Softmax recurrence search | CPU-L2-QUALIFIED / GPU-Q4-DIRECT-MAPPINGS-REJECTED / NVIDIA-BACKEND-INVESTIGATE |
-| ADA-A2 | K-first / V-late staging and scheduling | PLANNED |
+| ADA-A2 | K-first / V-late staging and scheduling | E0-K-FIRST-V-LATE-CORRECTNESS |
 | ADA-A3 | Certified error-budgeted Softmax | PLANNED |
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
 | ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED |
@@ -14,6 +14,8 @@
 | ADA-A10 | Reproducible numerical oracle/certification | PLANNED |
 
 ## Status semantics
+
+- `E0-K-FIRST-V-LATE-CORRECTNESS` means the isolated A2 exact K-first/V-late scalar contract passed its declared local correctness gates: workspace fmt, strict crate/workspace Clippy, all workspace unit/doc tests, exhaustive small support-mask weighted-sum parity, integrated alpha 1.5 and alpha 2.0 A5-priority-to-A2 cases, dense Entmax/output parity, exact `V_loaded == final support size`, `K_loaded >= V_loaded`, safe dense-support fallback, rejection of non-finite values in actually loaded V rows, and a structural sentinel test showing that zero-probability V rows are skipped before their scalars are inspected. This qualifies source-level logical V-late semantics and accounting only. It is not a physical memory-traffic, cache, GPU, wall-clock, model-quality, production floating-point, or novelty claim.
 
 - `CPU-L2-QUALIFIED` means the candidate has passed the ADA CPU L2 evidence protocol on a named physical target with a clean Git tree, fixed power/frequency context, CPU affinity, correctness gates, repeated processes, raw evidence, and a SHA-256 digest.
 - `GPU-Q4-DIRECT-MAPPINGS-REJECTED` means two correctness-qualified direct Q4 GPU realizations of the exact one-exp recurrence were slower than the qualified Q4 baseline across the same physical-Thor GPU-timestamp smoke matrix: the branch-specialized mapping and the adapted steady-state branchless mapping. The branchless mapping recovered part of the branch penalty but still lost in all 12 cases. This rejects these direct same-geometry/same-staging Q4 mappings as performance candidates; it does not invalidate the exact recurrence, the CPU result, or materially different GPU implementations.

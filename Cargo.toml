@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "crates/ada-a2-k-first-v-late",
     "crates/ada-a4-entmax-bnb",
     "crates/ada-a4-qk-box",
     "crates/ada-a5-content-aware-bounds",
