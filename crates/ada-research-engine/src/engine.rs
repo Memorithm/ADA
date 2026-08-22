@@ -599,6 +599,13 @@ pub fn run_experiment(
         state.stats.finalized_candidates += 1;
         let record = &state.candidates[survivor_index];
         let evaluation_index = record.evaluation_index;
+        let probe_exact = state.evaluations[evaluation_index]
+            .gate_results
+            .iter()
+            .find(|result| result.gate == ResearchGate::ProbeCorpus)
+            .is_some_and(|result| {
+                result.disposition == GateDisposition::Survived && result.all_exact
+            });
         let candidate_id = state.evaluations[evaluation_index].candidate_id.clone();
         let canonical = state.evaluations[evaluation_index]
             .canonical_candidate
@@ -691,7 +698,7 @@ pub fn run_experiment(
             } else {
                 SurvivalClass::SurvivedAdversarialCases
             };
-        exact_qualified |= oracle.result.all_exact && holdout.result.all_exact;
+        exact_qualified |= probe_exact && oracle.result.all_exact && holdout.result.all_exact;
         qualified.push(survivor_index);
         if options.stop_finalize_on_first_qualified {
             break;
@@ -741,10 +748,16 @@ pub fn run_experiment(
         .or_else(|| all_ranked.first().copied());
     let best = best_index.map(|index| best_from(&state, index, qualified.contains(&index)));
     let outcome = if qualified.is_empty() {
-        if state.stats.finalized_candidates == 0 {
-            ExperimentOutcome::BoundedSearchNoSurvivor
-        } else {
+        let numerically_falsified_finalists = state
+            .stats
+            .rejected_oracle
+            .saturating_add(state.stats.rejected_adversarial);
+        if state.stats.finalized_candidates > 0
+            && numerically_falsified_finalists == state.stats.finalized_candidates
+        {
             ExperimentOutcome::AllFinalizedCandidatesFalsified
+        } else {
+            ExperimentOutcome::BoundedSearchNoSurvivor
         }
     } else if exact_qualified {
         ExperimentOutcome::SurvivedDeclaredGatesExactly

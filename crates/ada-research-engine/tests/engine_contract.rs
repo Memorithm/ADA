@@ -5,7 +5,7 @@ use std::sync::{
 
 use ada_research_engine::digest_writer::DigestWriter;
 use ada_research_engine::{
-    ArchiveError, Candidate, CandidateProposer, CaseRun, CorpusFailure, EngineOptions,
+    ArchiveError, Candidate, CandidateProposer, CaseRun, CorpusFailure, CostVector, EngineOptions,
     EnumerativeConfig, EnumerativeProposer, ExperimentArchive, ExperimentOutcome, Expr,
     GateDisposition, ManualCandidate, ManualProposer, OperatorSet, ProblemCorpus, ProposalContext,
     ProposalDescriptor, ProposalSource, ProposalSourceKind, RawProposal, ResearchGate,
@@ -387,6 +387,51 @@ fn wrong_candidate_is_falsified_and_valid_fixture_survives_declared_gates() {
     assert_eq!(valid.stats.survived_oracle, 1);
     assert_eq!(valid.stats.survived_adversarial, 1);
     assert_eq!(valid.pareto_front.len(), 1);
+}
+
+#[test]
+fn exact_outcome_requires_exact_probe_as_well_as_final_gates() {
+    let tolerances = Tolerances {
+        probe_max_rel_error: 1.0,
+        oracle_max_rel_error: 1.0,
+        holdout_max_rel_error: 1.0,
+    };
+    let problem = ResearchProblem::new(
+        "exact-outcome-contract-test".into(),
+        1,
+        13,
+        grammar(),
+        tolerances,
+        SearchBudget::tiny(),
+        Arc::new(IdentityCorpus::new("discovery", vec![1.0e-12])),
+        Arc::new(IdentityCorpus::new("probe", vec![1.0e-12])),
+        Arc::new(IdentityCorpus::new("oracle", vec![0.0])),
+        Arc::new(IdentityCorpus::new("adversarial_holdout", vec![0.0])),
+    );
+    let archive = run_experiment(
+        &problem,
+        options(Box::new(ManualProposer::new(vec![
+            ManualCandidate::recurrence("zero", Candidate::scalar(Expr::Const(0.0))),
+        ]))),
+    )
+    .unwrap();
+    assert_eq!(
+        archive.outcome,
+        ExperimentOutcome::SurvivedDeclaredGatesWithinTolerance
+    );
+}
+
+#[test]
+fn cost_rejection_is_not_mislabeled_as_numerical_falsification() {
+    let mut engine_options = options(Box::new(ManualProposer::new(vec![
+        ManualCandidate::recurrence("identity", identity()),
+    ])));
+    engine_options.structural_cost_budget = Some(CostVector::default());
+    let archive = run_experiment(&problem(14, SearchBudget::tiny()), engine_options).unwrap();
+    assert_eq!(archive.stats.finalized_candidates, 1);
+    assert_eq!(archive.stats.falsified, 0);
+    assert_eq!(archive.stats.rejected_cost, 1);
+    assert_eq!(archive.outcome, ExperimentOutcome::BoundedSearchNoSurvivor);
 }
 
 #[test]

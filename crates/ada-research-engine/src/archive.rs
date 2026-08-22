@@ -41,7 +41,8 @@ pub enum ExperimentOutcome {
     /// At least one candidate survived every declared finite case within the
     /// fixed tolerance.
     SurvivedDeclaredGatesWithinTolerance,
-    /// At least one candidate matched every declared finite case exactly.
+    /// At least one candidate matched every executed numerical gate case
+    /// (probe, oracle, and adversarial holdout) exactly.
     SurvivedDeclaredGatesExactly,
 }
 

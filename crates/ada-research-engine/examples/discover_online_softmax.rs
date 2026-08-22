@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use ada_research_engine::online_softmax::build_e0_problem;
 use ada_research_engine::{
     CandidateProposer, EngineOptions, EnumerativeConfig, EnumerativeProposer, EvolutionaryConfig,
-    EvolutionaryProposer, ExperimentArchive, ExperimentOutcome, compare_archives, run_experiment,
+    EvolutionaryProposer, ExperimentArchive, compare_archives, run_experiment,
 };
 
 #[derive(Debug)]
@@ -133,14 +133,12 @@ fn main() {
     println!("termination={:?}", archive.termination);
     println!("archive_digest={}", archive.archive_digest);
 
-    if matches!(
-        archive.outcome,
-        ExperimentOutcome::SurvivedDeclaredGatesWithinTolerance
-            | ExperimentOutcome::SurvivedDeclaredGatesExactly
-    ) {
-        if let Some(best) = &archive.best {
-            println!("best_canonical_candidate={}", best.canonical_candidate);
-        }
+    if let Some(best) = &archive.best {
+        println!("best_candidate_class={:?}", best.class);
+        println!("best_candidate_train_loss={:.17e}", best.train_loss);
+        println!("best_candidate_cost={:?}", best.cost);
+        println!("best_candidate_source={}", best.source);
+        println!("best_canonical_candidate={}", best.canonical_candidate);
     }
 
     if let Some(replay_path) = &args.replay {
