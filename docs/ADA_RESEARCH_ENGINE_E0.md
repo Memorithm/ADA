@@ -262,12 +262,36 @@ The curated E0 evidence run uses:
 - 64 final gate evaluations;
 - grammar maximum 30 aggregate nodes and depth 10.
 
-The evidence result and exact committed source revision are added to this
-document only after the source commit and two byte-identical runs. Until that
-entry exists, no successful rediscovery claim is authorized.
-
 <!-- ARE_E0_RESULT_BEGIN -->
-Result: pending committed-source evidence run.
+Result: **bounded negative; the recurrence was not rediscovered**.
+
+The frozen engine source was
+`eb2222e740cfe9cd807bd4743817b5abaa3d1752`. The run emitted 6,199 raw
+proposals: 3,100 from enumeration and 3,099 from evolution. After 1,199
+canonical duplicates, the declared 5,000-unique-candidate budget was
+exhausted. All 5,000 unique candidates were falsified by the probe corpus
+(4,929 tolerance mismatches and 71 non-finite executions); no candidate
+reached oracle or holdout evaluation, and the qualified Pareto set is empty.
+
+The experiment ID is
+`0d1d0528da631ae827e1d20e2259680ebdb49b947c0ecb6d9d1271e04161facf`;
+the archive content digest is
+`627c273f300798ab66109fb175c8d37c91602a30cbd7fb2a55b08599db66f565`.
+The preserved JSON file has SHA-256
+`31ee68ff30072674e3a19d5005883061260665e87bd2511707d0fbb75d17ca5f`.
+A second identical run reported `replay_identical=true`, produced the same
+archive digest, and was byte-identical to the preserved archive.
+
+The limiting factor is representational/search sparsity, not a falsification
+of the reference recurrence. Its test-only tree form is within the grammar but
+needs 18 nodes and duplicates a shared maximum subexpression; shallow
+enumeration cannot reach it, and this bounded evolutionary trajectory did not
+assemble it. The smallest defensible next expansion is a preregistered,
+problem-neutral typed DAG or earlier-output-reference facility for general
+subexpression sharing. It must not insert the target AST or bypass any gate.
+
+Full evidence and replay details are in `evidence/are-e0/README.md` and
+`evidence/are-e0/are-e0-online-softmax-seed-20260822.json`.
 <!-- ARE_E0_RESULT_END -->
 
 ## Runner
@@ -311,14 +335,14 @@ runner time. No speedup claim follows from this experiment.
 - Genetic programming is a baseline, not a claim of search optimality.
 - Full per-proposal ledgers make large JSON archives intentionally verbose.
 - Checkpoint resume is not implemented; deterministic replay is implemented.
-- Cross-platform `exp` bit identity is not guaranteed.
+- Cross-platform `exp`, `ln_1p`, and `powf` bit identity is not guaranteed.
 - Archive SHA-256 is unkeyed integrity, not provenance authentication.
 - No hardware benchmark, prior-art review, or promotion is performed.
 
 ## Hostile self-review record
 
-The pre-evidence review treated the implementation as adversarial, not merely
-as a passing test suite:
+The pre-evidence and post-run reviews treated the implementation as
+adversarial, not merely as a passing test suite:
 
 | Question | Finding and action |
 | --- | --- |
@@ -327,7 +351,7 @@ as a passing test suite:
 | Can oracle or holdout leak into proposal? | Proposer context contains grammar, budgets, and own prior loss only. A tracked test proves holdout evaluation begins after all proposal calls finish. |
 | Is holdout distinct? | Yes at the interface and role/digest level. Explicit oracle grid points avoid exact discovery-grid duplicates; holdout uses unseen ranges and trajectories. |
 | Is determinism real? | Sequential ordering, fixed RNG, counter stopping, ordered maps/sorts, trajectory digest, same-seed archive equality, and two-run CLI replay are tested. Elapsed time is excluded. |
-| Is archive identity stable? | An initial decimal-JSON replay changed one error by one ULP and was rejected by the digest. Schema v2 now transports every evidence float by exact bits and has a real-E0 round-trip regression test. |
+| Is archive identity stable? | An initial decimal-JSON replay changed one error by one ULP and was rejected by the digest. Exact-bit float transport fixed that path. Hostile review then found that cost/finalization policies were missing from identity; schema v3 now records and digests both, with a regression test. |
 | Can a digest collision imply equality? | No. Dedup checks the full canonical form inside each digest bucket; a synthetic-collision test covers this. |
 | Are floating rewrites sound? | `x + 0` was removed for signed-zero semantics. Hostile review also removed `x - x → 0`, which could hide an overflowing intermediate. |
 | Can malformed candidates escape? | Raw arity/resources/operators/variables/constants are validated before normalization. A regression test uses an oversized tree that would otherwise collapse. |
