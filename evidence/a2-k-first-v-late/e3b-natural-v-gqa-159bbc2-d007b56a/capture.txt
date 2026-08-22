@@ -1,0 +1,15 @@
+Skipping import of cpp extensions due to incompatible torch version 2.10.0+cpu for torchao version 0.15.0             Please see https://github.com/pytorch/ao/issues/2919 for more info
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 10019.73it/s]
+capture_status=complete
+format=ADAV01
+tensor_stage=attention_value_input_pre_repeat_kv
+sample_count=16
+record_count=384
+source_dtype=bfloat16
+q_heads=16
+kv_heads=8
+q_per_kv=2
+head_dim=128
+sequence_length=512
+samples_sha256=8b3cb29d52850020134bd37c1e58dac2ff79508144db49f87ca2801e4e0b4bb0
+trace_sha256=d007b56a7c4588568bb9211c58250d8b214d8eb31ee2483eb0d1b033ffac11c5
