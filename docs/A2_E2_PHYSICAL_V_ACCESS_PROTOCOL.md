@@ -2,14 +2,18 @@
 
 ## Status
 
-Current stage:
+Qualified stage:
 
-`A2-E2-THREE-LEVEL-PREFLIGHT-POSITIVE`
+`A2-E2-THOR-PHYSICAL-V-LATE-QUALIFIED`
 
-This is not yet qualification evidence.
+Qualification applies to the isolated CPU physical V-access mechanism on the
+NVIDIA Jetson AGX Thor target.
 
-The current single-process Thor smoke is only an admission result for the
-multi-process qualification campaign.
+It does not imply end-to-end attention, GPU, DRAM/HBM, model-quality, or
+production qualification.
+
+The qualifying campaign used five independent processes from committed harness
+SHA `516527971fe2311e85af849813b990e130ec2b3c`.
 
 ## Purpose
 
@@ -333,7 +337,60 @@ The `S=K` control median was 1.000777x.
 
 These values are preflight evidence only.
 
-## Qualification campaign
+## Qualified Thor evidence
+
+Evidence directory:
+
+`evidence/a2-k-first-v-late/e2-thor-three-level-516527971fe2-20260822T142253Z`
+
+Campaign:
+
+- 5 independent processes;
+- 21 rounds per configuration;
+- 4,000,000 target scalar operations for warm batching;
+- 306 records per process;
+- 1530 aggregate records;
+- zero observed numerical difference across all three kernels;
+- zero natural-anchor A2 non-wins.
+
+For the alpha=2 natural-like anchor:
+
+- minimum isolated A2-after-A5 ratio: 4.945682x;
+- median: 21.123188x;
+- maximum: 67.185331x.
+
+For the alpha=1.5 natural-like anchor:
+
+- minimum isolated A2-after-A5 ratio: 4.882465x;
+- median: 17.026632x;
+- maximum: 52.448346x.
+
+The global worst natural-anchor result was therefore:
+
+\[
+G_{A2|A5}=4.882465.
+\]
+
+Every independent process qualified individually.
+
+The `S=K` negative control had aggregate median:
+
+\[
+G_{A2|A5}=1.000000,
+\]
+
+with per-process medians all approximately unity.
+
+Raw evidence manifest SHA-256:
+
+`3a5f428ee0fa90a2aff1259b0b38f0f5b8cab5dbe4548311f9d51999e52e8b37`
+
+The raw manifest is preserved unchanged.
+
+See the evidence-local `QUALIFICATION.md` for the complete classification
+summary and scope restrictions.
+
+## Reproduction campaign
 
 Qualification must run from a clean committed harness.
 

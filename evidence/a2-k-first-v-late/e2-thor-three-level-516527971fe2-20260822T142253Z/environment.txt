@@ -1,0 +1,148 @@
+experiment=ADA-A2-E2-three-level-physical-v-access
+ada_sha=516527971fe2311e85af849813b990e130ec2b3c
+utc=20260822T142253Z
+cpu_core=13
+process_repeats=5
+benchmark_rounds=21
+target_scalars=4000000
+pmu_counters=false
+working_tree_before=clean
+
+=== SYSTEM ===
+Linux tarek 6.8.12-tegra #1 SMP PREEMPT Tue Dec 30 15:40:41 PST 2025 aarch64 aarch64 aarch64 GNU/Linux
+
+PRETTY_NAME="Ubuntu 24.04.4 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.4 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+
+rustc 1.89.0 (29483883e 2025-08-04)
+cargo 1.89.0 (c24e10642 2025-06-23)
+
+=== CPU ===
+Architecture:                         aarch64
+CPU op-mode(s):                       64-bit
+Byte Order:                           Little Endian
+CPU(s):                               14
+On-line CPU(s) list:                  0-13
+Vendor ID:                            ARM
+BIOS Vendor ID:                       NVIDIA
+Model name:                           -
+BIOS Model name:                      Thor Not Specified CPU @ 2.6GHz
+BIOS CPU family:                      257
+Model:                                0
+Thread(s) per core:                   1
+Core(s) per cluster:                  14
+Socket(s):                            1
+Cluster(s):                           1
+Stepping:                             r0p0
+CPU(s) scaling MHz:                   100%
+CPU max MHz:                          2601.0000
+CPU min MHz:                          54.0000
+BogoMIPS:                             2000.00
+Flags:                                fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 sve asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp sve2 sveaes svepmull svebitperm svesha3 svesm4 flagm2 frint svei8mm svebf16 i8mm bf16 dgh bti ecv afp wfxt
+L1d cache:                            896 KiB (14 instances)
+L1i cache:                            896 KiB (14 instances)
+L2 cache:                             14 MiB (14 instances)
+NUMA node(s):                         1
+NUMA node0 CPU(s):                    0-13
+Vulnerability Gather data sampling:   Not affected
+Vulnerability Itlb multihit:          Not affected
+Vulnerability L1tf:                   Not affected
+Vulnerability Mds:                    Not affected
+Vulnerability Meltdown:               Not affected
+Vulnerability Mmio stale data:        Not affected
+Vulnerability Reg file data sampling: Not affected
+Vulnerability Retbleed:               Not affected
+Vulnerability Spec rstack overflow:   Not affected
+Vulnerability Spec store bypass:      Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:             Mitigation; __user pointer sanitization
+Vulnerability Spectre v2:             Not affected
+Vulnerability Srbds:                  Not affected
+Vulnerability Tsx async abort:        Not affected
+
+pinned_core=13
+governor=schedutil
+min_khz=2601000
+current_khz_before=2601000
+max_khz=2601000
+documented_l2_per_core_bytes=1048576
+documented_l3_shared_bytes=16777216
+
+=== NVPModel ===
+NV Power Mode: MAXN
+0
+
+=== JETSON CLOCKS ===
+SOC family:tegra264  Machine:NVIDIA Jetson AGX Thor Developer Kit
+Online CPUs: 0-13, Offline CPUs: 
+cpu0:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu1:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu2:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu3:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu4:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu5:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu6:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu7:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu8:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu9:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu10: Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu11: Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu12: Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu13: Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+gpu-gpc-0 MinFreq=1575000000 MaxFreq=1575000000 CurrentFreq=1575000000
+gpu-nvd-0 MinFreq=1692000000 MaxFreq=1692000000 CurrentFreq=1692000000
+EMC MinFreq=4266000000 MaxFreq=4266000000 CurrentFreq=4266000000
+PVA0_VPS0: Online=0 MinFreq=0 MaxFreq=1215000000 CurrentFreq=1215000000
+PVA0_AXI:  Online=0 MinFreq=0 MaxFreq=909000000 CurrentFreq=909000000
+FAN Dynamic Speed Control=nvfancontrol hwmon1_pwm1=76
+FAN Dynamic Speed Control=nvfancontrol hwmon1_pwm1_enable=1
+NV Power Mode: MAXN
+
+=== THERMALS BEFORE ===
+tj-thermal=74312
+gpu-thermal=74281
+cpu-thermal=73468
+soc012-thermal=71937
+soc345-thermal=74000
+
+=== PROCESS SNAPSHOT BEFORE ===
+    PID PSR %CPU %MEM COMMAND
+3734759   4 89.3  0.6 soullink-scan
+3661728   1 59.7  0.7 opencode
+3716823   6 52.0  0.6 opencode
+3506875   7 37.4  1.0 opencode
+3712055   2 15.7  0.0 kworker/u28:1-ext4-rsv-conversion
+3386093  13  7.6  0.0 kworker/u28:2+devfreq_wq
+    108   5  2.3  0.0 kcompactd0
+2837539   5  2.0  7.4 llama-server
+3734942   6  0.8  0.0 bash
+3733960   6  0.8  0.0 synergie
+   2032   8  0.3  0.0 rustdesk
+2841659  11  0.2  0.2 hermes
+2838839   8  0.2  4.8 llama-server
+   1005   5  0.2  0.0 dbus-daemon
+3722550  13  0.2  0.0 rustdesk
+3642583   5  0.2  0.0 sshd
+3661150  12  0.1  0.0 (udev-worker)
+3709708   6  0.1  0.0 sshd
+3341276   3  0.1  0.0 kworker/3:1-events
+
+=== PINNED CORE AFTER ===
+current_khz_after=2601000
+
+=== THERMALS AFTER ===
+tj-thermal=74781
+gpu-thermal=74812
+cpu-thermal=73312
+soc012-thermal=72281
+soc345-thermal=74437
