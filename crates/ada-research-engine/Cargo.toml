@@ -1,0 +1,15 @@
+[package]
+name = "ada-research-engine"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "ARE-E0: deterministic research engine for automated algorithm discovery (propose -> falsify -> oracle -> adversarial -> cost -> pareto -> archive)"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+
+[lints]
+workspace = true

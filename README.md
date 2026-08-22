@@ -25,9 +25,14 @@ The first bench is intentionally CPU/reference-only. GPU kernels and FLAT integr
 - `crates/ada-core` — shared contracts and logical operation metrics.
 - `crates/ada-oracle` — deterministic reference implementations and candidate algorithms.
 - `crates/ada-runner` — reproducible local benchmark/falsification runner.
+- `crates/ada-research-engine` — deterministic grammar search, evidence gates,
+  Pareto ranking, and replayable ARE-E0 archives.
 - `docs/ADA_SPEC.md` — architecture and research invariants.
 - `docs/RESEARCH_PROTOCOL.md` — evidence and promotion rules.
 - `docs/ALGORITHM_REGISTRY.md` — ADA-A1…A10 mission registry.
+- `docs/ADA_RESEARCH_ENGINE_E0.md` — ARE-E0 architecture and first automated
+  discovery experiment.
+- `docs/ADA_SCIRUST_ALGOGEN_GAP_ANALYSIS.md` — SciRust reuse and adapter analysis.
 
 ## Quick start
 
