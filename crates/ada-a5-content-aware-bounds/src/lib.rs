@@ -109,6 +109,12 @@ impl ContentAwareKeyIndex {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContentAwareBoundMode {
+    BoxOnly,
+    Hybrid,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NodeUpperBounds {
     pub box_upper: f64,
@@ -540,10 +546,23 @@ fn validate_bounds_against_dense_scores(
     Ok(())
 }
 
-fn highest_bound_position(frontier: &[usize], bounds: &[NodeUpperBounds]) -> usize {
+fn selected_upper_bound(bounds: &NodeUpperBounds, mode: ContentAwareBoundMode) -> f64 {
+    match mode {
+        ContentAwareBoundMode::BoxOnly => bounds.box_upper,
+        ContentAwareBoundMode::Hybrid => bounds.hybrid_upper,
+    }
+}
+
+fn highest_bound_position(
+    frontier: &[usize],
+    bounds: &[NodeUpperBounds],
+    mode: ContentAwareBoundMode,
+) -> usize {
     let mut best_position = 0;
     for position in 1..frontier.len() {
-        if bounds[frontier[position]].hybrid_upper > bounds[frontier[best_position]].hybrid_upper {
+        if selected_upper_bound(&bounds[frontier[position]], mode)
+            > selected_upper_bound(&bounds[frontier[best_position]], mode)
+        {
             best_position = position;
         }
     }
@@ -570,12 +589,13 @@ fn load_leaf(
 fn seed_highest_bound_leaf(
     index: &ContentAwareKeyIndex,
     bounds: &[NodeUpperBounds],
+    mode: ContentAwareBoundMode,
     frontier: &mut Vec<usize>,
     loaded_tokens: &mut [bool],
     loaded_indices: &mut Vec<usize>,
     metrics: &mut ContentAwareMetrics,
 ) {
-    let root_position = highest_bound_position(&index.roots, bounds);
+    let root_position = highest_bound_position(&index.roots, bounds, mode);
     let mut current = index.roots[root_position];
     frontier.extend(
         index
@@ -589,7 +609,9 @@ fn seed_highest_bound_leaf(
         let node = &index.nodes[current];
         if let Some((left, right)) = node.children() {
             metrics.nodes_expanded += 1;
-            if bounds[left].hybrid_upper >= bounds[right].hybrid_upper {
+            if selected_upper_bound(&bounds[left], mode)
+                >= selected_upper_bound(&bounds[right], mode)
+            {
                 frontier.push(right);
                 current = left;
             } else {
@@ -655,6 +677,31 @@ pub fn branch_and_bound_entmax_content_aware(
     case: &QueryKeyPagedCase,
     index: &ContentAwareKeyIndex,
 ) -> Result<ContentAwareResult, &'static str> {
+    branch_and_bound_entmax_content_aware_with_mode(case, index, ContentAwareBoundMode::Hybrid)
+}
+
+/// Run the exact content-aware branch-and-bound controller using an explicit
+/// node-bound selection policy.
+///
+/// `BoxOnly` keeps the identical content-aware key partition but makes every
+/// traversal and pruning decision from the coordinate-box upper bound alone.
+/// `Hybrid` preserves the historical E2/E3 behavior and uses
+/// `min(box_upper, ball_upper)`.
+///
+/// This mode exists as a mechanistic ablation: it separates gains caused by
+/// content-aware partition geometry from gains caused by the enclosing-ball
+/// component.
+///
+/// # Errors
+///
+/// Returns an error for invalid inputs, a non-conservative f64 bound, or an
+/// Entmax threshold-solver failure.
+#[must_use = "the exact result and bound-ablation metrics should be checked"]
+pub fn branch_and_bound_entmax_content_aware_with_mode(
+    case: &QueryKeyPagedCase,
+    index: &ContentAwareKeyIndex,
+    mode: ContentAwareBoundMode,
+) -> Result<ContentAwareResult, &'static str> {
     validate_query_index(case, index)?;
     let dense_scores = dense_qk_scores(case)?;
     let bounds = query_content_aware_upper_bounds(case, index)?;
@@ -680,6 +727,7 @@ pub fn branch_and_bound_entmax_content_aware(
     seed_highest_bound_leaf(
         index,
         &bounds,
+        mode,
         &mut frontier,
         &mut loaded_tokens,
         &mut loaded_indices,
@@ -696,7 +744,7 @@ pub fn branch_and_bound_entmax_content_aware(
         loop {
             let mut unresolved = Vec::with_capacity(frontier.len());
             for node_index in frontier.drain(..) {
-                if entmax_scale * bounds[node_index].hybrid_upper <= tau_lower {
+                if entmax_scale * selected_upper_bound(&bounds[node_index], mode) <= tau_lower {
                     metrics.subtrees_pruned += 1;
                     metrics.tokens_pruned += index.nodes[node_index].token_count();
                 } else {
@@ -717,7 +765,7 @@ pub fn branch_and_bound_entmax_content_aware(
                 });
             }
 
-            let best_position = highest_bound_position(&frontier, &bounds);
+            let best_position = highest_bound_position(&frontier, &bounds, mode);
             let node_index = frontier.swap_remove(best_position);
             let node = &index.nodes[node_index];
             if let Some((left, right)) = node.children() {
@@ -778,6 +826,60 @@ mod tests {
             }
         }
         candidate
+    }
+
+    #[test]
+    fn box_only_and_hybrid_modes_both_match_dense_entmax() {
+        let keys = vec![
+            8.0, 0.0, -8.0, 0.0, 7.0, 1.0, -7.0, -1.0, 6.0, 2.0, -6.0, -2.0, 5.0, 3.0, -5.0, -3.0,
+        ];
+
+        for alpha in [1.5, 2.0] {
+            let case = QueryKeyPagedCase {
+                query: vec![1.0, -0.25],
+                keys: keys.clone(),
+                head_dim: 2,
+                page_size: 8,
+                alpha,
+                score_scale: 1.0,
+            };
+
+            let index = build_content_aware_key_index(&case.keys, 2, 8, 2).unwrap();
+
+            let dense_scores = dense_qk_scores(&case).unwrap();
+            let dense = dense_entmax(&dense_scores, alpha).unwrap();
+
+            let box_only = branch_and_bound_entmax_content_aware_with_mode(
+                &case,
+                &index,
+                ContentAwareBoundMode::BoxOnly,
+            )
+            .unwrap();
+
+            let hybrid = branch_and_bound_entmax_content_aware_with_mode(
+                &case,
+                &index,
+                ContentAwareBoundMode::Hybrid,
+            )
+            .unwrap();
+
+            let historical = branch_and_bound_entmax_content_aware(&case, &index).unwrap();
+
+            assert_close(dense.tau, box_only.distribution.tau, 2.0e-12);
+            assert_close(dense.tau, hybrid.distribution.tau, 2.0e-12);
+
+            for ((&expected, &box_probability), &hybrid_probability) in dense
+                .probabilities
+                .iter()
+                .zip(box_only.distribution.probabilities.iter())
+                .zip(hybrid.distribution.probabilities.iter())
+            {
+                assert_close(expected, box_probability, 4.0e-12);
+                assert_close(expected, hybrid_probability, 4.0e-12);
+            }
+
+            assert_eq!(historical, hybrid);
+        }
     }
 
     #[test]

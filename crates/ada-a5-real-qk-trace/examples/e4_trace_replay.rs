@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use ada_a4_entmax_bnb::{BranchAndBoundResult, EntmaxDistribution, dense_entmax};
 use ada_a4_qk_box::{QueryKeyPagedCase, branch_and_bound_entmax_qk_box, dense_qk_scores};
 use ada_a5_content_aware_bounds::{
-    ContentAwareResult, branch_and_bound_entmax_content_aware, build_content_aware_key_index,
+    ContentAwareBoundMode, ContentAwareResult, branch_and_bound_entmax_content_aware_with_mode,
+    build_content_aware_key_index,
 };
 use ada_a5_hierarchical_bounds::{
     HierarchicalResult, branch_and_bound_entmax_hierarchical, build_hierarchical_key_index,
@@ -51,9 +52,12 @@ struct CaseMetrics {
     support_fraction: f64,
     flat_avoidance: f64,
     contiguous_avoidance: f64,
+    content_box_avoidance: f64,
     content_avoidance: f64,
+    content_box_gain_over_contiguous: f64,
     content_gain_over_flat: f64,
     content_gain_over_contiguous: f64,
+    hybrid_gain_over_content_box: f64,
     contiguous_bound_density: f64,
     content_bound_density: f64,
     ball_win_fraction: f64,
@@ -63,9 +67,11 @@ struct CaseMetrics {
     content_threshold_solves: usize,
     flat_probability_error: f64,
     contiguous_probability_error: f64,
+    content_box_probability_error: f64,
     content_probability_error: f64,
     flat_tau_error: f64,
     contiguous_tau_error: f64,
+    content_box_tau_error: f64,
     content_tau_error: f64,
 }
 
@@ -75,9 +81,12 @@ struct Aggregate {
     support_fraction_sum: f64,
     flat_avoidance_sum: f64,
     contiguous_avoidance_sum: f64,
+    content_box_avoidance_sum: f64,
     content_avoidance_sum: f64,
+    content_box_gain_over_contiguous_sum: f64,
     content_gain_over_flat_sum: f64,
     content_gain_over_contiguous_sum: f64,
+    hybrid_gain_over_content_box_sum: f64,
     contiguous_bound_density_sum: f64,
     content_bound_density_sum: f64,
     ball_win_fraction_sum: f64,
@@ -87,9 +96,11 @@ struct Aggregate {
     content_threshold_solves_sum: f64,
     flat_probability_error_max: f64,
     contiguous_probability_error_max: f64,
+    content_box_probability_error_max: f64,
     content_probability_error_max: f64,
     flat_tau_error_max: f64,
     contiguous_tau_error_max: f64,
+    content_box_tau_error_max: f64,
     content_tau_error_max: f64,
 }
 
@@ -99,9 +110,12 @@ impl Aggregate {
         self.support_fraction_sum += metrics.support_fraction;
         self.flat_avoidance_sum += metrics.flat_avoidance;
         self.contiguous_avoidance_sum += metrics.contiguous_avoidance;
+        self.content_box_avoidance_sum += metrics.content_box_avoidance;
         self.content_avoidance_sum += metrics.content_avoidance;
+        self.content_box_gain_over_contiguous_sum += metrics.content_box_gain_over_contiguous;
         self.content_gain_over_flat_sum += metrics.content_gain_over_flat;
         self.content_gain_over_contiguous_sum += metrics.content_gain_over_contiguous;
+        self.hybrid_gain_over_content_box_sum += metrics.hybrid_gain_over_content_box;
         self.contiguous_bound_density_sum += metrics.contiguous_bound_density;
         self.content_bound_density_sum += metrics.content_bound_density;
         self.ball_win_fraction_sum += metrics.ball_win_fraction;
@@ -115,6 +129,9 @@ impl Aggregate {
         self.contiguous_probability_error_max = self
             .contiguous_probability_error_max
             .max(metrics.contiguous_probability_error);
+        self.content_box_probability_error_max = self
+            .content_box_probability_error_max
+            .max(metrics.content_box_probability_error);
         self.content_probability_error_max = self
             .content_probability_error_max
             .max(metrics.content_probability_error);
@@ -122,6 +139,9 @@ impl Aggregate {
         self.contiguous_tau_error_max = self
             .contiguous_tau_error_max
             .max(metrics.contiguous_tau_error);
+        self.content_box_tau_error_max = self
+            .content_box_tau_error_max
+            .max(metrics.content_box_tau_error);
         self.content_tau_error_max = self.content_tau_error_max.max(metrics.content_tau_error);
     }
 
@@ -129,7 +149,7 @@ impl Aggregate {
         let denominator = usize_as_f64(self.cases);
         let layer = layer_index.map_or_else(|| "all".to_owned(), |value| value.to_string());
         println!(
-            "aggregate,scope={scope},layer={layer},alpha={:.1},page_size={},leaf_divisor={},cases={},mean_support_fraction={:.6},mean_flat_score_avoidance={:.6},mean_contiguous_score_avoidance={:.6},mean_content_score_avoidance={:.6},mean_content_gain_over_flat={:.6},mean_content_gain_over_contiguous={:.6},mean_contiguous_bound_evaluations_per_token={:.6},mean_content_bound_evaluations_per_token={:.6},mean_ball_bound_win_fraction={:.6},mean_contiguous_nodes_expanded={:.6},mean_content_nodes_expanded={:.6},mean_contiguous_threshold_solves={:.6},mean_content_threshold_solves={:.6},max_flat_probability_difference={:.3e},max_contiguous_probability_difference={:.3e},max_content_probability_difference={:.3e},max_flat_tau_difference={:.3e},max_contiguous_tau_difference={:.3e},max_content_tau_difference={:.3e}",
+            "aggregate,scope={scope},layer={layer},alpha={:.1},page_size={},leaf_divisor={},cases={},mean_support_fraction={:.6},mean_flat_score_avoidance={:.6},mean_contiguous_score_avoidance={:.6},mean_content_box_score_avoidance={:.6},mean_content_score_avoidance={:.6},mean_content_box_gain_over_contiguous={:.6},mean_content_gain_over_flat={:.6},mean_content_gain_over_contiguous={:.6},mean_hybrid_gain_over_content_box={:.6},mean_contiguous_bound_evaluations_per_token={:.6},mean_content_bound_evaluations_per_token={:.6},mean_ball_bound_win_fraction={:.6},mean_contiguous_nodes_expanded={:.6},mean_content_nodes_expanded={:.6},mean_contiguous_threshold_solves={:.6},mean_content_threshold_solves={:.6},max_flat_probability_difference={:.3e},max_contiguous_probability_difference={:.3e},max_content_box_probability_difference={:.3e},max_content_probability_difference={:.3e},max_flat_tau_difference={:.3e},max_contiguous_tau_difference={:.3e},max_content_box_tau_difference={:.3e},max_content_tau_difference={:.3e}",
             config.alpha(),
             config.page_size,
             config.leaf_divisor,
@@ -137,9 +157,12 @@ impl Aggregate {
             self.support_fraction_sum / denominator,
             self.flat_avoidance_sum / denominator,
             self.contiguous_avoidance_sum / denominator,
+            self.content_box_avoidance_sum / denominator,
             self.content_avoidance_sum / denominator,
+            self.content_box_gain_over_contiguous_sum / denominator,
             self.content_gain_over_flat_sum / denominator,
             self.content_gain_over_contiguous_sum / denominator,
+            self.hybrid_gain_over_content_box_sum / denominator,
             self.contiguous_bound_density_sum / denominator,
             self.content_bound_density_sum / denominator,
             self.ball_win_fraction_sum / denominator,
@@ -149,9 +172,11 @@ impl Aggregate {
             self.content_threshold_solves_sum / denominator,
             self.flat_probability_error_max,
             self.contiguous_probability_error_max,
+            self.content_box_probability_error_max,
             self.content_probability_error_max,
             self.flat_tau_error_max,
             self.contiguous_tau_error_max,
+            self.content_box_tau_error_max,
             self.content_tau_error_max,
         );
     }
@@ -190,6 +215,7 @@ fn verify_support(
     dense: &EntmaxDistribution,
     flat: &BranchAndBoundResult,
     contiguous: &HierarchicalResult,
+    content_box: &ContentAwareResult,
     content: &ContentAwareResult,
 ) -> Result<usize, String> {
     let mut support_tokens = 0_usize;
@@ -203,8 +229,11 @@ fn verify_support(
             if !contiguous.loaded_tokens[token] {
                 return Err("ADA-A5 E4 contiguous candidate pruned dense support".to_owned());
             }
+            if !content_box.loaded_tokens[token] {
+                return Err("ADA-A5 E4 content-box candidate pruned dense support".to_owned());
+            }
             if !content.loaded_tokens[token] {
-                return Err("ADA-A5 E4 content-aware candidate pruned dense support".to_owned());
+                return Err("ADA-A5 E4 content-hybrid candidate pruned dense support".to_owned());
             }
         }
     }
@@ -227,24 +256,40 @@ fn measure_divisor(
     let content_index =
         build_content_aware_key_index(&case.keys, case.head_dim, case.page_size, leaf_size)
             .map_err(str::to_owned)?;
-    let content =
-        branch_and_bound_entmax_content_aware(case, &content_index).map_err(str::to_owned)?;
+    let content_box = branch_and_bound_entmax_content_aware_with_mode(
+        case,
+        &content_index,
+        ContentAwareBoundMode::BoxOnly,
+    )
+    .map_err(str::to_owned)?;
+
+    let content = branch_and_bound_entmax_content_aware_with_mode(
+        case,
+        &content_index,
+        ContentAwareBoundMode::Hybrid,
+    )
+    .map_err(str::to_owned)?;
 
     let (flat_probability_error, flat_tau_error) = distribution_error(dense, &flat.distribution);
     let (contiguous_probability_error, contiguous_tau_error) =
         distribution_error(dense, &contiguous.distribution);
+    let (content_box_probability_error, content_box_tau_error) =
+        distribution_error(dense, &content_box.distribution);
+
     let (content_probability_error, content_tau_error) =
         distribution_error(dense, &content.distribution);
 
     check_tolerance(flat_probability_error, flat_tau_error)?;
     check_tolerance(contiguous_probability_error, contiguous_tau_error)?;
+    check_tolerance(content_box_probability_error, content_box_tau_error)?;
     check_tolerance(content_probability_error, content_tau_error)?;
 
-    let support_tokens = verify_support(case, dense, flat, &contiguous, &content)?;
+    let support_tokens = verify_support(case, dense, flat, &contiguous, &content_box, &content)?;
     let total = usize_as_f64(case.key_count());
     let support_fraction = usize_as_f64(support_tokens) / total;
     let flat_avoidance = 1.0 - usize_as_f64(flat.metrics.scores_loaded) / total;
     let contiguous_avoidance = 1.0 - usize_as_f64(contiguous.metrics.tokens_loaded) / total;
+    let content_box_avoidance = 1.0 - usize_as_f64(content_box.metrics.tokens_loaded) / total;
     let content_avoidance = 1.0 - usize_as_f64(content.metrics.tokens_loaded) / total;
     let contiguous_bound_density = usize_as_f64(contiguous.metrics.bound_evaluations) / total;
     let content_bound_density = usize_as_f64(content.metrics.hybrid_bound_evaluations) / total;
@@ -255,9 +300,12 @@ fn measure_divisor(
         support_fraction,
         flat_avoidance,
         contiguous_avoidance,
+        content_box_avoidance,
         content_avoidance,
+        content_box_gain_over_contiguous: content_box_avoidance - contiguous_avoidance,
         content_gain_over_flat: content_avoidance - flat_avoidance,
         content_gain_over_contiguous: content_avoidance - contiguous_avoidance,
+        hybrid_gain_over_content_box: content_avoidance - content_box_avoidance,
         contiguous_bound_density,
         content_bound_density,
         ball_win_fraction,
@@ -267,16 +315,18 @@ fn measure_divisor(
         content_threshold_solves: content.metrics.threshold_solves,
         flat_probability_error,
         contiguous_probability_error,
+        content_box_probability_error,
         content_probability_error,
         flat_tau_error,
         contiguous_tau_error,
+        content_box_tau_error,
         content_tau_error,
     })
 }
 
 fn print_case(record_index: usize, record: &TraceRecord, config: ConfigKey, metrics: &CaseMetrics) {
     println!(
-        "case,record_index={record_index},sample_fingerprint={:016x},layer={},query_head={},kv_head={},query_position={},key_start_position={},key_count={},head_dim={},alpha={:.1},page_size={},leaf_divisor={},leaf_size={},support_fraction={:.6},flat_score_avoidance={:.6},contiguous_score_avoidance={:.6},content_score_avoidance={:.6},content_gain_over_flat={:.6},content_gain_over_contiguous={:.6},contiguous_bound_evaluations_per_token={:.6},content_bound_evaluations_per_token={:.6},ball_bound_win_fraction={:.6},contiguous_nodes_expanded={},content_nodes_expanded={},contiguous_threshold_solves={},content_threshold_solves={},flat_probability_difference={:.3e},contiguous_probability_difference={:.3e},content_probability_difference={:.3e},flat_tau_difference={:.3e},contiguous_tau_difference={:.3e},content_tau_difference={:.3e}",
+        "case,record_index={record_index},sample_fingerprint={:016x},layer={},query_head={},kv_head={},query_position={},key_start_position={},key_count={},head_dim={},alpha={:.1},page_size={},leaf_divisor={},leaf_size={},support_fraction={:.6},flat_score_avoidance={:.6},contiguous_score_avoidance={:.6},content_box_score_avoidance={:.6},content_score_avoidance={:.6},content_box_gain_over_contiguous={:.6},content_gain_over_flat={:.6},content_gain_over_contiguous={:.6},hybrid_gain_over_content_box={:.6},contiguous_bound_evaluations_per_token={:.6},content_bound_evaluations_per_token={:.6},ball_bound_win_fraction={:.6},contiguous_nodes_expanded={},content_nodes_expanded={},contiguous_threshold_solves={},content_threshold_solves={},flat_probability_difference={:.3e},contiguous_probability_difference={:.3e},content_box_probability_difference={:.3e},content_probability_difference={:.3e},flat_tau_difference={:.3e},contiguous_tau_difference={:.3e},content_box_tau_difference={:.3e},content_tau_difference={:.3e}",
         record.sample_fingerprint(),
         record.layer_index,
         record.query_head_index,
@@ -292,9 +342,12 @@ fn print_case(record_index: usize, record: &TraceRecord, config: ConfigKey, metr
         metrics.support_fraction,
         metrics.flat_avoidance,
         metrics.contiguous_avoidance,
+        metrics.content_box_avoidance,
         metrics.content_avoidance,
+        metrics.content_box_gain_over_contiguous,
         metrics.content_gain_over_flat,
         metrics.content_gain_over_contiguous,
+        metrics.hybrid_gain_over_content_box,
         metrics.contiguous_bound_density,
         metrics.content_bound_density,
         metrics.ball_win_fraction,
@@ -304,9 +357,11 @@ fn print_case(record_index: usize, record: &TraceRecord, config: ConfigKey, metr
         metrics.content_threshold_solves,
         metrics.flat_probability_error,
         metrics.contiguous_probability_error,
+        metrics.content_box_probability_error,
         metrics.content_probability_error,
         metrics.flat_tau_error,
         metrics.contiguous_tau_error,
+        metrics.content_box_tau_error,
         metrics.content_tau_error,
     );
 }
