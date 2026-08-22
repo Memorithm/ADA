@@ -3,7 +3,7 @@
 | ID | Mission | Current status |
 | --- | --- | --- |
 | ADA-A1 | Exact Online Softmax recurrence search | CPU-L2-QUALIFIED / GPU-Q4-DIRECT-MAPPINGS-REJECTED / NVIDIA-BACKEND-INVESTIGATE |
-| ADA-A2 | K-first / V-late staging and scheduling | E0-K-FIRST-V-LATE-CORRECTNESS |
+| ADA-A2 | K-first / V-late staging and scheduling | E0-K-FIRST-V-LATE-CORRECTNESS / E1-NATURAL-LOGICAL-KV-ACCOUNTING-QUALIFIED |
 | ADA-A3 | Certified error-budgeted Softmax | PLANNED |
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
 | ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED |
@@ -16,6 +16,8 @@
 ## Status semantics
 
 - `E0-K-FIRST-V-LATE-CORRECTNESS` means the isolated A2 exact K-first/V-late scalar contract passed its declared local correctness gates: workspace fmt, strict crate/workspace Clippy, all workspace unit/doc tests, exhaustive small support-mask weighted-sum parity, integrated alpha 1.5 and alpha 2.0 A5-priority-to-A2 cases, dense Entmax/output parity, exact `V_loaded == final support size`, `K_loaded >= V_loaded`, safe dense-support fallback, rejection of non-finite values in actually loaded V rows, and a structural sentinel test showing that zero-probability V rows are skipped before their scalars are inspected. This qualifies source-level logical V-late semantics and accounting only. It is not a physical memory-traffic, cache, GPU, wall-clock, model-quality, production floating-point, or novelty claim.
+
+- `E1-NATURAL-LOGICAL-KV-ACCOUNTING-QUALIFIED` means A2 replayed the frozen Qwen3 natural Q/K slice at the A5 E5b qualified page-size-16 / leaf-divisor-8 configuration for alpha 1.5 and 2.0, completing all 1,536 cases with dense Entmax parity, exact support containment inside the K-loaded set, and the exact decomposition `N = K_pruned + (K_loaded - V_loaded) + V_loaded`. Weighted K pruning was `0.708539` / `0.774436`, while only `0.015370` / `0.008344` of visible rows remained in the final logical V support. Among K-loaded rows, `0.947266` / `0.963008` had zero final probability and were therefore logically avoidable on a V-late path. This qualifies natural-trace logical row opportunity only. The trace does not measure V tensors or memory transactions, and GQA/cache/reuse effects are not modeled, so this status is not a bandwidth, GPU, wall-clock, production, or novelty claim.
 
 - `CPU-L2-QUALIFIED` means the candidate has passed the ADA CPU L2 evidence protocol on a named physical target with a clean Git tree, fixed power/frequency context, CPU affinity, correctness gates, repeated processes, raw evidence, and a SHA-256 digest.
 - `GPU-Q4-DIRECT-MAPPINGS-REJECTED` means two correctness-qualified direct Q4 GPU realizations of the exact one-exp recurrence were slower than the qualified Q4 baseline across the same physical-Thor GPU-timestamp smoke matrix: the branch-specialized mapping and the adapted steady-state branchless mapping. The branchless mapping recovered part of the branch penalty but still lost in all 12 cases. This rejects these direct same-geometry/same-staging Q4 mappings as performance candidates; it does not invalidate the exact recurrence, the CPU result, or materially different GPU implementations.

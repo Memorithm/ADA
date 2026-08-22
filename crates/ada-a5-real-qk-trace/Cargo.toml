@@ -7,6 +7,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+ada-a2-k-first-v-late = { path = "../ada-a2-k-first-v-late" }
 ada-a4-entmax-bnb = { path = "../ada-a4-entmax-bnb" }
 ada-a4-qk-box = { path = "../ada-a4-qk-box" }
 ada-a5-content-aware-bounds = { path = "../ada-a5-content-aware-bounds" }

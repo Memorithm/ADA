@@ -232,6 +232,142 @@ pub fn priority_k_first_v_late(
     })
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct LogicalKFirstVLateMetrics {
+    pub tokens_total: usize,
+    pub k_loaded: usize,
+    pub k_pruned: usize,
+    pub v_loaded: usize,
+    pub v_skipped_total: usize,
+    pub v_skipped_after_k: usize,
+}
+
+impl LogicalKFirstVLateMetrics {
+    #[must_use]
+    pub fn k_load_fraction(self) -> f64 {
+        if self.tokens_total == 0 {
+            0.0
+        } else {
+            usize_ratio(self.k_loaded, self.tokens_total)
+        }
+    }
+
+    #[must_use]
+    pub fn k_pruning_fraction(self) -> f64 {
+        if self.tokens_total == 0 {
+            0.0
+        } else {
+            usize_ratio(self.k_pruned, self.tokens_total)
+        }
+    }
+
+    #[must_use]
+    pub fn v_load_fraction(self) -> f64 {
+        if self.tokens_total == 0 {
+            0.0
+        } else {
+            usize_ratio(self.v_loaded, self.tokens_total)
+        }
+    }
+
+    #[must_use]
+    pub fn v_total_avoidance(self) -> f64 {
+        1.0 - self.v_load_fraction()
+    }
+
+    #[must_use]
+    pub fn additional_v_avoidance_fraction(self) -> f64 {
+        if self.tokens_total == 0 {
+            0.0
+        } else {
+            usize_ratio(self.v_skipped_after_k, self.tokens_total)
+        }
+    }
+
+    #[must_use]
+    pub fn v_avoidance_within_loaded_k(self) -> f64 {
+        if self.k_loaded == 0 {
+            0.0
+        } else {
+            usize_ratio(self.v_skipped_after_k, self.k_loaded)
+        }
+    }
+}
+
+/// Derive ideal logical K-first / V-late work accounting from an exact final
+/// attention distribution and the exact K-token set loaded by the A5
+/// controller.
+///
+/// This function does not read V and therefore makes no physical memory-traffic
+/// claim. `v_loaded` means the number of rows that an ideal exact V-late
+/// materialization would require because their final probability is strictly
+/// positive.
+///
+/// # Errors
+///
+/// Returns an error for malformed probabilities, a length mismatch, or any
+/// positive-probability token whose exact K score was not loaded.
+#[must_use = "logical K/V accounting should be recorded or validated"]
+pub fn logical_k_first_v_late_accounting(
+    distribution: &EntmaxDistribution,
+    loaded_k_tokens: &[bool],
+) -> Result<LogicalKFirstVLateMetrics, &'static str> {
+    let probabilities = &distribution.probabilities;
+
+    if probabilities.is_empty() {
+        return Err("ADA-A2 logical accounting requires at least one token");
+    }
+
+    if probabilities.len() != loaded_k_tokens.len() {
+        return Err("ADA-A2 logical accounting K/support lengths differ");
+    }
+
+    if !distribution.tau.is_finite() {
+        return Err("ADA-A2 logical accounting requires finite tau");
+    }
+
+    let mut metrics = LogicalKFirstVLateMetrics {
+        tokens_total: probabilities.len(),
+        ..LogicalKFirstVLateMetrics::default()
+    };
+
+    for (&probability, &k_loaded) in probabilities.iter().zip(loaded_k_tokens.iter()) {
+        if !probability.is_finite() || probability < 0.0 {
+            return Err("ADA-A2 logical accounting probabilities must be finite and non-negative");
+        }
+
+        if k_loaded {
+            metrics.k_loaded += 1;
+        } else {
+            metrics.k_pruned += 1;
+        }
+
+        if probability > 0.0 {
+            if !k_loaded {
+                return Err("ADA-A2 positive-support token was not loaded on the K path");
+            }
+
+            metrics.v_loaded += 1;
+        }
+    }
+
+    metrics.v_skipped_total = metrics.tokens_total - metrics.v_loaded;
+
+    metrics.v_skipped_after_k = metrics.k_loaded - metrics.v_loaded;
+
+    debug_assert_eq!(
+        metrics.tokens_total,
+        metrics.k_pruned + metrics.v_skipped_after_k + metrics.v_loaded
+    );
+
+    debug_assert_eq!(
+        metrics.v_skipped_total,
+        metrics.k_pruned + metrics.v_skipped_after_k
+    );
+
+    Ok(metrics)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -254,6 +390,47 @@ mod tests {
         for (&left_value, &right_value) in left.iter().zip(right.iter()) {
             assert_close(left_value, right_value, 4.0e-12);
         }
+    }
+
+    #[test]
+    fn logical_accounting_separates_k_pruning_from_additional_v_avoidance() {
+        let distribution = EntmaxDistribution {
+            probabilities: vec![0.75, 0.0, 0.25, 0.0],
+            tau: 0.5,
+        };
+
+        let loaded_k_tokens = [true, true, true, false];
+
+        let metrics = logical_k_first_v_late_accounting(&distribution, &loaded_k_tokens).unwrap();
+
+        assert_eq!(metrics.tokens_total, 4);
+        assert_eq!(metrics.k_loaded, 3);
+        assert_eq!(metrics.k_pruned, 1);
+        assert_eq!(metrics.v_loaded, 2);
+        assert_eq!(metrics.v_skipped_total, 2);
+        assert_eq!(metrics.v_skipped_after_k, 1);
+
+        assert_eq!(
+            metrics.tokens_total,
+            metrics.k_pruned + metrics.v_skipped_after_k + metrics.v_loaded
+        );
+
+        assert_close(metrics.k_pruning_fraction(), 0.25, 1.0e-15);
+        assert_close(metrics.additional_v_avoidance_fraction(), 0.25, 1.0e-15);
+        assert_close(metrics.v_total_avoidance(), 0.5, 1.0e-15);
+        assert_close(metrics.v_avoidance_within_loaded_k(), 1.0 / 3.0, 1.0e-15);
+    }
+
+    #[test]
+    fn logical_accounting_rejects_support_outside_loaded_k_set() {
+        let distribution = EntmaxDistribution {
+            probabilities: vec![0.5, 0.5],
+            tau: 0.0,
+        };
+
+        let loaded_k_tokens = [true, false];
+
+        assert!(logical_k_first_v_late_accounting(&distribution, &loaded_k_tokens,).is_err());
     }
 
     #[test]
