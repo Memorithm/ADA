@@ -148,7 +148,13 @@ For every accepted trace record, E4 compares:
 1. dense Entmax oracle;
 2. flat A4 Q/K page boxes;
 3. contiguous A5 hierarchy;
-4. content-aware A5 hybrid hierarchy.
+4. content-aware A5 hierarchy using coordinate-box bounds only;
+5. content-aware A5 hierarchy using hybrid `min(box, ball)` bounds.
+
+The two content-aware candidates must reuse the exact same deterministic
+content-aware index. Their only difference is the node upper bound used for
+traversal and pruning. This ablation isolates the effect of content-aware
+partition geometry from the effect of the enclosing-ball component.
 
 Initial replay parameters:
 
@@ -166,8 +172,11 @@ E4 reports per record and aggregates:
 - dense support size/fraction;
 - flat score avoidance;
 - contiguous score avoidance;
-- content-aware score avoidance;
-- content-aware gain over flat and contiguous;
+- content-aware box-only score avoidance;
+- content-aware hybrid score avoidance;
+- content-aware box-only gain over contiguous;
+- content-aware hybrid gain over flat and contiguous;
+- hybrid gain over the identical content-aware box-only tree;
 - contiguous/content-aware bound evaluations per token;
 - content-aware ball-bound win fraction;
 - node expansions;
@@ -176,6 +185,82 @@ E4 reports per record and aggregates:
 - layer/head/query-position provenance.
 
 Aggregates must be available at least globally and by layer. Corpus-specific analysis may add head and query-position buckets.
+
+## Frozen natural-corpus qualification slice
+
+The first E4 natural-text qualification slice is frozen before model capture.
+
+Dataset provenance:
+
+- dataset id: `Salesforce/wikitext`;
+- configuration: `wikitext-2-raw-v1`;
+- split: `validation`;
+- immutable dataset revision:
+  `b08601e04326c79dfdd32d625aee71d232d685c3`;
+- source file:
+  `wikitext-2-raw-v1/validation-00000-of-00001.parquet`;
+- source row count: `3760`;
+- source file SHA-256:
+  `204929b7ff9d6184953f867dedb860e40aa69c078fc1e54b3baaa8fb28511c4c`.
+
+Tokenizer provenance:
+
+- tokenizer id: `Qwen/Qwen3-0.6B`;
+- immutable tokenizer revision:
+  `c1899de289a04d12100db370d81485cdf75e47ca`;
+- `add_special_tokens = true`;
+- `truncation = true`;
+- `max_length = 512`;
+- `padding = false`.
+
+Selection rule:
+
+1. divide the 3760 validation rows into 16 equal contiguous row strata using
+   integer boundaries `floor(i * 3760 / 16)`;
+2. inside each stratum, begin at its first non-empty row;
+3. append successive non-empty rows in source order;
+4. stop when tokenization under the frozen tokenizer contract reaches the
+   truncation length of exactly 512 tokens;
+5. retain the full accumulated source text in the JSONL so the capture adapter
+   performs the final deterministic truncation itself.
+
+This produces 16 samples, each verifying to exactly 512 adapter tokens.
+
+Frozen generated-corpus identities:
+
+- sample count: `16`;
+- JSONL SHA-256:
+  `8b3cb29d52850020134bd37c1e58dac2ff79508144db49f87ca2801e4e0b4bb0`;
+- manifest SHA-256:
+  `2d6587980f4db0322067e954022c38e8b445ea99e0252c219738580c561d5362`.
+
+The selected source-row intervals are:
+
+- sample 00: rows `1..10`;
+- sample 01: rows `235..247`;
+- sample 02: rows `470..478`;
+- sample 03: rows `705..713`;
+- sample 04: rows `940..949`;
+- sample 05: rows `1175..1188`;
+- sample 06: rows `1411..1423`;
+- sample 07: rows `1645..1653`;
+- sample 08: rows `1880..1882`;
+- sample 09: rows `2115..2123`;
+- sample 10: rows `2352..2360`;
+- sample 11: rows `2585..2603`;
+- sample 12: rows `2821..2823`;
+- sample 13: rows `3055..3063`;
+- sample 14: rows `3290..3298`;
+- sample 15: rows `3527..3534`.
+
+The local filenames used to create these hashes are not part of the identity.
+Qualification relies on the immutable dataset revision, source SHA-256,
+selection algorithm, tokenizer revision, JSONL SHA-256, and manifest SHA-256.
+
+This 16-sample slice is a deterministic natural-text qualification corpus. It
+is broader than the synthetic/smoke prompt used during capture debugging, but
+it is still a limited WikiText-2 validation slice and must not be described as
+a general model-distribution benchmark.
 
 ## Decision rule
 
