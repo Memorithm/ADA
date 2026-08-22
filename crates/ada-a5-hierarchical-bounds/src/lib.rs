@@ -1,5 +1,8 @@
 #![forbid(unsafe_code)]
 
+use std::cmp::Ordering;
+use std::collections::BTreeSet;
+
 use ada_a4_entmax_bnb::{EntmaxDistribution, dense_entmax, entmax_threshold_bracket};
 use ada_a4_qk_box::{PageKeyBox, QueryKeyPagedCase, dense_qk_scores};
 
@@ -198,6 +201,75 @@ pub struct LazyHierarchicalResult {
     pub distribution: EntmaxDistribution,
     pub loaded_tokens: Vec<bool>,
     pub metrics: LazyHierarchicalMetrics,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct PriorityLazyHierarchicalMetrics {
+    pub nodes_total: usize,
+    pub nodes_expanded: usize,
+    pub subtrees_pruned: usize,
+    pub bound_evaluations: usize,
+    pub nodes_never_evaluated: usize,
+    pub frontier_insertions: usize,
+    pub frontier_min_checks: usize,
+    pub frontier_max_pops: usize,
+    pub leaves_total: usize,
+    pub leaves_loaded: usize,
+    pub tokens_loaded: usize,
+    pub tokens_pruned: usize,
+    pub threshold_solves: usize,
+}
+
+impl PriorityLazyHierarchicalMetrics {
+    #[must_use]
+    pub fn bound_evaluation_fraction(self) -> f64 {
+        if self.nodes_total == 0 {
+            0.0
+        } else {
+            usize_ratio(self.bound_evaluations, self.nodes_total)
+        }
+    }
+
+    #[must_use]
+    pub fn bound_avoidance(self) -> f64 {
+        1.0 - self.bound_evaluation_fraction()
+    }
+
+    #[must_use]
+    pub fn score_load_fraction(self) -> f64 {
+        let tokens_total = self.tokens_loaded + self.tokens_pruned;
+        if tokens_total == 0 {
+            0.0
+        } else {
+            usize_ratio(self.tokens_loaded, tokens_total)
+        }
+    }
+
+    #[must_use]
+    pub fn score_avoidance(self) -> f64 {
+        1.0 - self.score_load_fraction()
+    }
+
+    #[must_use]
+    pub const fn frontier_logical_operations(self) -> usize {
+        self.frontier_insertions + self.frontier_min_checks + self.frontier_max_pops
+    }
+
+    #[must_use]
+    pub fn frontier_logical_operations_per_pruned_token(self) -> f64 {
+        if self.tokens_pruned == 0 {
+            0.0
+        } else {
+            usize_ratio(self.frontier_logical_operations(), self.tokens_pruned)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PriorityLazyHierarchicalResult {
+    pub distribution: EntmaxDistribution,
+    pub loaded_tokens: Vec<bool>,
+    pub metrics: PriorityLazyHierarchicalMetrics,
 }
 
 fn fingerprint_keys(keys: &[f64]) -> u64 {
@@ -662,6 +734,155 @@ fn finalize_lazy_metrics(mut metrics: LazyHierarchicalMetrics) -> LazyHierarchic
     metrics
 }
 
+#[derive(Debug, Clone, Copy)]
+struct PriorityFrontierEntry {
+    bound: f64,
+    node_index: usize,
+}
+
+impl PartialEq for PriorityFrontierEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl Eq for PriorityFrontierEntry {}
+
+impl PartialOrd for PriorityFrontierEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PriorityFrontierEntry {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.bound
+            .total_cmp(&other.bound)
+            // For equal bounds, a lower node index has higher expansion
+            // priority. This keeps the tie-break deterministic and matches
+            // left/root order for the common static hierarchy cases.
+            .then_with(|| other.node_index.cmp(&self.node_index))
+    }
+}
+
+fn evaluate_priority_bound(
+    context: &LazyBoundContext<'_>,
+    evaluated: &mut [bool],
+    node_index: usize,
+    metrics: &mut PriorityLazyHierarchicalMetrics,
+) -> Result<f64, &'static str> {
+    if evaluated[node_index] {
+        return Err("ADA-A5 E5b priority frontier requested a node bound more than once");
+    }
+
+    let node = &context.index.nodes[node_index];
+    let bound = query_box_bound(&context.case.query, &node.key_box, context.case.score_scale)?;
+
+    let actual_maximum = context.dense_scores[node.start_token..node.end_token]
+        .iter()
+        .copied()
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    if bound < actual_maximum {
+        return Err("ADA-A5 E5b f64 hierarchy bound is not conservative against the dense oracle");
+    }
+
+    evaluated[node_index] = true;
+    metrics.bound_evaluations += 1;
+
+    Ok(bound)
+}
+
+fn insert_priority_entry(
+    frontier: &mut BTreeSet<PriorityFrontierEntry>,
+    node_index: usize,
+    bound: f64,
+    metrics: &mut PriorityLazyHierarchicalMetrics,
+) -> Result<(), &'static str> {
+    let inserted = frontier.insert(PriorityFrontierEntry { bound, node_index });
+
+    if !inserted {
+        return Err("ADA-A5 E5b priority frontier contains a duplicate node");
+    }
+
+    metrics.frontier_insertions += 1;
+    Ok(())
+}
+
+fn load_priority_leaf(
+    node: &HierarchyNode,
+    loaded_tokens: &mut [bool],
+    loaded_indices: &mut Vec<usize>,
+    metrics: &mut PriorityLazyHierarchicalMetrics,
+) {
+    debug_assert!(node.is_leaf());
+
+    for (offset, loaded) in loaded_tokens[node.start_token..node.end_token]
+        .iter_mut()
+        .enumerate()
+    {
+        let token = node.start_token + offset;
+        debug_assert!(!*loaded);
+        *loaded = true;
+        loaded_indices.push(token);
+        metrics.tokens_loaded += 1;
+    }
+
+    metrics.leaves_loaded += 1;
+}
+
+fn seed_priority_leaf(
+    context: &LazyBoundContext<'_>,
+    evaluated: &mut [bool],
+    frontier: &mut BTreeSet<PriorityFrontierEntry>,
+    loaded_tokens: &mut [bool],
+    loaded_indices: &mut Vec<usize>,
+    metrics: &mut PriorityLazyHierarchicalMetrics,
+) -> Result<(), &'static str> {
+    for &root in &context.index.roots {
+        let bound = evaluate_priority_bound(context, evaluated, root, metrics)?;
+        insert_priority_entry(frontier, root, bound, metrics)?;
+    }
+
+    let seed = frontier
+        .pop_last()
+        .ok_or("ADA-A5 E5b priority frontier must contain at least one root")?;
+
+    metrics.frontier_max_pops += 1;
+
+    let mut current = seed.node_index;
+
+    loop {
+        let node = &context.index.nodes[current];
+
+        if let Some((left, right)) = node.children() {
+            metrics.nodes_expanded += 1;
+
+            let left_bound = evaluate_priority_bound(context, evaluated, left, metrics)?;
+            let right_bound = evaluate_priority_bound(context, evaluated, right, metrics)?;
+
+            if left_bound >= right_bound {
+                insert_priority_entry(frontier, right, right_bound, metrics)?;
+                current = left;
+            } else {
+                insert_priority_entry(frontier, left, left_bound, metrics)?;
+                current = right;
+            }
+        } else {
+            load_priority_leaf(node, loaded_tokens, loaded_indices, metrics);
+            return Ok(());
+        }
+    }
+}
+
+fn finalize_priority_metrics(
+    mut metrics: PriorityLazyHierarchicalMetrics,
+) -> PriorityLazyHierarchicalMetrics {
+    debug_assert!(metrics.bound_evaluations <= metrics.nodes_total);
+    metrics.nodes_never_evaluated = metrics.nodes_total - metrics.bound_evaluations;
+    metrics
+}
+
 fn subset_scores(dense_scores: &[f64], loaded_indices: &[usize]) -> Vec<f64> {
     loaded_indices
         .iter()
@@ -890,6 +1111,130 @@ pub fn branch_and_bound_entmax_hierarchical_lazy(
     }
 }
 
+/// Run the E5b exact hierarchical controller with an ordered priority frontier.
+///
+/// Unlike the historical E5 lazy controller, every evaluated node bound is
+/// carried inside the frontier entry and may be evaluated at most once. The
+/// minimum frontier bound drives threshold pruning and the maximum drives
+/// expansion, eliminating repeated full-frontier bound requests.
+///
+/// Exact equal-bound ties use a deterministic node-index tie-break and may
+/// therefore choose a different valid traversal than the historical Vec-based
+/// controller. Dense Entmax parity and support preservation remain the
+/// correctness contract.
+///
+/// Dense Q/K scores are still constructed solely as the independent research
+/// oracle and for evaluated-bound validation.
+///
+/// # Errors
+///
+/// Returns an error for invalid Q/K/index inputs, a repeated node-bound
+/// evaluation, a duplicate frontier node, a non-conservative evaluated f64
+/// bound, or an Entmax threshold-solver failure.
+#[must_use = "the exact result and priority-frontier work metrics should be checked"]
+pub fn branch_and_bound_entmax_hierarchical_priority_lazy(
+    case: &QueryKeyPagedCase,
+    index: &HierarchicalKeyIndex,
+) -> Result<PriorityLazyHierarchicalResult, &'static str> {
+    validate_query_index(case, index)?;
+    let dense_scores = dense_qk_scores(case)?;
+
+    let mut metrics = PriorityLazyHierarchicalMetrics {
+        nodes_total: index.node_count(),
+        leaves_total: index.leaf_count(),
+        ..PriorityLazyHierarchicalMetrics::default()
+    };
+
+    let context = LazyBoundContext {
+        case,
+        index,
+        dense_scores: &dense_scores,
+    };
+
+    let mut evaluated = vec![false; index.node_count()];
+    let mut loaded_tokens = vec![false; index.key_count];
+    let mut loaded_indices = Vec::with_capacity(index.key_count);
+    let mut frontier = BTreeSet::new();
+
+    seed_priority_leaf(
+        &context,
+        &mut evaluated,
+        &mut frontier,
+        &mut loaded_tokens,
+        &mut loaded_indices,
+        &mut metrics,
+    )?;
+
+    loop {
+        let loaded_scores = subset_scores(&dense_scores, &loaded_indices);
+        let threshold = entmax_threshold_bracket(&loaded_scores, case.alpha)?;
+
+        metrics.threshold_solves += 1;
+
+        let tau_lower = threshold.lower;
+        let entmax_scale = case.alpha - 1.0;
+
+        loop {
+            while let Some(entry) = frontier.first().copied() {
+                metrics.frontier_min_checks += 1;
+
+                if entmax_scale * entry.bound > tau_lower {
+                    break;
+                }
+
+                let removed = frontier.pop_first();
+
+                debug_assert_eq!(removed, Some(entry));
+
+                metrics.subtrees_pruned += 1;
+                metrics.tokens_pruned += index.nodes[entry.node_index].token_count();
+            }
+
+            if frontier.is_empty() {
+                debug_assert_eq!(
+                    metrics.tokens_loaded + metrics.tokens_pruned,
+                    index.key_count
+                );
+
+                let metrics = finalize_priority_metrics(metrics);
+
+                return Ok(PriorityLazyHierarchicalResult {
+                    distribution: finalize_distribution(case, &dense_scores, &loaded_indices)?,
+                    loaded_tokens,
+                    metrics,
+                });
+            }
+
+            let entry = frontier
+                .pop_last()
+                .ok_or("ADA-A5 E5b priority frontier unexpectedly became empty")?;
+
+            metrics.frontier_max_pops += 1;
+
+            let node = &index.nodes[entry.node_index];
+
+            if let Some((left, right)) = node.children() {
+                metrics.nodes_expanded += 1;
+
+                let left_bound =
+                    evaluate_priority_bound(&context, &mut evaluated, left, &mut metrics)?;
+
+                let right_bound =
+                    evaluate_priority_bound(&context, &mut evaluated, right, &mut metrics)?;
+
+                insert_priority_entry(&mut frontier, left, left_bound, &mut metrics)?;
+                insert_priority_entry(&mut frontier, right, right_bound, &mut metrics)?;
+
+                continue;
+            }
+
+            load_priority_leaf(node, &mut loaded_tokens, &mut loaded_indices, &mut metrics);
+
+            break;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -962,6 +1307,157 @@ mod tests {
         assert!(lazy.metrics.bound_evaluations <= eager.metrics.bound_evaluations);
 
         (eager, lazy)
+    }
+
+    fn assert_priority_matches_dense(
+        case: &QueryKeyPagedCase,
+        leaf_size: usize,
+    ) -> PriorityLazyHierarchicalResult {
+        let index =
+            build_hierarchical_key_index(&case.keys, case.head_dim, case.page_size, leaf_size)
+                .unwrap();
+
+        let paged = qk_box_entmax_case(case).unwrap();
+        let dense = dense_entmax(&paged.scores, case.alpha).unwrap();
+
+        let candidate = branch_and_bound_entmax_hierarchical_priority_lazy(case, &index).unwrap();
+
+        assert_close(dense.tau, candidate.distribution.tau, 2.0e-12);
+
+        for (&expected, &actual) in dense
+            .probabilities
+            .iter()
+            .zip(candidate.distribution.probabilities.iter())
+        {
+            assert_close(expected, actual, 4.0e-12);
+        }
+
+        for (token, &probability) in dense.probabilities.iter().enumerate() {
+            if probability > 1.0e-12 {
+                assert!(candidate.loaded_tokens[token]);
+            }
+        }
+
+        assert!(candidate.metrics.bound_evaluations <= candidate.metrics.nodes_total);
+
+        assert_eq!(
+            candidate.metrics.nodes_never_evaluated,
+            candidate.metrics.nodes_total - candidate.metrics.bound_evaluations
+        );
+
+        candidate
+    }
+
+    #[test]
+    fn priority_lazy_matches_historical_lazy_on_representative_case() {
+        let keys = vec![
+            10.0, 0.0, 9.5, 0.0, -10.0, 4.0, -11.0, -4.0, -20.0, 7.0, -21.0, -7.0, -30.0, 9.0,
+            -31.0, -9.0,
+        ];
+
+        for alpha in [1.5, 2.0] {
+            let case = QueryKeyPagedCase {
+                query: vec![1.0, 0.0],
+                keys: keys.clone(),
+                head_dim: 2,
+                page_size: 8,
+                alpha,
+                score_scale: 1.0,
+            };
+
+            let index =
+                build_hierarchical_key_index(&case.keys, case.head_dim, case.page_size, 2).unwrap();
+
+            let historical = branch_and_bound_entmax_hierarchical_lazy(&case, &index).unwrap();
+
+            let priority =
+                branch_and_bound_entmax_hierarchical_priority_lazy(&case, &index).unwrap();
+
+            assert_eq!(historical.loaded_tokens, priority.loaded_tokens);
+            assert_eq!(historical.distribution, priority.distribution);
+
+            assert_eq!(
+                historical.metrics.bound_evaluations,
+                priority.metrics.bound_evaluations
+            );
+
+            assert_eq!(
+                historical.metrics.tokens_loaded,
+                priority.metrics.tokens_loaded
+            );
+
+            assert_eq!(
+                historical.metrics.tokens_pruned,
+                priority.metrics.tokens_pruned
+            );
+
+            assert!(
+                priority.metrics.frontier_logical_operations()
+                    < historical.metrics.bound_evaluations + historical.metrics.bound_cache_hits
+            );
+        }
+    }
+
+    #[test]
+    fn priority_lazy_dense_fallback_remains_exact() {
+        let case = QueryKeyPagedCase {
+            query: vec![1.0, 0.0],
+            keys: vec![
+                1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0,
+            ],
+            head_dim: 2,
+            page_size: 8,
+            alpha: 2.0,
+            score_scale: 1.0,
+        };
+
+        let priority = assert_priority_matches_dense(&case, 2);
+
+        assert_eq!(priority.metrics.tokens_loaded, 8);
+        assert_eq!(priority.metrics.tokens_pruned, 0);
+        assert_eq!(
+            priority.metrics.leaves_loaded,
+            priority.metrics.leaves_total
+        );
+        assert_eq!(
+            priority.metrics.bound_evaluations,
+            priority.metrics.nodes_total
+        );
+        assert_eq!(priority.metrics.nodes_never_evaluated, 0);
+    }
+
+    #[test]
+    fn exhaustive_small_hierarchies_priority_match_dense_oracle() {
+        const ROWS: [[f64; 2]; 3] = [[-1.0, -1.0], [0.0, 0.0], [1.0, 1.0]];
+        const QUERIES: [[f64; 2]; 3] = [[1.0, -1.0], [-1.0, 1.0], [1.0, 1.0]];
+
+        let state_count = ROWS.len().pow(4);
+
+        for state in 0..state_count {
+            let mut code = state;
+            let mut keys = Vec::with_capacity(8);
+
+            for _ in 0..4 {
+                keys.extend_from_slice(&ROWS[code % ROWS.len()]);
+                code /= ROWS.len();
+            }
+
+            for query in QUERIES {
+                for alpha in [1.5, 2.0] {
+                    let case = QueryKeyPagedCase {
+                        query: query.to_vec(),
+                        keys: keys.clone(),
+                        head_dim: 2,
+                        page_size: 4,
+                        alpha,
+                        score_scale: 2.0_f64.sqrt().recip(),
+                    };
+
+                    assert_priority_matches_dense(&case, 1);
+                    assert_priority_matches_dense(&case, 2);
+                }
+            }
+        }
     }
 
     #[test]
