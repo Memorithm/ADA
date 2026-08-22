@@ -121,6 +121,85 @@ pub struct HierarchicalResult {
     pub metrics: HierarchicalMetrics,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct LazyHierarchicalMetrics {
+    pub nodes_total: usize,
+    pub nodes_expanded: usize,
+    pub subtrees_pruned: usize,
+    pub bound_evaluations: usize,
+    pub bound_cache_hits: usize,
+    pub nodes_never_evaluated: usize,
+    pub leaves_total: usize,
+    pub leaves_loaded: usize,
+    pub tokens_loaded: usize,
+    pub tokens_pruned: usize,
+    pub threshold_solves: usize,
+}
+
+// E5 derived ratios are diagnostics only. They never participate in bound
+// construction, traversal ordering, threshold solving, or pruning decisions.
+#[allow(clippy::cast_precision_loss)]
+fn usize_ratio(numerator: usize, denominator: usize) -> f64 {
+    debug_assert!(denominator != 0);
+    numerator as f64 / denominator as f64
+}
+
+impl LazyHierarchicalMetrics {
+    #[must_use]
+    pub fn bound_evaluation_fraction(self) -> f64 {
+        if self.nodes_total == 0 {
+            0.0
+        } else {
+            usize_ratio(self.bound_evaluations, self.nodes_total)
+        }
+    }
+
+    #[must_use]
+    pub fn bound_avoidance(self) -> f64 {
+        1.0 - self.bound_evaluation_fraction()
+    }
+
+    #[must_use]
+    pub fn score_load_fraction(self) -> f64 {
+        let tokens_total = self.tokens_loaded + self.tokens_pruned;
+        if tokens_total == 0 {
+            0.0
+        } else {
+            usize_ratio(self.tokens_loaded, tokens_total)
+        }
+    }
+
+    #[must_use]
+    pub fn score_avoidance(self) -> f64 {
+        1.0 - self.score_load_fraction()
+    }
+
+    #[must_use]
+    pub fn bound_evaluations_per_loaded_token(self) -> f64 {
+        if self.tokens_loaded == 0 {
+            0.0
+        } else {
+            usize_ratio(self.bound_evaluations, self.tokens_loaded)
+        }
+    }
+
+    #[must_use]
+    pub fn bound_evaluations_per_pruned_token(self) -> f64 {
+        if self.tokens_pruned == 0 {
+            0.0
+        } else {
+            usize_ratio(self.bound_evaluations, self.tokens_pruned)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LazyHierarchicalResult {
+    pub distribution: EntmaxDistribution,
+    pub loaded_tokens: Vec<bool>,
+    pub metrics: LazyHierarchicalMetrics,
+}
+
 fn fingerprint_keys(keys: &[f64]) -> u64 {
     let mut fingerprint = 0xcbf2_9ce4_8422_2325_u64;
     for &value in keys {
@@ -451,6 +530,138 @@ fn seed_highest_bound_leaf(
     }
 }
 
+struct LazyBoundContext<'a> {
+    case: &'a QueryKeyPagedCase,
+    index: &'a HierarchicalKeyIndex,
+    dense_scores: &'a [f64],
+}
+
+fn lazy_bound(
+    context: &LazyBoundContext<'_>,
+    cache: &mut [Option<f64>],
+    node_index: usize,
+    metrics: &mut LazyHierarchicalMetrics,
+) -> Result<f64, &'static str> {
+    if let Some(bound) = cache[node_index] {
+        metrics.bound_cache_hits += 1;
+        return Ok(bound);
+    }
+
+    let node = &context.index.nodes[node_index];
+    let bound = query_box_bound(&context.case.query, &node.key_box, context.case.score_scale)?;
+
+    let actual_maximum = context.dense_scores[node.start_token..node.end_token]
+        .iter()
+        .copied()
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    if bound < actual_maximum {
+        return Err("ADA-A5 lazy f64 hierarchy bound is not conservative against the dense oracle");
+    }
+
+    cache[node_index] = Some(bound);
+    metrics.bound_evaluations += 1;
+    Ok(bound)
+}
+
+fn highest_lazy_bound_position(
+    context: &LazyBoundContext<'_>,
+    cache: &mut [Option<f64>],
+    frontier: &[usize],
+    metrics: &mut LazyHierarchicalMetrics,
+) -> Result<usize, &'static str> {
+    if frontier.is_empty() {
+        return Err("ADA-A5 lazy frontier must not be empty");
+    }
+
+    let mut best_position = 0;
+    let mut best_bound = lazy_bound(context, cache, frontier[0], metrics)?;
+
+    for (position, &node_index) in frontier.iter().enumerate().skip(1) {
+        let bound = lazy_bound(context, cache, node_index, metrics)?;
+
+        if bound > best_bound {
+            best_position = position;
+            best_bound = bound;
+        }
+    }
+
+    Ok(best_position)
+}
+
+fn load_lazy_leaf(
+    node: &HierarchyNode,
+    loaded_tokens: &mut [bool],
+    loaded_indices: &mut Vec<usize>,
+    metrics: &mut LazyHierarchicalMetrics,
+) {
+    debug_assert!(node.is_leaf());
+
+    for (offset, loaded) in loaded_tokens[node.start_token..node.end_token]
+        .iter_mut()
+        .enumerate()
+    {
+        let token = node.start_token + offset;
+        debug_assert!(!*loaded);
+        *loaded = true;
+        loaded_indices.push(token);
+        metrics.tokens_loaded += 1;
+    }
+
+    metrics.leaves_loaded += 1;
+}
+
+fn seed_highest_lazy_bound_leaf(
+    context: &LazyBoundContext<'_>,
+    cache: &mut [Option<f64>],
+    frontier: &mut Vec<usize>,
+    loaded_tokens: &mut [bool],
+    loaded_indices: &mut Vec<usize>,
+    metrics: &mut LazyHierarchicalMetrics,
+) -> Result<(), &'static str> {
+    let root_position = highest_lazy_bound_position(context, cache, &context.index.roots, metrics)?;
+
+    let mut current = context.index.roots[root_position];
+
+    frontier.extend(
+        context
+            .index
+            .roots
+            .iter()
+            .enumerate()
+            .filter_map(|(position, &root)| (position != root_position).then_some(root)),
+    );
+
+    loop {
+        let node = &context.index.nodes[current];
+
+        if let Some((left, right)) = node.children() {
+            metrics.nodes_expanded += 1;
+
+            let left_bound = lazy_bound(context, cache, left, metrics)?;
+
+            let right_bound = lazy_bound(context, cache, right, metrics)?;
+
+            if left_bound >= right_bound {
+                frontier.push(right);
+                current = left;
+            } else {
+                frontier.push(left);
+                current = right;
+            }
+        } else {
+            load_lazy_leaf(node, loaded_tokens, loaded_indices, metrics);
+            return Ok(());
+        }
+    }
+}
+
+fn finalize_lazy_metrics(mut metrics: LazyHierarchicalMetrics) -> LazyHierarchicalMetrics {
+    debug_assert!(metrics.bound_evaluations <= metrics.nodes_total);
+    metrics.nodes_never_evaluated = metrics.nodes_total - metrics.bound_evaluations;
+    metrics
+}
+
 fn subset_scores(dense_scores: &[f64], loaded_indices: &[usize]) -> Vec<f64> {
     loaded_indices
         .iter()
@@ -569,6 +780,116 @@ pub fn branch_and_bound_entmax_hierarchical(
     }
 }
 
+/// Run the E5 exact hierarchical controller with lazy node-bound evaluation.
+///
+/// This function preserves the historical A5 traversal and pruning certificate,
+/// but each hierarchy-node coordinate-box bound is evaluated only on first
+/// demand and is cached thereafter.
+///
+/// Dense Q/K scores are still constructed as an independent research oracle.
+/// They are not counted as candidate work. A node is checked against the dense
+/// oracle only when its lazy bound is first evaluated.
+///
+/// # Errors
+///
+/// Returns an error for invalid Q/K/index inputs, a non-conservative evaluated
+/// f64 bound, or an Entmax threshold-solver failure.
+#[must_use = "the exact result and lazy-bound work metrics should be checked"]
+pub fn branch_and_bound_entmax_hierarchical_lazy(
+    case: &QueryKeyPagedCase,
+    index: &HierarchicalKeyIndex,
+) -> Result<LazyHierarchicalResult, &'static str> {
+    validate_query_index(case, index)?;
+    let dense_scores = dense_qk_scores(case)?;
+
+    let mut metrics = LazyHierarchicalMetrics {
+        nodes_total: index.node_count(),
+        leaves_total: index.leaf_count(),
+        ..LazyHierarchicalMetrics::default()
+    };
+
+    let context = LazyBoundContext {
+        case,
+        index,
+        dense_scores: &dense_scores,
+    };
+
+    let mut bound_cache = vec![None; index.node_count()];
+    let mut loaded_tokens = vec![false; index.key_count];
+    let mut loaded_indices = Vec::with_capacity(index.key_count);
+    let mut frontier = Vec::new();
+
+    seed_highest_lazy_bound_leaf(
+        &context,
+        &mut bound_cache,
+        &mut frontier,
+        &mut loaded_tokens,
+        &mut loaded_indices,
+        &mut metrics,
+    )?;
+
+    loop {
+        let loaded_scores = subset_scores(&dense_scores, &loaded_indices);
+
+        let threshold = entmax_threshold_bracket(&loaded_scores, case.alpha)?;
+
+        metrics.threshold_solves += 1;
+
+        let tau_lower = threshold.lower;
+        let entmax_scale = case.alpha - 1.0;
+
+        loop {
+            let mut unresolved = Vec::with_capacity(frontier.len());
+
+            for node_index in frontier.drain(..) {
+                let bound = lazy_bound(&context, &mut bound_cache, node_index, &mut metrics)?;
+
+                if entmax_scale * bound <= tau_lower {
+                    metrics.subtrees_pruned += 1;
+                    metrics.tokens_pruned += index.nodes[node_index].token_count();
+                } else {
+                    unresolved.push(node_index);
+                }
+            }
+
+            frontier = unresolved;
+
+            if frontier.is_empty() {
+                debug_assert_eq!(
+                    metrics.tokens_loaded + metrics.tokens_pruned,
+                    index.key_count
+                );
+
+                let metrics = finalize_lazy_metrics(metrics);
+
+                return Ok(LazyHierarchicalResult {
+                    distribution: finalize_distribution(case, &dense_scores, &loaded_indices)?,
+                    loaded_tokens,
+                    metrics,
+                });
+            }
+
+            let best_position =
+                highest_lazy_bound_position(&context, &mut bound_cache, &frontier, &mut metrics)?;
+
+            let node_index = frontier.swap_remove(best_position);
+
+            let node = &index.nodes[node_index];
+
+            if let Some((left, right)) = node.children() {
+                metrics.nodes_expanded += 1;
+                frontier.push(left);
+                frontier.push(right);
+                continue;
+            }
+
+            load_lazy_leaf(node, &mut loaded_tokens, &mut loaded_indices, &mut metrics);
+
+            break;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -606,6 +927,41 @@ mod tests {
             }
         }
         candidate
+    }
+
+    fn assert_lazy_matches_eager(
+        case: &QueryKeyPagedCase,
+        leaf_size: usize,
+    ) -> (HierarchicalResult, LazyHierarchicalResult) {
+        let index =
+            build_hierarchical_key_index(&case.keys, case.head_dim, case.page_size, leaf_size)
+                .unwrap();
+
+        let eager = branch_and_bound_entmax_hierarchical(case, &index).unwrap();
+
+        let lazy = branch_and_bound_entmax_hierarchical_lazy(case, &index).unwrap();
+
+        assert_eq!(eager.loaded_tokens, lazy.loaded_tokens);
+        assert_eq!(eager.distribution, lazy.distribution);
+
+        assert_eq!(eager.metrics.nodes_expanded, lazy.metrics.nodes_expanded);
+        assert_eq!(eager.metrics.subtrees_pruned, lazy.metrics.subtrees_pruned);
+        assert_eq!(eager.metrics.leaves_loaded, lazy.metrics.leaves_loaded);
+        assert_eq!(eager.metrics.tokens_loaded, lazy.metrics.tokens_loaded);
+        assert_eq!(eager.metrics.tokens_pruned, lazy.metrics.tokens_pruned);
+        assert_eq!(
+            eager.metrics.threshold_solves,
+            lazy.metrics.threshold_solves
+        );
+
+        assert_eq!(
+            lazy.metrics.nodes_never_evaluated,
+            lazy.metrics.nodes_total - lazy.metrics.bound_evaluations
+        );
+
+        assert!(lazy.metrics.bound_evaluations <= eager.metrics.bound_evaluations);
+
+        (eager, lazy)
     }
 
     #[test]
@@ -691,6 +1047,72 @@ mod tests {
     }
 
     #[test]
+    fn lazy_candidate_matches_eager_for_entmax15_and_sparsemax() {
+        let keys = vec![
+            10.0, 0.0, 9.5, 0.0, -10.0, 4.0, -11.0, -4.0, -20.0, 7.0, -21.0, -7.0, -30.0, 9.0,
+            -31.0, -9.0,
+        ];
+
+        for alpha in [1.5, 2.0] {
+            let case = QueryKeyPagedCase {
+                query: vec![1.0, 0.0],
+                keys: keys.clone(),
+                head_dim: 2,
+                page_size: 8,
+                alpha,
+                score_scale: 1.0,
+            };
+
+            let (_, lazy) = assert_lazy_matches_eager(&case, 2);
+
+            assert!(lazy.metrics.bound_cache_hits > 0);
+        }
+    }
+
+    #[test]
+    fn lazy_pruned_subtree_leaves_descendants_unevaluated() {
+        let case = QueryKeyPagedCase {
+            query: vec![1.0, 0.0],
+            keys: vec![
+                10.0, 0.0, 9.5, 0.0, -10.0, 4.0, -11.0, -4.0, -20.0, 7.0, -21.0, -7.0, -30.0, 9.0,
+                -31.0, -9.0,
+            ],
+            head_dim: 2,
+            page_size: 8,
+            alpha: 2.0,
+            score_scale: 1.0,
+        };
+
+        let (_, lazy) = assert_lazy_matches_eager(&case, 2);
+
+        assert!(lazy.metrics.tokens_pruned > 0);
+        assert!(lazy.metrics.nodes_never_evaluated > 0);
+        assert!(lazy.metrics.bound_evaluations < lazy.metrics.nodes_total);
+    }
+
+    #[test]
+    fn lazy_dense_fallback_remains_exact() {
+        let case = QueryKeyPagedCase {
+            query: vec![1.0, 0.0],
+            keys: vec![
+                1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0,
+            ],
+            head_dim: 2,
+            page_size: 8,
+            alpha: 2.0,
+            score_scale: 1.0,
+        };
+
+        let (_, lazy) = assert_lazy_matches_eager(&case, 2);
+
+        assert_eq!(lazy.metrics.tokens_loaded, 8);
+        assert_eq!(lazy.metrics.tokens_pruned, 0);
+        assert_eq!(lazy.metrics.leaves_loaded, lazy.metrics.leaves_total);
+        assert_eq!(lazy.metrics.bound_evaluations, lazy.metrics.nodes_total);
+        assert_eq!(lazy.metrics.nodes_never_evaluated, 0);
+    }
+
+    #[test]
     fn index_rejects_wrong_key_matrix_and_invalid_leaf_size() {
         let keys = vec![1.0, 0.0, 2.0, 0.0];
         assert!(build_hierarchical_key_index(&keys, 2, 2, 3).is_err());
@@ -704,6 +1126,53 @@ mod tests {
             score_scale: 1.0,
         };
         assert!(branch_and_bound_entmax_hierarchical(&case, &index).is_err());
+    }
+
+    #[test]
+    fn exhaustive_small_hierarchies_lazy_match_eager_exactly() {
+        const ROWS: [[f64; 2]; 3] = [[-1.0, -1.0], [0.0, 0.0], [1.0, 1.0]];
+
+        const QUERIES: [[f64; 2]; 3] = [[1.0, -1.0], [-1.0, 1.0], [1.0, 1.0]];
+
+        let state_count = ROWS.len().pow(4);
+
+        for state in 0..state_count {
+            let mut code = state;
+            let mut keys = Vec::with_capacity(8);
+
+            for _ in 0..4 {
+                keys.extend_from_slice(&ROWS[code % ROWS.len()]);
+                code /= ROWS.len();
+            }
+
+            for query in QUERIES {
+                for alpha in [1.5, 2.0] {
+                    let case = QueryKeyPagedCase {
+                        query: query.to_vec(),
+                        keys: keys.clone(),
+                        head_dim: 2,
+                        page_size: 4,
+                        alpha,
+                        score_scale: 2.0_f64.sqrt().recip(),
+                    };
+
+                    for leaf_size in [1, 2] {
+                        let (eager, lazy) = assert_lazy_matches_eager(&case, leaf_size);
+
+                        assert_eq!(eager.loaded_tokens, lazy.loaded_tokens);
+
+                        assert_eq!(eager.distribution, lazy.distribution);
+
+                        assert!(lazy.metrics.bound_evaluations <= lazy.metrics.nodes_total);
+
+                        assert_eq!(
+                            lazy.metrics.nodes_never_evaluated,
+                            lazy.metrics.nodes_total - lazy.metrics.bound_evaluations
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]
