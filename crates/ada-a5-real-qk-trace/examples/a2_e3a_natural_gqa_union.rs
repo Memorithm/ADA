@@ -385,7 +385,7 @@ fn measure_group(
     for record in records {
         heads.push(
             measure_head(record, alpha, &index)
-                .map_err(|message| format!("q_head={}: {message}", record.query_head_index,))?,
+                .map_err(|message| format!("q_head={}: {message}", record.query_head_index))?,
         );
     }
 

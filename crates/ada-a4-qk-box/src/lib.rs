@@ -29,11 +29,7 @@ pub struct QueryKeyPagedCase {
 impl QueryKeyPagedCase {
     #[must_use]
     pub fn key_count(&self) -> usize {
-        if self.head_dim == 0 {
-            0
-        } else {
-            self.keys.len() / self.head_dim
-        }
+        self.keys.len().checked_div(self.head_dim).unwrap_or(0)
     }
 
     #[must_use]
