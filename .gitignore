@@ -1,0 +1,4 @@
+/target
+/evidence/*.jsonl
+/evidence/*.csv
+!/evidence/README.md
