@@ -9,11 +9,22 @@
 | ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED |
 | ADA-A6 | Specialized tau solvers | RESEARCH |
 | ADA-A7 | Moment / composable Entmax | INVESTIGATE |
-| ADA-A8 | Attention recurrence program synthesis | PLANNED |
+| ADA-A8 | Attention recurrence program synthesis | ARE-E0-INFRASTRUCTURE / E0-BOUNDED-NEGATIVE-5000 |
 | ADA-A9 | Distribution-aware execution selection | PLANNED |
 | ADA-A10 | Reproducible numerical oracle/certification | PLANNED |
 
 ## Status semantics
+
+- `ARE-E0-INFRASTRUCTURE` means ADA has an additive, safe, bounded,
+  deterministic research-engine crate with grammar-based enumeration and
+  evolution, raw static validation, independent oracle and holdout gates,
+  structural Pareto ranking, exact-bit auditable archives, and replay tests.
+  `E0-BOUNDED-NEGATIVE-5000` means the committed-source seed-20260822 run
+  exhausted its 5,000-canonical-candidate budget: all candidates were
+  falsified by the probe corpus, none reached oracle or holdout evaluation,
+  and the recurrence was not rediscovered. The byte-identical replay is
+  preserved under `evidence/are-e0`. This is search evidence, not a proof of
+  absence and not a qualification claim.
 
 - `E0-K-FIRST-V-LATE-CORRECTNESS` means the isolated A2 exact K-first/V-late scalar contract passed its declared local correctness gates: workspace fmt, strict crate/workspace Clippy, all workspace unit/doc tests, exhaustive small support-mask weighted-sum parity, integrated alpha 1.5 and alpha 2.0 A5-priority-to-A2 cases, dense Entmax/output parity, exact `V_loaded == final support size`, `K_loaded >= V_loaded`, safe dense-support fallback, rejection of non-finite values in actually loaded V rows, and a structural sentinel test showing that zero-probability V rows are skipped before their scalars are inspected. This qualifies source-level logical V-late semantics and accounting only. It is not a physical memory-traffic, cache, GPU, wall-clock, model-quality, production floating-point, or novelty claim.
 

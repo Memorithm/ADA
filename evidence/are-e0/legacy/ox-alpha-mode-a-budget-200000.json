@@ -1,0 +1,4127 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "engine_version": "0.1.0",
+    "experiment_id": "95008583175faee335e3be049fa6c5aee80ae544a3ef02f2a0365a6cb1609d57",
+    "problem_name": "online_softmax_normalizer_e0",
+    "problem_version": 1,
+    "grammar_version": 1,
+    "grammar_digest": "22e3a87ab813a650402cdea7c04fdf59af0ec4ba43c790a77aeeca91550881a6",
+    "seed": 20260822,
+    "search_budget": {
+      "max_candidate_evaluations": 200000,
+      "max_gate_evaluations": 64,
+      "stop_after_train_exact": 4,
+      "hall_of_fame_capacity": 16
+    },
+    "tolerances": {
+      "probe_max_rel_error": 1e-9,
+      "oracle_max_rel_error": 1e-9,
+      "holdout_max_rel_error": 1e-9
+    },
+    "corpus_digests": [
+      [
+        "adversarial_holdout",
+        "9c5a7d1a52ec6ab84045816a961e7870b2b2654c8e24bf3742839d043295e98a"
+      ],
+      [
+        "discovery",
+        "6bb9a78726b41ef6243ffd00739ffd25cc24e7e83b556407db15276a53c21527"
+      ],
+      [
+        "oracle",
+        "ff2e51831ce128b6f7559d69a17bbb443922dc6256748e66020aba2b55ef996e"
+      ],
+      [
+        "probe",
+        "6c1866b3722c7adb162f9c01b0b419761e521f1605e13ff38e8b0d34cc684751"
+      ]
+    ],
+    "proposal_source_kinds": [
+      "deterministic_enumeration",
+      "evolutionary_search"
+    ],
+    "survival_contract": "Passing finite oracle/adversarial cases is empirical survival, not mathematical proof; no candidate is promoted automatically."
+  },
+  "stats": {
+    "candidates_generated": 307088,
+    "candidates_unique": 200000,
+    "rejected_static": 0,
+    "rejected_duplicate": 107088,
+    "rejected_probe": 199811,
+    "rejected_oracle": 64,
+    "rejected_holdout": 0,
+    "survived_oracle": 0,
+    "survived_holdout": 0,
+    "discovery_evaluations_used": 200000
+  },
+  "rediscovery_status": "AllFalsified",
+  "pareto_front": [],
+  "hall_of_fame": [
+    {
+      "rank": 0,
+      "candidate_id": "3d0405add67412b927c98c1bad4281e6deb132fe8c4c1cce355f1207c20e8e27",
+      "canonical_expression": "(add (exp (sub (v 2) (v 3))) (v 1))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 3,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 0,
+        "add_sub_count": 2,
+        "depth": 4
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 272,
+          "individual": 411
+        }
+      }
+    },
+    {
+      "rank": 1,
+      "candidate_id": "9f03e7f985e6ce23e03c14eaf003c2ff81f19feeb184277abb4f7d5ba60504a5",
+      "canonical_expression": "(add (exp (sub (v 2) (max (v 0) (v 2)))) (v 1))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 4,
+        "exp_count": 1,
+        "max_count": 1,
+        "mul_count": 0,
+        "add_sub_count": 2,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 419,
+          "individual": 234
+        }
+      }
+    },
+    {
+      "rank": 2,
+      "candidate_id": "8b8553a4e1297d761a2b08b2e95109c7c939b74ba49d03bc0b344e38e0f0bc46",
+      "canonical_expression": "(max (add (exp (sub (v 2) (v 3))) (v 1)) (c 0000000000000000))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 4,
+        "exp_count": 1,
+        "max_count": 1,
+        "mul_count": 0,
+        "add_sub_count": 2,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 419,
+          "individual": 119
+        }
+      }
+    },
+    {
+      "rank": 3,
+      "candidate_id": "54428e70d1ec2e4dad86ea1e198a5ec444efb4cab63cb4f668a4c8214992a9c9",
+      "canonical_expression": "(max (add (exp (sub (v 2) (v 3))) (v 1)) (v 1))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 4,
+        "exp_count": 1,
+        "max_count": 1,
+        "mul_count": 0,
+        "add_sub_count": 2,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 408,
+          "individual": 222
+        }
+      }
+    },
+    {
+      "rank": 4,
+      "candidate_id": "2a478b52c250b8ed8ca600cdc82979fdcec33eaf9a63762e5bf5236522f57333",
+      "canonical_expression": "(sub (add (exp (sub (v 2) (v 3))) (v 1)) (mul (c 0000000000000000) (v 2)))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 5,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 1,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 454,
+          "individual": 165
+        }
+      }
+    },
+    {
+      "rank": 5,
+      "candidate_id": "2e4369d2839e9ef743996844e02872989998259ce42c689d0a840a4f25970625",
+      "canonical_expression": "(max (add (exp (sub (v 2) (v 3))) (v 1)) (sub (v 2) (v 3)))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 5,
+        "exp_count": 1,
+        "max_count": 1,
+        "mul_count": 0,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 512,
+          "individual": 492
+        }
+      }
+    },
+    {
+      "rank": 6,
+      "candidate_id": "8020ff39a72ce4cd2c5b6aa6d3da902a273d65b3364ec14e1883da149e6317f3",
+      "canonical_expression": "(max (max (add (exp (sub (v 2) (v 3))) (v 1)) (c 0000000000000000)) (v 1))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 5,
+        "exp_count": 1,
+        "max_count": 2,
+        "mul_count": 0,
+        "add_sub_count": 2,
+        "depth": 6
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 579,
+          "individual": 433
+        }
+      }
+    },
+    {
+      "rank": 7,
+      "candidate_id": "2c21a63340c0ea1500a83ae92c7079493723f53e0682fe724ce0b20e126fb9cb",
+      "canonical_expression": "(add (add (exp (sub (v 2) (v 3))) (v 1)) (mul (mul (c 0000000000000000) (v 1)) (v 2)))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 6,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 2,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 582,
+          "individual": 119
+        }
+      }
+    },
+    {
+      "rank": 8,
+      "candidate_id": "443170ea38a31d333a67a5d216322f2ba8fd67264a6cbbccee987c2e9606820d",
+      "canonical_expression": "(add (add (exp (sub (v 2) (v 3))) (v 1)) (mul (mul (c 0000000000000000) (v 2)) (v 0)))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 6,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 2,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 404,
+          "individual": 418
+        }
+      }
+    },
+    {
+      "rank": 9,
+      "candidate_id": "f7d1f9e7793c13ff9aee7189ef3e281259cf749fd6d4cdd67c250e28d83de57d",
+      "canonical_expression": "(add (add (exp (sub (v 2) (v 3))) (v 1)) (mul (mul (c 0000000000000000) (v 3)) (v 2)))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 6,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 2,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 445,
+          "individual": 379
+        }
+      }
+    },
+    {
+      "rank": 10,
+      "candidate_id": "ba9d9de0ceb3ae7eafe4fdb91e41760894a0fd86a2828d09bb842d923c798677",
+      "canonical_expression": "(sub (add (exp (sub (v 2) (v 3))) (v 1)) (mul (c 0000000000000000) (mul (c 0000000000000000) (v 3))))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 6,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 2,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 572,
+          "individual": 134
+        }
+      }
+    },
+    {
+      "rank": 11,
+      "candidate_id": "31e122220d328341bcebc7f48fe403a8ea7b5cadf329b54c29a3a418f09ea7de",
+      "canonical_expression": "(sub (add (exp (sub (v 2) (v 3))) (v 1)) (mul (mul (c 0000000000000000) (v 0)) (v 1)))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 6,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 2,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 415,
+          "individual": 219
+        }
+      }
+    },
+    {
+      "rank": 12,
+      "candidate_id": "0573a8b57c9682a90fc49d179769ef94330f804909e776c9c0dbe78451282ff0",
+      "canonical_expression": "(sub (add (exp (sub (v 2) (v 3))) (v 1)) (mul (mul (c 0000000000000000) (v 0)) (v 2)))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 6,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 2,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 415,
+          "individual": 292
+        }
+      }
+    },
+    {
+      "rank": 13,
+      "candidate_id": "b6e926e97d7a8442a2da6cf55072b182edd382af89be0c074da225a2a78afd2e",
+      "canonical_expression": "(sub (add (exp (sub (v 2) (v 3))) (v 1)) (mul (mul (c 0000000000000000) (v 0)) (v 3)))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 6,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 2,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 383,
+          "individual": 504
+        }
+      }
+    },
+    {
+      "rank": 14,
+      "candidate_id": "18a6bf672dfeaddda973e62f75947a19fc6fd955a43624857e46d7838fbd604f",
+      "canonical_expression": "(sub (add (exp (sub (v 2) (v 3))) (v 1)) (mul (mul (c 0000000000000000) (v 1)) (v 1)))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 6,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 2,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 527,
+          "individual": 221
+        }
+      }
+    },
+    {
+      "rank": 15,
+      "candidate_id": "2c9bb477f082141404939de8a1044ceb187847909bf7b1f5defedd1f43216749",
+      "canonical_expression": "(sub (add (exp (sub (v 2) (v 3))) (v 1)) (mul (mul (c 0000000000000000) (v 1)) (v 2)))",
+      "train_loss": 98.83264769782794,
+      "cost": {
+        "total_operators": 6,
+        "exp_count": 1,
+        "max_count": 0,
+        "mul_count": 2,
+        "add_sub_count": 3,
+        "depth": 5
+      },
+      "class": {
+        "Falsified": {
+          "at_gate": "OracleCorpus",
+          "reason": "OracleCorpusMismatch"
+        }
+      },
+      "source": {
+        "Evolutionary": {
+          "seed": 3790090774,
+          "generation": 438,
+          "individual": 71
+        }
+      }
+    }
+  ],
+  "counterexamples": [
+    {
+      "candidate_id": "12cf63d45b725cbf08e82f6316ac12721f59bb507bb3f4307b3d80ddfe67676e",
+      "canonical_expression": "(v 0)",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "5cd77f6d54d92b622d7f0d9c4f303572f819c3245131a707bf4f47bb9c5625e8",
+      "canonical_expression": "(exp (exp (sub (mul (v 1) (v 3)) (exp (v 2)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 1.718281828459045,
+      "relative_error": 1.718281828459045
+    },
+    {
+      "candidate_id": "83f2bb025c8d015612539404dfdce496d14a1e0eb262769398418f5025502009",
+      "canonical_expression": "(v 1)",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 1.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 0.9900498337491683,
+      "relative_error": 0.49750002083312506
+    },
+    {
+      "candidate_id": "179cb7651f9e1d5a56a80886bbe5887fa2c8408160b863e69fc16e071b70b80d",
+      "canonical_expression": "(max (max (sub (v 3) (v 2)) (v 3)) (sub (v 1) (v 0)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 39.0,
+      "relative_error": 39.0
+    },
+    {
+      "candidate_id": "8ea0cc4a000c2512378db55e390b9e7751b716c0030e32eea08c281b3bcde9a1",
+      "canonical_expression": "(v 2)",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 41.0,
+      "relative_error": 41.0
+    },
+    {
+      "candidate_id": "165e3aa5e06cb3d0a1c97a8629931a1b4f682fc4a818c51b8fc24139b52d9c41",
+      "canonical_expression": "(sub (mul (add (v 0) (v 1)) (v 0)) (v 0))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "819e70c9a1573c1e69da36bc51c1c57fb881c74a9f28f7dce9a4523f07564ea1",
+      "canonical_expression": "(v 3)",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "6375e3f77cf15c39754435f9129e1b0da8cc5b1b3b11749c458c1363f58838cf",
+      "canonical_expression": "(mul (exp (exp (v 3))) (sub (exp (mul (v 3) (v 3))) (exp (v 0))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "e341129936e069be1b57dbcf6ac1dfdd4b2fee5cf8e17a1289975404acea73cd",
+      "canonical_expression": "(exp (v 0))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 0.049787068367863944,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 1.9402627653813045,
+      "relative_error": 0.9749819991823686
+    },
+    {
+      "candidate_id": "8e5b03b80e84997fc0003ca19b6e897efa4bdee173410c4d4571a5923ddd2f37",
+      "canonical_expression": "(mul (exp (exp (v 0))) (v 0))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "7edc65eb825db3fa2781ffe02e9d9bb4781a6003a55e272adf6d578e3b53b5f7",
+      "canonical_expression": "(exp (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 1.718281828459045,
+      "relative_error": 1.718281828459045
+    },
+    {
+      "candidate_id": "79b531c7a90d512ce78565645b0457df16498927489d3fc4ad36b7f42918da14",
+      "canonical_expression": "(sub (mul (mul (mul (v 0) (v 2)) (v 3)) (mul (v 0) (v 3))) (exp (mul (max (v 0) (v 3)) (sub (v 0) (v 2)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -1.0,
+      "oracle_output": 1.0,
+      "absolute_error": 2.0,
+      "relative_error": 2.0
+    },
+    {
+      "candidate_id": "54d585ff4cd2facbfdcd48ffd557c7e7c9b0ce3efcc6f84ebf2c8a1fe9be9a6c",
+      "canonical_expression": "(exp (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 4.248354255291589e-18,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "b9981c8f1d1c95e57be1ed10a0f279db874e635a2666b9a360650784abf666f6",
+      "canonical_expression": "(exp (add (add (v 3) (v 3)) (sub (v 2) (mul (v 0) (v 1)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 4.248354255291589e-18,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "08d826dcdd8b2a7d45c7ae5fa1c3ec2fe0ec830a9a6f463c0d00b3e43a68c082",
+      "canonical_expression": "(exp (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 0.049787068367863944,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 1.9402627653813045,
+      "relative_error": 0.9749819991823686
+    },
+    {
+      "candidate_id": "685b830fc653ddaad4fc7e1d2bbbb3df0d986f94140b41263b9ab539131bd79c",
+      "canonical_expression": "(exp (max (exp (v 3)) (max (sub (v 0) (v 3)) (sub (v 2) (v 0)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 1.718281828459045,
+      "relative_error": 1.718281828459045
+    },
+    {
+      "candidate_id": "653ea943770f0ea73b63f5b8a53d6ca8ad64af01d98413a6fe37f96ae3718115",
+      "canonical_expression": "(exp (exp (v 0)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 1.718281828459045,
+      "relative_error": 1.718281828459045
+    },
+    {
+      "candidate_id": "2b4687f9169ed49eaa87a4aaa5322aee097d44694d696cf0148fb90b78312ab7",
+      "canonical_expression": "(mul (mul (max (v 1) (v 3)) (max (v 2) (v 3))) (sub (sub (max (v 0) (v 2)) (v 1)) (v 1)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "a8e9994154f90f620158dce3a7a3b4275aca745642ef11f6ce48e57703854988",
+      "canonical_expression": "(exp (exp (v 1)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 15.154262241479262,
+      "oracle_output": 1.0,
+      "absolute_error": 14.154262241479262,
+      "relative_error": 14.154262241479262
+    },
+    {
+      "candidate_id": "c76c8010dfb56d67e4915a56bafa28368298f45f3487ee73c43ecda343700850",
+      "canonical_expression": "(mul (add (v 1) (v 2)) (max (exp (v 2)) (sub (v 1) (max (v 0) (v 2)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -39.0,
+      "oracle_output": 1.0,
+      "absolute_error": 40.0,
+      "relative_error": 40.0
+    },
+    {
+      "candidate_id": "0fa20575967de43e0c235ceee179cd30e16451d4f8c89a7501f807de89f77b5d",
+      "canonical_expression": "(exp (exp (v 2)))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 1.0505267223890236,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 0.9395231113601448,
+      "relative_error": 0.47211034388527023
+    },
+    {
+      "candidate_id": "dd5ab65a713c993d80c406ab8521301027933324e14ac68f3339603e03364b03",
+      "canonical_expression": "(add (mul (add (add (v 0) (v 1)) (v 3)) (v 1)) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": -8.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 9.990049833749168,
+      "relative_error": 5.0199998333349996
+    },
+    {
+      "candidate_id": "ef4403dd5b045d752e6d2d1b8e14d3ae2fdcf3a1a9b880068ddd21ecc3d11c58",
+      "canonical_expression": "(exp (exp (v 3)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 1.718281828459045,
+      "relative_error": 1.718281828459045
+    },
+    {
+      "candidate_id": "dbcfc0a164961ac7fdf349bea3aa10e1a66cab039b7f4498daab116a9c5c943a",
+      "canonical_expression": "(max (exp (max (mul (v 0) (v 0)) (v 0))) (v 0))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 8103.083927575384,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 8101.093877741635,
+      "relative_error": 4070.7995047940694
+    },
+    {
+      "candidate_id": "8a203d5d6d66e37e9fe0ed87be282023ed65b4174a804d9b5302f22857fdcf3e",
+      "canonical_expression": "(add (v 0) (v 0))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "741342a66080f9391f364b483561caa3879837df39f9e30d377a759a98e95621",
+      "canonical_expression": "(exp (exp (sub (v 3) (v 1))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 1.444667861009766,
+      "oracle_output": 1.0,
+      "absolute_error": 0.4446678610097661,
+      "relative_error": 0.4446678610097661
+    },
+    {
+      "candidate_id": "cc65a76118bdaef91c16bd01c3402ee3154da23f45549b2dcaefd0919d2b143f",
+      "canonical_expression": "(c 0000000000000000)",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "fca66c7d644ba55182a97ae479c92c88d50d97f93548d01a7dc6a0ffd4f0f818",
+      "canonical_expression": "(sub (max (add (mul (v 1) (v 2)) (v 0)) (v 0)) (max (max (max (v 2) (v 3)) (v 1)) (v 3)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -1.0,
+      "oracle_output": 1.0,
+      "absolute_error": 2.0,
+      "relative_error": 2.0
+    },
+    {
+      "candidate_id": "1fe5dbea13ab12da8d80a9841d168b16e469971c543a31a64cb9a9c9750e26f2",
+      "canonical_expression": "(mul (v 0) (v 0))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "9526b4f05e6356c421b8fcac59ac3c69702a1436d7882e43dd429747fd2ba980",
+      "canonical_expression": "(exp (sub (add (exp (v 3)) (exp (v 3))) (v 2)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 1.739274941520501e+18,
+      "oracle_output": 1.0,
+      "absolute_error": 1.739274941520501e+18,
+      "relative_error": 1.739274941520501e+18
+    },
+    {
+      "candidate_id": "9f345877ed5acf6eb84c603d33e29d0e26fee20ae0f6b9ed03bef0d96ff6b44c",
+      "canonical_expression": "(add (v 0) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": -2.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 3.9900498337491683,
+      "relative_error": 2.00499995833375
+    },
+    {
+      "candidate_id": "fff2b938299b7576a719e75a302676c747161aebefc6d86b73f875e1d203a620",
+      "canonical_expression": "(sub (mul (mul (exp (v 1)) (exp (v 2))) (v 0)) (sub (v 2) (exp (v 3))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 41.0,
+      "oracle_output": 1.0,
+      "absolute_error": 40.0,
+      "relative_error": 40.0
+    },
+    {
+      "candidate_id": "3a7bd734a24d4a5f4b6d19f698c79d1f9cd92c542fcd639c8547a9b4dac373a3",
+      "canonical_expression": "(sub (v 0) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -1.0,
+      "oracle_output": 1.0,
+      "absolute_error": 2.0,
+      "relative_error": 2.0
+    },
+    {
+      "candidate_id": "345dce52e1f1697b5e76bd89356ec976f9c5058b3d1118a9663e8c5f446731dc",
+      "canonical_expression": "(add (mul (sub (add (v 1) (v 3)) (exp (v 1))) (v 1)) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -0.7182818284590451,
+      "oracle_output": 1.0,
+      "absolute_error": 1.718281828459045,
+      "relative_error": 1.718281828459045
+    },
+    {
+      "candidate_id": "8b066905d243b563610f2e14f3aab81c4043b282087460b73c3618b046b72af2",
+      "canonical_expression": "(mul (v 0) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "63c21560c448f2f3bcf27f0ec1fc12f0d47f036f31377dbedca704f0768ddb76",
+      "canonical_expression": "(exp (max (exp (add (v 1) (v 3))) (sub (mul (v 2) (v 2)) (v 0))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": null,
+      "oracle_output": 1.0,
+      "absolute_error": null,
+      "relative_error": null
+    },
+    {
+      "candidate_id": "0ffea1054c7f3bf913aaf01e72d6b159bf9bfb909433e89046ade7fc31a3179c",
+      "canonical_expression": "(max (v 0) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 1.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 0.9900498337491683,
+      "relative_error": 0.49750002083312506
+    },
+    {
+      "candidate_id": "5bab4b7411f2d97d364a1f39420eaa53096ee71bbaa576770616ac0923e80edf",
+      "canonical_expression": "(mul (v 1) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 41.0,
+      "relative_error": 41.0
+    },
+    {
+      "candidate_id": "35f7e7725cc7dd1083fdda71b3bb82ee57385eca14e23d32d25bf94f31e7a783",
+      "canonical_expression": "(add (v 0) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 41.0,
+      "relative_error": 41.0
+    },
+    {
+      "candidate_id": "e51aa79b6c9a53377949ef2b2ff9d397c966e23c8426a436a096502f0d6670d3",
+      "canonical_expression": "(add (mul (v 1) (v 1)) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -39.0,
+      "oracle_output": 1.0,
+      "absolute_error": 40.0,
+      "relative_error": 40.0
+    },
+    {
+      "candidate_id": "ae50029026aac765ae92f2383dc514088b21435dc7e3286e8f87199712fb159a",
+      "canonical_expression": "(sub (v 0) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 39.0,
+      "relative_error": 39.0
+    },
+    {
+      "candidate_id": "3a641b5888d578a3c1f94865790229b2e828fc3899ce92a8b8d288d19697721b",
+      "canonical_expression": "(mul (exp (exp (v 1))) (max (max (add (v 0) (v 2)) (max (v 0) (v 2))) (max (sub (v 1) (v 2)) (v 3))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 621.3247519006497,
+      "oracle_output": 1.0,
+      "absolute_error": 620.3247519006497,
+      "relative_error": 620.3247519006497
+    },
+    {
+      "candidate_id": "93dfa50cb1af224384faab700e4017df14367cdb761cb8d712af8ddbe3682d6f",
+      "canonical_expression": "(mul (v 0) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "b8477f04ee0963dc02e4bf816145dbfdc3459f617fbbebfa43865544b20ecc5a",
+      "canonical_expression": "(mul (exp (v 3)) (max (exp (add (v 0) (v 3))) (v 2)))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 0.00012340980408667956,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 1.9899264239450816,
+      "relative_error": 0.9999379865760174
+    },
+    {
+      "candidate_id": "e73b8d2679e7dfd61f78d1fe5d6e242c1ac76e0cd2c187ec9cfd264b041f37b1",
+      "canonical_expression": "(max (v 0) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "770ceeb14fb4426111a17f90acf00f973084dcb20a55e07af139f495bbacfb81",
+      "canonical_expression": "(exp (exp (max (mul (v 0) (v 2)) (v 1))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 15.154262241479262,
+      "oracle_output": 1.0,
+      "absolute_error": 14.154262241479262,
+      "relative_error": 14.154262241479262
+    },
+    {
+      "candidate_id": "cbdde2795e15c740463ea5ccfd823e983c713ca9235e89fa9664c4f9092ff779",
+      "canonical_expression": "(add (v 0) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "735531d624e4fbac079d45eb4ed45f608f3292fe70a7a88a71edfe1bbf21b850",
+      "canonical_expression": "(exp (sub (mul (add (v 1) (v 1)) (max (v 2) (v 3))) (exp (sub (v 0) (v 1)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.6922006275553464,
+      "oracle_output": 1.0,
+      "absolute_error": 0.3077993724446536,
+      "relative_error": 0.3077993724446536
+    },
+    {
+      "candidate_id": "e87443e90c622f4d335276f54c2a7a5b868fbe8016ed3fe74b9b619c0474f4de",
+      "canonical_expression": "(sub (v 0) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "2469ca348be3d3aab37f0d5e3eb9362c0c4a1b74f96644f610ba3d4b0db46f0d",
+      "canonical_expression": "(mul (add (v 0) (v 0)) (mul (sub (v 2) (max (v 0) (v 3))) (v 3)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "a3edcf57ee0218e0011eaf239d1394517fe6b423fe4376e579258977a171c7e2",
+      "canonical_expression": "(mul (v 0) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "a86daf889129694ab81aabfd2730f7c5b72abdc354928c65e6ec120a4bc235eb",
+      "canonical_expression": "(add (add (mul (sub (v 0) (v 1)) (v 0)) (v 1)) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -39.0,
+      "oracle_output": 1.0,
+      "absolute_error": 40.0,
+      "relative_error": 40.0
+    },
+    {
+      "candidate_id": "a55e926217df8ea289ab3e08db623da5aa153392646ea42d3a229de848de0c65",
+      "canonical_expression": "(max (v 0) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "bbfc938216eabf6f227be6bdf9750a00fdb3fb0bfaab5ae882744072fd39d996",
+      "canonical_expression": "(sub (exp (mul (max (v 0) (v 1)) (v 2))) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -1.0,
+      "oracle_output": 1.0,
+      "absolute_error": 2.0,
+      "relative_error": 2.0
+    },
+    {
+      "candidate_id": "25c7695367294f8e239b1ea56e58affa562ec29655062380ed8e44ab48936f97",
+      "canonical_expression": "(sub (v 1) (v 0))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 4.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 2.0099501662508317,
+      "relative_error": 1.0099999166674998
+    },
+    {
+      "candidate_id": "d2752ba213875b5fe8afa9c76f97625adb2543c708b4847901f565753f416f17",
+      "canonical_expression": "(exp (sub (mul (sub (v 2) (v 0)) (v 3)) (add (v 2) (v 3))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.3538526683702e+17,
+      "oracle_output": 1.0,
+      "absolute_error": 2.3538526683702e+17,
+      "relative_error": 2.3538526683702e+17
+    },
+    {
+      "candidate_id": "90b3f009584edc3af94035b3f5578efe20579cff9ad769b998dbcbf5ef5b87fd",
+      "canonical_expression": "(add (v 1) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "87018963d55b8c72241b564f8416517160d78f055739e09f82c0f832426566dc",
+      "canonical_expression": "(max (max (sub (v 0) (v 2)) (v 2)) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 39.0,
+      "relative_error": 39.0
+    },
+    {
+      "candidate_id": "7662dad0439890012896309fbd4493c9c18de2f1f8c6c0dad57f4795f4ad34be",
+      "canonical_expression": "(mul (v 1) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 1.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 0.9900498337491683,
+      "relative_error": 0.49750002083312506
+    },
+    {
+      "candidate_id": "70162f1976467762bbf4a93de4be43f54a5c5c976a39ccb8b1fdde71bc171e9d",
+      "canonical_expression": "(mul (mul (max (v 1) (v 2)) (v 3)) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "0b955c1fba82853954ecb23b127966a379f1f1762fc3a9af606b45abc39e03bb",
+      "canonical_expression": "(add (v 1) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -39.0,
+      "oracle_output": 1.0,
+      "absolute_error": 40.0,
+      "relative_error": 40.0
+    },
+    {
+      "candidate_id": "c529697d4ba12487965e013db226aa98cef469dd3ce3e43f2be40db02f855fad",
+      "canonical_expression": "(mul (mul (exp (v 0)) (v 1)) (v 0))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "692ef558a798dc347e381c7c4646ccf17547028482aaa889c0cac09d4a53d405",
+      "canonical_expression": "(sub (v 1) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 41.0,
+      "oracle_output": 1.0,
+      "absolute_error": 40.0,
+      "relative_error": 40.0
+    },
+    {
+      "candidate_id": "889cf5f5555c1d259fbb1078a7cbeb093a2e7f9a4fda60d4f9cb899583b57545",
+      "canonical_expression": "(exp (mul (v 2) (v 3)))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 8349.85957217592,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 8347.869522342171,
+      "relative_error": 4194.804261064731
+    },
+    {
+      "candidate_id": "61813ff31e2622594d658b69cd1c6725a12042b4eb14aa66bab11159766f4e45",
+      "canonical_expression": "(sub (exp (mul (exp (v 1)) (max (v 1) (v 2)))) (max (mul (v 1) (v 3)) (v 0)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 15.154262241479262,
+      "oracle_output": 1.0,
+      "absolute_error": 14.154262241479262,
+      "relative_error": 14.154262241479262
+    },
+    {
+      "candidate_id": "743f5695f828477f362f94dc31f6a1a52484f73b3b54aa3f76168990b3575cb4",
+      "canonical_expression": "(max (v 1) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 1.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 0.9900498337491683,
+      "relative_error": 0.49750002083312506
+    },
+    {
+      "candidate_id": "bf3afdca0732ce713b3e108e0241773346c09438ad7928fcd0a657f52757caeb",
+      "canonical_expression": "(mul (exp (max (sub (v 1) (v 0)) (sub (v 2) (v 0)))) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "2814de235f65389573787a35932795b7686086c9065b796c15f90fc00a13a87e",
+      "canonical_expression": "(add (v 1) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": -2.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 3.9900498337491683,
+      "relative_error": 2.00499995833375
+    },
+    {
+      "candidate_id": "09471083f775d6b9de12a3b5cb9f0fb88cae569eb03fe4927c8c8990a004534d",
+      "canonical_expression": "(max (exp (exp (v 3))) (max (max (mul (v 0) (v 3)) (v 3)) (max (sub (v 2) (v 3)) (v 3))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 1.718281828459045,
+      "relative_error": 1.718281828459045
+    },
+    {
+      "candidate_id": "a6c00e4ac5b241e398e26a25635f7de18caa910229cd54d89d41daa039b79237",
+      "canonical_expression": "(sub (v 1) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 4.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 2.0099501662508317,
+      "relative_error": 1.0099999166674998
+    },
+    {
+      "candidate_id": "3ac0f519ef1c73efa28b8b7f45095e900dc243ab4d891165463fc209733087f2",
+      "canonical_expression": "(sub (sub (v 2) (max (c 0000000000000000) (v 0))) (mul (add (add (v 0) (v 0)) (exp (v 0))) (add (v 3) (v 3))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 41.0,
+      "relative_error": 41.0
+    },
+    {
+      "candidate_id": "8f2e3193a306be2e9dd2af67ddc3c1e995ef94a357f78a74183294c9d6b09405",
+      "canonical_expression": "(mul (v 1) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "ca1c8767c362b931cbb969fac69a3b5ed59319dbbfb02691930603305adecdbf",
+      "canonical_expression": "(mul (max (add (v 1) (v 2)) (exp (v 2))) (sub (v 1) (v 0)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 4.248354255291589e-18,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "4b03b3bec0c8cf198ce283a7ccd86e029e70fd5c7b7d0507ceaa51de0b7b0439",
+      "canonical_expression": "(max (v 1) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 1.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 0.9900498337491683,
+      "relative_error": 0.49750002083312506
+    },
+    {
+      "candidate_id": "fb2c0af9f649a45b1950c4bd29f1edcb3601927f097cf7445c9deaacd00c4e04",
+      "canonical_expression": "(sub (sub (add (exp (v 2)) (v 3)) (add (v 1) (v 3))) (add (add (exp (v 2)) (v 3)) (sub (v 2) (v 0))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 39.0,
+      "oracle_output": 1.0,
+      "absolute_error": 38.0,
+      "relative_error": 38.0
+    },
+    {
+      "candidate_id": "de9eaa0534f4d7c115960c08d931c3b50e1ff4536cd958dde8da7c702657514a",
+      "canonical_expression": "(sub (v 2) (v 0))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 41.0,
+      "relative_error": 41.0
+    },
+    {
+      "candidate_id": "72f57fb4ecb3c3f7d2e70b235490333d6ed8242db36b89893c49a9764a7973bb",
+      "canonical_expression": "(mul (add (add (v 0) (v 3)) (v 2)) (exp (sub (c 0000000000000000) (max (v 1) (v 2)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -14.715177646857693,
+      "oracle_output": 1.0,
+      "absolute_error": 15.715177646857693,
+      "relative_error": 15.715177646857693
+    },
+    {
+      "candidate_id": "c6fe3b649d4b0c95eba0ea6c3502daf68dc3885edf35a8a92c791ded5b5d8abd",
+      "canonical_expression": "(sub (v 2) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -41.0,
+      "oracle_output": 1.0,
+      "absolute_error": 42.0,
+      "relative_error": 42.0
+    },
+    {
+      "candidate_id": "4e51c282da0e75417cad60abb5958eeb3e8e23189d5c8cf59f96dbc9afb638d5",
+      "canonical_expression": "(exp (mul (exp (v 3)) (max (v 0) (v 2))))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 0.8612579679348783,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 1.1287918658142901,
+      "relative_error": 0.5672178890554187
+    },
+    {
+      "candidate_id": "acd4c67c3862bbe4258a84a9d8e6ccafe04ac551309c2c432c8a9358512013a6",
+      "canonical_expression": "(add (v 2) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -80.0,
+      "oracle_output": 1.0,
+      "absolute_error": 81.0,
+      "relative_error": 81.0
+    },
+    {
+      "candidate_id": "851b9b84820019b1566750e2fa36491c6f2baff14c568e5fe4d24155fd74369e",
+      "canonical_expression": "(add (exp (sub (v 3) (max (v 0) (v 2)))) (sub (v 0) (add (sub (v 2) (v 1)) (v 0))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 42.0,
+      "oracle_output": 1.0,
+      "absolute_error": 41.0,
+      "relative_error": 41.0
+    },
+    {
+      "candidate_id": "4e661a445c98ecabcdc8c055e671819aaee2c1b15d1df7aa587eb064997d5eb5",
+      "canonical_expression": "(mul (v 2) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 1600.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1599.0,
+      "relative_error": 1599.0
+    },
+    {
+      "candidate_id": "bfcceaa7d35fa237a967da7cb9eab101780209dc335e0fa20d349241416d9ec8",
+      "canonical_expression": "(exp (mul (exp (max (v 1) (v 3))) (sub (v 2) (add (v 2) (v 3)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 3480.2015417138296,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 3478.2114918800803,
+      "relative_error": 1747.8012022077253
+    },
+    {
+      "candidate_id": "36d645a2d99caf9f450edb1112afcf57258f3272274fc90388f19f4d8ce4e0a2",
+      "canonical_expression": "(add (v 2) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 41.0,
+      "relative_error": 41.0
+    },
+    {
+      "candidate_id": "13c6fbb9ebf3a4729a10ad578255445cd6a8440f3b4f55b5143612a2a55f18e3",
+      "canonical_expression": "(sub (add (mul (add (v 1) (v 1)) (add (v 1) (v 3))) (v 2)) (exp (v 0)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -39.0,
+      "oracle_output": 1.0,
+      "absolute_error": 40.0,
+      "relative_error": 40.0
+    },
+    {
+      "candidate_id": "4dc1edf8a43051534e6cd5f3fc432aaf518d28ce4c38197bf383fd1a90e1a6a2",
+      "canonical_expression": "(sub (v 2) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 41.0,
+      "relative_error": 41.0
+    },
+    {
+      "candidate_id": "1f2ca785968aa429926ab44091cb979c4769252cd9e86f66a7080200a26ee26a",
+      "canonical_expression": "(add (exp (mul (v 1) (v 3))) (mul (add (add (v 0) (v 2)) (v 3)) (mul (v 0) (v 1))))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 27.079787068367864,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 25.089737234618696,
+      "relative_error": 12.60759243769826
+    },
+    {
+      "candidate_id": "95d4a83ac252cfcaf0cb8b4a869fcddd5d8418b3f3453e1ddb63f4e1ce57b962",
+      "canonical_expression": "(mul (v 2) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "a17b94d40dafcfef935509d686fcd8f513ccf2e8dc39159d24b84797b4a4aea0",
+      "canonical_expression": "(sub (exp (v 1)) (exp (v 3)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 1.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 0.7182818284590451,
+      "relative_error": 0.7182818284590451
+    },
+    {
+      "candidate_id": "008d83207d72d680d506b9f4b60ff7923c1a4436cfd06ab49860279bb73f4f0f",
+      "canonical_expression": "(max (v 2) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "66f1026cae30cb4e492e55f1a316968c65e685b250f779209d69db8488e8fdab",
+      "canonical_expression": "(max (add (mul (v 2) (v 2)) (v 0)) (sub (mul (v 1) (v 2)) (add (v 1) (v 3))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 1600.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1599.0,
+      "relative_error": 1599.0
+    },
+    {
+      "candidate_id": "32f2c008098d4f11241ed9a02dacfeb0d5ea6e88ddf7174150197048e58f2c2b",
+      "canonical_expression": "(sub (v 3) (v 0))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "83936b52b9b763706ac9dca338e869c686748261b6ba121bbb1d1beb878772ac",
+      "canonical_expression": "(max (add (v 1) (v 3)) (exp (mul (v 2) (v 3))))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 8349.85957217592,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 8347.869522342171,
+      "relative_error": 4194.804261064731
+    },
+    {
+      "candidate_id": "44a2700269cc600aa2d9a2108c46eeb2f554aaf74a9a6970c51eac36810298ae",
+      "canonical_expression": "(sub (v 3) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -1.0,
+      "oracle_output": 1.0,
+      "absolute_error": 2.0,
+      "relative_error": 2.0
+    },
+    {
+      "candidate_id": "fe04425e0d8d7cd345e06aa9246dbf5c5db130c0d23f6fa0a70b16226cc422e8",
+      "canonical_expression": "(mul (exp (add (add (v 0) (v 2)) (v 0))) (exp (add (exp (v 1)) (v 1))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 1.7500481754127119e-16,
+      "oracle_output": 1.0,
+      "absolute_error": 0.9999999999999998,
+      "relative_error": 0.9999999999999998
+    },
+    {
+      "candidate_id": "62e22ff77588ad96796952d1e4466e42cc15e5ab8e8d5c8e9c2aba957b996e24",
+      "canonical_expression": "(sub (v 3) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 40.0,
+      "oracle_output": 1.0,
+      "absolute_error": 39.0,
+      "relative_error": 39.0
+    },
+    {
+      "candidate_id": "7d99fb0e3d0bbc3a912401cdab82a489a5e817a3cd2cf010190bd62aa5901abc",
+      "canonical_expression": "(max (exp (v 3)) (sub (v 3) (exp (exp (v 0)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 0.049787068367863944,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 1.9402627653813045,
+      "relative_error": 0.9749819991823686
+    },
+    {
+      "candidate_id": "e191a4805936b117c7dc6ec8d3354fb4cb63d7d2655cda26b9eadefa6f9d7ede",
+      "canonical_expression": "(add (v 3) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "417c4c0768ddd15f2f042cd8d9bb219f328586cf0d57f2b095e40fd5d520aec5",
+      "canonical_expression": "(exp (max (c 3ff0000000000000) (exp (add (v 0) (v 1)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 15.154262241479262,
+      "oracle_output": 1.0,
+      "absolute_error": 14.154262241479262,
+      "relative_error": 14.154262241479262
+    },
+    {
+      "candidate_id": "7e9b6d3f5478386cf5726690331065c9b43812ea0171e842a1b526343ea80e09",
+      "canonical_expression": "(mul (v 3) (v 3))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "2905191cdf5e11bc965c33a87037d40e471efbf2bb19600dc7ef5654736345ab",
+      "canonical_expression": "(mul (add (add (v 1) (v 2)) (exp (v 2))) (max (add (v 2) (v 2)) (v 1)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -39.0,
+      "oracle_output": 1.0,
+      "absolute_error": 40.0,
+      "relative_error": 40.0
+    },
+    {
+      "candidate_id": "82c170dff0c9aab7e3d2c8c4a15139bdc1ca9ca0ae45e36e8060075478d0690f",
+      "canonical_expression": "(exp (exp (exp (v 0))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 15.154262241479262,
+      "oracle_output": 1.0,
+      "absolute_error": 14.154262241479262,
+      "relative_error": 14.154262241479262
+    },
+    {
+      "candidate_id": "96646893350def5d8abc09745158d054b8362ae1810cf49eb982da78254ddc7c",
+      "canonical_expression": "(exp (max (exp (v 2)) (mul (c 0000000000000000) (v 2))))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 1.0505267223890236,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 0.9395231113601448,
+      "relative_error": 0.47211034388527023
+    },
+    {
+      "candidate_id": "184fd54350fc755fe3ea96471514bf3ebfff196d6a07bbdb981c0ebe473c8a76",
+      "canonical_expression": "(exp (exp (exp (v 1))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 3814279.104760214,
+      "oracle_output": 1.0,
+      "absolute_error": 3814278.104760214,
+      "relative_error": 3814278.104760214
+    },
+    {
+      "candidate_id": "403a4ccbaf498067f60946da3f06f9714f3665bdda56e38b44223e74da52de98",
+      "canonical_expression": "(max (mul (mul (add (v 0) (v 1)) (v 0)) (v 2)) (mul (sub (exp (v 2)) (max (v 0) (v 3))) (v 1)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 4.248354255291589e-18,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "51b7004224d0eb23e3b5cb05f9155327c0bece5e3be156b053bc19ede3c30da0",
+      "canonical_expression": "(exp (exp (exp (v 2))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 1.718281828459045,
+      "relative_error": 1.718281828459045
+    },
+    {
+      "candidate_id": "84439c011263fccf2c7e37856871d169688db563536b1508cbcf50693abbc0e3",
+      "canonical_expression": "(add (add (exp (add (v 1) (v 2))) (max (v 1) (v 2))) (sub (v 3) (v 1)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "19700248ddffcec51df0cbb944a859acad79a80f05e492532910fd6b360d7479",
+      "canonical_expression": "(exp (exp (exp (v 3))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 15.154262241479262,
+      "oracle_output": 1.0,
+      "absolute_error": 14.154262241479262,
+      "relative_error": 14.154262241479262
+    },
+    {
+      "candidate_id": "2b73227f44e8df8e71db388b15fef8204f994dda20fda78d90bf627fc9c47f4d",
+      "canonical_expression": "(sub (mul (add (exp (v 0)) (max (v 1) (v 3))) (add (sub (v 1) (v 2)) (sub (v 3) (v 2)))) (sub (v 2) (mul (v 0) (v 0))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 202.0,
+      "oracle_output": 1.0,
+      "absolute_error": 201.0,
+      "relative_error": 201.0
+    },
+    {
+      "candidate_id": "42c81bf345a8d6907c4dcdc5d0f1d9515f2e2e9e4314142dae0cbac57c3853eb",
+      "canonical_expression": "(exp (add (v 0) (v 0)))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 0.0024787521766663585,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 1.987571081572502,
+      "relative_error": 0.9987544270828653
+    },
+    {
+      "candidate_id": "a10aa60164a90fe87c364b63e44decc340b9cbd7bf8ab751ce00f9c883fb592c",
+      "canonical_expression": "(c 3ff0000000000000)",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 1.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 0.9900498337491683,
+      "relative_error": 0.49750002083312506
+    },
+    {
+      "candidate_id": "6ad1de1131e2b0531b61ae6500a35e894ec39c20890d0c949e764aba98c3cbfa",
+      "canonical_expression": "(add (add (max (v 0) (v 2)) (v 1)) (exp (sub (v 1) (mul (v 1) (v 3)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 3.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 2.718281828459045,
+      "relative_error": 2.718281828459045
+    },
+    {
+      "candidate_id": "bd11b76299bd114332ac5f8d4983e5c0f8006f3de1a7d473392f931b542fadd9",
+      "canonical_expression": "(exp (mul (v 0) (v 0)))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 8103.083927575384,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 8101.093877741635,
+      "relative_error": 4070.7995047940694
+    },
+    {
+      "candidate_id": "0ed51f8211f2469c7da9bcb32d40b88c2d936d373a593d476a59ee980d9694cd",
+      "canonical_expression": "(max (max (add (exp (v 2)) (v 0)) (exp (add (v 2) (v 3)))) (v 1))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 1.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 0.9900498337491683,
+      "relative_error": 0.49750002083312506
+    },
+    {
+      "candidate_id": "622fdbbd92198cc9b3d863761cf5361edb72e7f12361e845efba374a1af0b861",
+      "canonical_expression": "(exp (add (v 0) (v 1)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 1.718281828459045,
+      "relative_error": 1.718281828459045
+    },
+    {
+      "candidate_id": "cfdae1977e3c1980dad22c64a26f7ad599f5aaab2b9712c15eec2d3455b477c6",
+      "canonical_expression": "(exp (mul (mul (c 0000000000000000) (v 2)) (mul (mul (v 0) (v 3)) (sub (v 0) (v 3)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 1.0,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 0.9900498337491683,
+      "relative_error": 0.49750002083312506
+    },
+    {
+      "candidate_id": "c631ae1bbaa11489a573acfde00d24db203bd844ce0745331cb334158cc042e1",
+      "canonical_expression": "(exp (sub (v 0) (v 1)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 0.36787944117144233,
+      "oracle_output": 1.0,
+      "absolute_error": 0.6321205588285577,
+      "relative_error": 0.6321205588285577
+    },
+    {
+      "candidate_id": "f4c12e1f7b062e16264aaa0bad5c9e3ad9160e16ccb9953eb9f0910f369cca88",
+      "canonical_expression": "(exp (mul (v 0) (v 1)))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 0.049787068367863944,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 1.9402627653813045,
+      "relative_error": 0.9749819991823686
+    },
+    {
+      "candidate_id": "c50d7ca86ea1bf8db9718292fcef6cf31e0d4e7c7e82ee8c88937329bef2bf1b",
+      "canonical_expression": "(mul (add (max (v 2) (v 3)) (v 1)) (max (add (v 0) (v 3)) (exp (sub (v 1) (v 2)))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 6.398434935300549e+17,
+      "oracle_output": 1.0,
+      "absolute_error": 6.398434935300549e+17,
+      "relative_error": 6.398434935300549e+17
+    },
+    {
+      "candidate_id": "aaa9be182fa435cf8bb4ac5aa873e9972e204c52aabec75b67bb1b247103657b",
+      "canonical_expression": "(exp (max (v 0) (v 1)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.718281828459045,
+      "oracle_output": 1.0,
+      "absolute_error": 1.718281828459045,
+      "relative_error": 1.718281828459045
+    },
+    {
+      "candidate_id": "41cf946b75e786c190ce3aaef6f3dd9eb36f4209e77b1daa8581b2cbcb68f247",
+      "canonical_expression": "(sub (exp (sub (max (v 0) (v 3)) (add (v 0) (v 1)))) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 40.36787944117144,
+      "oracle_output": 1.0,
+      "absolute_error": 39.36787944117144,
+      "relative_error": 39.36787944117144
+    },
+    {
+      "candidate_id": "9f303a9d9222b067362dbaf2d7690844d95ce8dfbfdc4e973f7cce0a160ba32f",
+      "canonical_expression": "(exp (add (v 0) (v 2)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 4.248354255291589e-18,
+      "oracle_output": 1.0,
+      "absolute_error": 1.0,
+      "relative_error": 1.0
+    },
+    {
+      "candidate_id": "0b53f5c4c8814df551f5437ab07b984781bd88fa5cac7a2ebf6baa83c03f4b93",
+      "canonical_expression": "(add (add (max (sub (v 3) (v 0)) (v 0)) (mul (v 2) (v 2))) (max (add (mul (v 1) (v 2)) (v 1)) (v 2)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 1561.0,
+      "oracle_output": 1.0,
+      "absolute_error": 1560.0,
+      "relative_error": 1560.0
+    },
+    {
+      "candidate_id": "fb4628fdf8f0890032aaf7035ef2f062db047c005411eee549f70aefee0366c4",
+      "canonical_expression": "(exp (sub (v 0) (v 2)))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": 2.3538526683702e+17,
+      "oracle_output": 1.0,
+      "absolute_error": 2.3538526683702e+17,
+      "relative_error": 2.3538526683702e+17
+    },
+    {
+      "candidate_id": "0928b7db507033be0170482abe94175e38764bf708c26a070e46a5aa27e05ebc",
+      "canonical_expression": "(add (sub (max (mul (v 1) (v 1)) (v 0)) (add (mul (v 0) (v 2)) (mul (v 1) (v 2)))) (v 2))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": -8.03,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 10.020049833749168,
+      "relative_error": 5.035074832710006
+    },
+    {
+      "candidate_id": "6ee4e6090e5043bc9e2977c15bcd91738a1d30f1524ec5b5c12fa1fe691921bb",
+      "canonical_expression": "(exp (mul (v 0) (v 2)))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 8349.85957217592,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 8347.869522342171,
+      "relative_error": 4194.804261064731
+    },
+    {
+      "candidate_id": "29a45e30fbc1825ea9ac33928abfb5e22ea1612eec63d35ec44fc98b1f5d2171",
+      "canonical_expression": "(sub (v 2) (max (exp (v 1)) (sub (v 3) (v 2))))",
+      "gate": "ProbeCorpus",
+      "case_index": 0,
+      "inputs": [
+        [
+          "m_old",
+          0.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -40.0
+        ],
+        [
+          "m_new",
+          0.0
+        ]
+      ],
+      "candidate_output": -80.0,
+      "oracle_output": 1.0,
+      "absolute_error": 81.0,
+      "relative_error": 81.0
+    },
+    {
+      "candidate_id": "c30919182f84849d6cf19b1489d6ccbf2db7edf0ca3b202341e1f26e813716ff",
+      "canonical_expression": "(exp (max (v 0) (v 2)))",
+      "gate": "ProbeCorpus",
+      "case_index": 1,
+      "inputs": [
+        [
+          "m_old",
+          -3.0
+        ],
+        [
+          "l_old",
+          1.0
+        ],
+        [
+          "score",
+          -3.01
+        ],
+        [
+          "m_new",
+          -3.0
+        ]
+      ],
+      "candidate_output": 0.049787068367863944,
+      "oracle_output": 1.9900498337491683,
+      "absolute_error": 1.9402627653813045,
+      "relative_error": 0.9749819991823686
+    }
+  ],
+  "rejection_reason_counts": [
+    [
+      "duplicate_canonical_form",
+      107088
+    ],
+    [
+      "non_finite_execution",
+      9965
+    ],
+    [
+      "oracle_corpus_mismatch",
+      63
+    ],
+    [
+      "probe_corpus_mismatch",
+      189847
+    ]
+  ],
+  "best": {
+    "candidate_id": "3d0405add67412b927c98c1bad4281e6deb132fe8c4c1cce355f1207c20e8e27",
+    "canonical_expression": "(add (exp (sub (v 2) (v 3))) (v 1))",
+    "train_loss": 98.83264769782794,
+    "cost": {
+      "total_operators": 3,
+      "exp_count": 1,
+      "max_count": 0,
+      "mul_count": 0,
+      "add_sub_count": 2,
+      "depth": 4
+    },
+    "class": {
+      "Falsified": {
+        "at_gate": "OracleCorpus",
+        "reason": "OracleCorpusMismatch"
+      }
+    },
+    "cost_qualified": false,
+    "promotion_state": "NotApplicable",
+    "source": {
+      "Evolutionary": {
+        "seed": 3790090774,
+        "generation": 272,
+        "individual": 411
+      }
+    }
+  },
+  "archive_digest": "62ce3483d5380a2abbb018602e390c612a15ae760b8c3a21476be350532a6a86"
+}
