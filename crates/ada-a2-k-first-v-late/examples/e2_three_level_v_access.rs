@@ -6,6 +6,7 @@ const SEED: u64 = 0xADA2_E200_0000_0002;
 
 const VALUE_DIM: usize = 128;
 const DEFAULT_ROUNDS: usize = 7;
+const DEFAULT_EVICTED_ROUNDS: usize = 15;
 const DEFAULT_TARGET_SCALARS: usize = 1_000_000;
 const WARMUP_CALLS: usize = 6;
 
@@ -309,11 +310,16 @@ fn timed_batch(kernel: Kernel, case: &Case<'_>, iterations: usize, output: &mut 
 }
 
 fn kernel_order(round: usize) -> [Kernel; 3] {
-    match round % 3 {
-        0 => [Kernel::Full, Kernel::KLoaded, Kernel::Support],
-        1 => [Kernel::KLoaded, Kernel::Support, Kernel::Full],
-        _ => [Kernel::Support, Kernel::Full, Kernel::KLoaded],
-    }
+    const ORDERS: [[Kernel; 3]; 6] = [
+        [Kernel::Full, Kernel::KLoaded, Kernel::Support],
+        [Kernel::KLoaded, Kernel::Support, Kernel::Full],
+        [Kernel::Support, Kernel::Full, Kernel::KLoaded],
+        [Kernel::Full, Kernel::Support, Kernel::KLoaded],
+        [Kernel::Support, Kernel::KLoaded, Kernel::Full],
+        [Kernel::KLoaded, Kernel::Full, Kernel::Support],
+    ];
+
+    ORDERS[round % ORDERS.len()]
 }
 
 fn bench_warm(case: &Case<'_>, rounds: usize, target_scalars: usize) -> Timings {
@@ -413,7 +419,6 @@ fn ppm(count: usize, total: usize) -> usize {
         / total
 }
 
-// Benchmark record serialization intentionally keeps its fields explicit.
 #[allow(clippy::too_many_arguments)]
 fn print_result(
     mode: &str,
@@ -500,6 +505,7 @@ fn run_case(
     pattern: Pattern,
     values: &[f32],
     rounds: usize,
+    evicted_rounds: usize,
     target_scalars: usize,
     eviction: &mut [u8],
 ) {
@@ -547,7 +553,7 @@ fn run_case(
     );
 
     if evicted_probe(token_count, k_density_ppm, support_density_ppm) {
-        let evicted = bench_evicted(&case, rounds, eviction);
+        let evicted = bench_evicted(&case, evicted_rounds, eviction);
 
         print_result(
             "evicted",
@@ -567,6 +573,9 @@ fn run_case(
 fn main() {
     let rounds = env_positive_usize("ADA_E2_ROUNDS", DEFAULT_ROUNDS);
 
+    let evicted_rounds =
+        env_positive_usize("ADA_E2_EVICTED_ROUNDS", rounds.max(DEFAULT_EVICTED_ROUNDS));
+
     let target_scalars = env_positive_usize("ADA_E2_TARGET_SCALARS", DEFAULT_TARGET_SCALARS);
 
     println!("survey=ada_a2_e2_three_level_v_access");
@@ -576,12 +585,28 @@ fn main() {
     println!("value_dtype=f32");
     println!("value_dim={VALUE_DIM}");
     println!("rounds={rounds}");
+    println!("evicted_rounds={evicted_rounds}");
     println!("warmup_calls={WARMUP_CALLS}");
     println!("target_scalars={target_scalars}");
     println!("l2_bytes={L2_BYTES}");
     println!("l3_shared_bytes={L3_BYTES}");
     println!("eviction_bytes={EVICTION_BYTES}");
     println!("seed={SEED:#018x}");
+    println!("kernel_rotation=balanced_6_permutation");
+    println!(
+        "NOTE: full_to_k_speedup_ppm/1e6 = G_A5 isolates A5 K pruning; \
+k_to_support_speedup_ppm/1e6 = G_A2_after_A5 isolates A2 V-late after A5; \
+full_to_support_speedup_ppm/1e6 = G_total must not be attributed to A2 alone."
+    );
+    println!(
+        "NOTE: evicted touches a dedicated eviction buffer before each \
+individually timed kernel call, outside the timed interval; it is not a \
+hardware cache-state proof."
+    );
+    println!(
+        "NOTE: cache_region labels are descriptive V-footprint \
+classifications, not measured cache residency."
+    );
 
     let mut eviction = vec![0_u8; EVICTION_BYTES];
 
@@ -605,6 +630,7 @@ fn main() {
                         pattern,
                         &values,
                         rounds,
+                        evicted_rounds,
                         target_scalars,
                         &mut eviction,
                     );

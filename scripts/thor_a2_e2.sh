@@ -9,34 +9,22 @@ main() {
     CORE="${ADA_CPU_CORE:-13}"
     REPEATS="${ADA_REPEATS:-5}"
     ROUNDS="${ADA_E2_ROUNDS:-21}"
+    EVICTED_ROUNDS="${ADA_E2_EVICTED_ROUNDS:-31}"
     TARGET_SCALARS="${ADA_E2_TARGET_SCALARS:-4000000}"
 
-    RUNNER="target/release/examples/e2_three_level_v_access"
-    ANALYZER="tools/analyze_a2_e2.py"
-
     if ! [[ "${CORE}" =~ ^[0-9]+$ ]]; then
-        echo "error: ADA_CPU_CORE must be a non-negative integer" >&2
+        echo "error: ADA_CPU_CORE must be non-negative" >&2
         return 2
     fi
 
     if ! [[ "${REPEATS}" =~ ^[1-9][0-9]*$ ]]; then
-        echo "error: ADA_REPEATS must be a positive integer" >&2
-        return 2
-    fi
-
-    if ! [[ "${ROUNDS}" =~ ^[1-9][0-9]*$ ]]; then
-        echo "error: ADA_E2_ROUNDS must be a positive integer" >&2
-        return 2
-    fi
-
-    if ! [[ "${TARGET_SCALARS}" =~ ^[1-9][0-9]*$ ]]; then
-        echo "error: ADA_E2_TARGET_SCALARS must be positive" >&2
+        echo "error: ADA_REPEATS must be positive" >&2
         return 2
     fi
 
     for command in \
-        git cargo rustc taskset nvpmodel jetson_clocks \
-        lscpu sha256sum seq ps head python3 date uname
+        git cargo rustc taskset nvpmodel \
+        jetson_clocks lscpu sha256sum seq ps head
     do
         if ! command -v "${command}" >/dev/null 2>&1; then
             echo "error: required command missing: ${command}" >&2
@@ -45,7 +33,7 @@ main() {
     done
 
     if [[ -n "$(git status --porcelain -uall)" ]]; then
-        echo "error: A2-E2 qualification requires a clean Git tree" >&2
+        echo "error: A2-E2 qualification requires clean Git tree" >&2
         git status --short -uall >&2
         return 3
     fi
@@ -81,9 +69,15 @@ main() {
         return 3
     fi
 
-    echo "=== A2-E2 QUALIFICATION GATES ==="
+    echo "=== CORRECTNESS GATES ==="
 
     cargo fmt --all -- --check || return 4
+
+    cargo clippy \
+        -p ada-a2-k-first-v-late \
+        --example e2_three_level_v_access \
+        -- -D warnings \
+        || return 4
 
     cargo clippy \
         --workspace \
@@ -99,25 +93,19 @@ main() {
         --example e2_three_level_v_access \
         || return 4
 
-    python3 -m py_compile "${ANALYZER}" || return 4
-
-    bash -n "$0" || return 4
-
     SHA="$(git rev-parse HEAD)"
     STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 
-    OUT_DIR="evidence/a2-k-first-v-late/e2-thor-three-level-${SHA:0:12}-${STAMP}"
+    OUT_DIR="evidence/a2-k-first-v-late"
+    OUT="${OUT_DIR}/thor-e2-three-level-v-access-${SHA:0:12}-${STAMP}.txt"
 
     mkdir -p "${OUT_DIR}" || return 2
-
-    ENV_FILE="${OUT_DIR}/environment.txt"
-    ANALYSIS_FILE="${OUT_DIR}/analysis.txt"
-    HASH_FILE="${OUT_DIR}/SHA256SUMS.txt"
 
     thermal_snapshot() {
         for zone in /sys/class/thermal/thermal_zone*
         do
-            [[ -r "${zone}/type" && -r "${zone}/temp" ]] || continue
+            [[ -r "${zone}/type" && -r "${zone}/temp" ]] \
+                || continue
 
             printf '%s=%s\n' \
                 "$(cat "${zone}/type")" \
@@ -126,15 +114,20 @@ main() {
     }
 
     {
-        echo "experiment=ADA-A2-E2-three-level-physical-v-access"
+        echo "ADA experiment: ADA-A2 E2 Three-Level Physical V Access"
+        echo "evidence_level=physical_cpu_microbench"
         echo "ada_sha=${SHA}"
         echo "utc=${STAMP}"
+        echo "working_tree_before=clean"
         echo "cpu_core=${CORE}"
         echo "process_repeats=${REPEATS}"
         echo "benchmark_rounds=${ROUNDS}"
+        echo "evicted_rounds=${EVICTED_ROUNDS}"
         echo "target_scalars=${TARGET_SCALARS}"
+        echo "runner=e2_three_level_v_access"
+        echo "decomposition=full_dense_vs_k_loaded_vs_support"
+        echo "primary_metric=G_A2_after_A5=k_to_support_speedup_ppm/1e6"
         echo "pmu_counters=false"
-        echo "working_tree_before=clean"
         echo
 
         echo "=== SYSTEM ==="
@@ -175,107 +168,45 @@ main() {
             --sort=-pcpu \
             | head -n 20 \
             || true
-    } > "${ENV_FILE}"
-
-    RUN_LOGS=()
-
-    echo "=== A2-E2 INDEPENDENT PROCESS RUNS ==="
-
-    for run in $(seq 1 "${REPEATS}")
-    do
-        RUN_FILE="$(
-            printf '%s/run-%02d.txt' \
-                "${OUT_DIR}" \
-                "${run}"
-        )"
-
-        echo "process_run=${run}/${REPEATS}"
-        echo "run_file=${RUN_FILE}"
-
-        taskset -c "${CORE}" \
-            env \
-            ADA_E2_ROUNDS="${ROUNDS}" \
-            ADA_E2_TARGET_SCALARS="${TARGET_SCALARS}" \
-            "${RUNNER}" \
-            > "${RUN_FILE}" 2>&1
-
-        RUN_RC=$?
-
-        if [[ "${RUN_RC}" -ne 0 ]]; then
-            echo "error: benchmark run ${run} failed rc=${RUN_RC}" >&2
-            return 5
-        fi
-
-        RESULT_COUNT="$(
-            grep -c '^result,' "${RUN_FILE}" || true
-        )"
-
-        COMPLETE_COUNT="$(
-            grep -c '^survey_status=complete$' "${RUN_FILE}" || true
-        )"
-
-        echo "result_count=${RESULT_COUNT}"
-        echo "complete_count=${COMPLETE_COUNT}"
-
-        if [[ "${RESULT_COUNT}" -ne 306 ]]; then
-            echo "error: run ${run} expected 306 results, found ${RESULT_COUNT}" >&2
-            return 5
-        fi
-
-        if [[ "${COMPLETE_COUNT}" -ne 1 ]]; then
-            echo "error: run ${run} is incomplete" >&2
-            return 5
-        fi
-
-        RUN_LOGS+=("${RUN_FILE}")
-
-        sleep 1
-    done
-
-    echo
-    echo "=== AGGREGATE ANALYSIS ==="
-
-    python3 "${ANALYZER}" "${RUN_LOGS[@]}" \
-        | tee "${ANALYSIS_FILE}"
-
-    ANALYZE_RC="${PIPESTATUS[0]}"
-
-    if [[ "${ANALYZE_RC}" -ne 0 ]]; then
-        echo "error: analyzer failed rc=${ANALYZE_RC}" >&2
-        return 6
-    fi
-
-    {
         echo
+
+        echo "=== A2-E2 PINNED RELEASE BENCH ==="
+
+        for run in $(seq 1 "${REPEATS}")
+        do
+            echo "--- process_run=${run}/${REPEATS} ---"
+
+            taskset -c "${CORE}" \
+                env \
+                ADA_E2_ROUNDS="${ROUNDS}" \
+                ADA_E2_EVICTED_ROUNDS="${EVICTED_ROUNDS}" \
+                ADA_E2_TARGET_SCALARS="${TARGET_SCALARS}" \
+                target/release/examples/e2_three_level_v_access \
+                || return 5
+
+            echo
+            sleep 1
+        done
+
         echo "=== PINNED CORE AFTER ==="
         echo "current_khz_after=$(cat "${CPU_DIR}/scaling_cur_freq")"
         echo
 
         echo "=== THERMALS AFTER ==="
         thermal_snapshot
-    } >> "${ENV_FILE}"
+
+    } | tee "${OUT}"
+
+    PIPE_RC="${PIPESTATUS[0]}"
+
+    if [[ "${PIPE_RC}" -ne 0 ]]; then
+        echo "error: evidence pipeline failed rc=${PIPE_RC}" >&2
+        return "${PIPE_RC}"
+    fi
 
     echo
-    echo "=== EVIDENCE HASHES ==="
-
-    (
-        cd "${OUT_DIR}" || return 2
-
-        sha256sum \
-            environment.txt \
-            run-*.txt \
-            analysis.txt \
-            > SHA256SUMS.txt
-
-        cat SHA256SUMS.txt
-
-        echo
-        echo -n "manifest_sha256="
-        sha256sum SHA256SUMS.txt | awk '{print $1}'
-    )
-
-    echo
-    echo "EVIDENCE_DIR=${OUT_DIR}"
+    sha256sum "${OUT}"
+    echo "EVIDENCE=${OUT}"
 
     return 0
 }

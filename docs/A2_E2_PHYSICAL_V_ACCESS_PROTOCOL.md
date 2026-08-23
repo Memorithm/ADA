@@ -1,472 +1,236 @@
-# ADA-A2 E2 — Physical V Access Laboratory
+# ADA-A2 E2 — Three-Level Physical V-Access Microbenchmark
 
 ## Status
 
-Qualified stage:
+Physical CPU wall-clock microbenchmark. Supersedes the earlier E2 preflight
+comparison `FullDense-V -> Support-V` (kept for history in
+`crates/ada-a2-k-first-v-late/examples/e2_v_access_microbench.rs`), which is
+methodologically insufficient and must not be cited as isolated A2 evidence.
 
-`A2-E2-THOR-PHYSICAL-V-LATE-QUALIFIED`
+## Why `FullDense -> Support` was insufficient
 
-Qualification applies to the isolated CPU physical V-access mechanism on the
-NVIDIA Jetson AGX Thor target.
+The preflight benchmark compared a dense V scan against an exact-support
+gather. On the target CPU it produced strongly positive results. Those results
+are real wall-clock numbers, but they are not attributable to A2 alone,
+because the compared kernels differ in two independent row sets at once:
 
-It does not imply end-to-end attention, GPU, DRAM/HBM, model-quality, or
-production qualification.
+1. **A5 K pruning** removes rows from the loaded K set. Any row pruned by A5
+   cannot contribute V traffic either, whether or not V-late is used.
+2. **A2 V-late** shrinks the *V* read set to the exact positive support
+   *within* the rows that survived A5.
 
-The qualifying campaign used five independent processes from committed harness
-SHA `516527971fe2311e85af849813b990e130ec2b3c`.
+Comparing `FullDense-V` directly against `Support-V` therefore measures the
+composition of both effects. Attributing that composite speedup to A2 would
+double-count work that A5 already removed. This is the methodological flaw E2
+exists to fix.
 
-## Purpose
+## Correct three-level decomposition
 
-A2-E1 established that the final exact Entmax support is much smaller than the
-set of tokens whose exact K scores must still be loaded by A5.
+The physically meaningful chain is:
 
-A2-E2 asks whether that *additional* sparsity produces a measurable physical
-CPU benefit when V materialization is delayed until the exact support is known.
+```
+FullDense-V  ->  A5-KLoaded-V  ->  A2-Support-V
+```
 
-## Attribution correction
+with the strict set nesting
 
-The original E2 preflight compared:
+```
+Support  subset  KLoaded  subset  AllVisibleTokens
+```
 
-\[
-\text{FullDense-V}
-\rightarrow
-\text{Support-V}.
-\]
+Three distinct kernels are timed:
 
-That comparison mixes two different mechanisms:
+### FullDense
 
-1. A5 removes tokens before exact K-score loading;
-2. A2 avoids V rows for K-loaded tokens that ultimately have zero Entmax
-   probability.
+Reads every visible V row and multiplies every row — including rows whose
+probability is exactly zero — into the output. This is the no-A5, no-A2
+upper-bound workload.
 
-The corrected physical experiment therefore uses:
+### KLoaded
 
-\[
-\boxed{
-\text{FullDense-V}
-\rightarrow
-\text{A5-KLoaded-V}
-\rightarrow
-\text{A2-Support-V}
-}
-\]
+Reads exactly the A5-surviving K-loaded rows. Rows in `KLoaded \ Support`
+have probability exactly zero but their V rows are still physically read;
+zero-weight rows are never optimized away before access. This kernel models
+the state where A5 pruning has happened but A2 V-late has **not**.
 
-with
+### Support
 
-\[
-S
-\subseteq
-K_{\rm loaded}
-\subseteq
-\{0,\ldots,N-1\}.
-\]
+Reads only the final positive-support V rows. This models A2 V-late after
+exact support resolution.
 
-All three kernels compute the same weighted output:
+All three kernels compute
 
 \[
-O=\sum_i p_iV_i.
+O=\sum_i p_iV_i
 \]
 
-## Kernels
+and every generated case must satisfy structural correctness
+(`Support subset KLoaded`) and numerical agreement within a declared f32
+tolerance before any timing is recorded.
 
-### FullDense-V
+## Key ratios
 
-Reads every visible V row.
+With kernel times `T_FullDense`, `T_KLoaded`, `T_Support`:
 
-Rows with zero probability are still visited and their V values participate
-in the executed row loop.
+| Ratio | Definition | Physical meaning |
+|---|---|---|
+| `G_A5` | `T_FullDense / T_KLoaded` | isolated physical effect of A5 K pruning on V traffic |
+| `G_A2_after_A5` | `T_KLoaded / T_Support` | isolated physical effect of A2 V-late **given** A5 |
+| `G_total` | `T_FullDense / T_Support` | composed effect of A5 + A2 |
 
-### KLoaded-V
+The **primary A2 metric is `G_A2_after_A5`**. `G_total` is reported for
+completeness and must never be attributed to A2 alone. Because the nesting
+above holds by construction, the identity
+`G_total = G_A5 x G_A2_after_A5` is expected up to measurement noise, and the
+analyzer reports all three so over-attribution is detectable.
 
-Reads every row belonging to the declared A5 K-loaded set.
+The isolated A2 physical promotion criterion is:
 
-For
+> `G_A2_after_A5 > 1`, robustly, across the natural E1 anchor regimes and
+> both locality patterns, in warm mode and in focused evicted probes.
 
-\[
-i\in K_{\rm loaded}\setminus S
-\]
-
-the probability is exactly zero, but the V row is still read.
-
-This is the physical baseline for measuring the additional contribution of A2.
-
-### Support-V
-
-Reads only rows in the exact final positive support.
-
-This models V-late execution once Entmax support has been resolved exactly.
-
-## Ratios
-
-A5-side V-access ratio:
-
-\[
-G_{A5}
-=
-\frac{T_{\rm FullDense}}
-     {T_{\rm KLoaded}}.
-\]
-
-Incremental A2 ratio after A5:
-
-\[
-\boxed{
-G_{A2|A5}
-=
-\frac{T_{\rm KLoaded}}
-     {T_{\rm Support}}.
-}
-\]
-
-Total V-only ratio:
-
-\[
-G_{\rm total}
-=
-\frac{T_{\rm FullDense}}
-     {T_{\rm Support}}.
-\]
-
-Only \(G_{A2|A5}\) is the isolated A2 physical metric.
-
-A large \(G_{\rm total}\) alone is insufficient evidence for A2.
+Negative or near-unity results are valid findings and must be reported, not
+tuned away.
 
 ## Natural E1 anchors
 
-Frozen A2-E1 logical accounting produced:
+E2 embeds the frozen natural Qwen3-0.6B accounting from A2-E1 as central
+cases:
 
-### alpha = 2
+| Anchor | K density | Support density |
+|---|---|---|
+| alpha = 2.0 | 22.5564% (`225564` ppm) | 0.8344% (`8344` ppm) |
+| alpha = 1.5 | 29.1461% (`291461` ppm) | 1.5370% (`15370` ppm) |
 
-- total visible token instances: 184320
-- K loaded: 41576
-- final support V rows: 1538
-- K fraction: approximately 22.5564%
-- support fraction: approximately 0.8344%
+Additional stress/control densities: 0.5%, 2%, 5%; `K = 100%` as a
+no-A5-pruning control; and `Support = KLoaded` as a no-A2-residual control.
 
-### alpha = 1.5
+For `Support = KLoaded` the KLoaded and Support kernels perform the identical
+indexed physical row set, so `G_A2_after_A5 ~= 1` **must** be observed. A
+large artificial speedup in this control indicates a broken benchmark, not a
+discovery. For `K = 100%`, `G_A5 ~= 1` is likewise expected.
 
-- total visible token instances: 184320
-- K loaded: 53722
-- final support V rows: 2833
-- K fraction: approximately 29.1461%
-- support fraction: approximately 1.5370%
-
-E2 uses these fractions as synthetic physical anchor densities.
-
-They do not reconstruct the exact natural support geometry.
-
-## Matrix
-
-`value_dim = 128`, `f32`.
-
-Token counts:
-
-- 64
-- 128
-- 256
-- 512
-- 2048
-- 8192
-- 32768
-- 65536
-
-K-load densities include:
-
-- 22.5564%
-- 29.1461%
-- 100%
-
-Support densities include:
-
-- 0.5%
-- 0.8344%
-- 1.5370%
-- 2%
-- 5%
-
-Each K density additionally receives an `S=K` control.
-
-Requested and realized densities are both reported because integer row counts
-matter for small N.
+Because small token counts round integer row counts upward, every record
+reports both requested and realized densities.
 
 ## Locality patterns
 
-### prefix
-
-K rows form a contiguous prefix and support is nested inside that prefix.
-
-### spread
-
-K rows are distributed across the visible token interval.
-
-Support rows are distributed over the K set and remain a strict subset of K.
-
-These two cases are deterministic locality probes, not measurements of natural
-Qwen support geometry.
-
-## Cache-footprint labels
-
-The target Thor environment documents:
-
-- private L2: 1 MiB per CPU core;
-- shared system L3: 16 MiB.
-
-The runner reports:
-
-- `l2_capacity`
-- `l3_capacity`
-- `beyond_l3`
-
-according to the full V tensor footprint.
-
-These labels compare footprint to documented cache capacities.
-
-They do not prove actual residency or cache-hit behavior.
-
-## Timing
-
-Timing uses:
-
-- `std::time::Instant`;
-- `std::hint::black_box`;
-- no allocation inside the measured kernels;
-- rotation of Full/K/Support order by round;
-- median;
-- p95;
-- MAD.
-
-### Warm mode
-
-Warm samples repeatedly execute the same tensor configuration.
-
-Different kernels use different iteration counts so sparse paths accumulate
-enough work to reduce timer quantization.
-
-This means warm measurements deliberately permit strong reuse of the same V
-rows.
-
-Therefore very large warm ratios, especially for tiny support sets, must not be
-interpreted as direct one-pass DRAM or end-to-end speedups.
-
-Warm mode is primarily a kernel-cost/locality measurement.
-
-### Evicted mode
-
-Before each individually timed kernel call, the runner touches a separate
-32 MiB eviction buffer.
-
-The eviction work is outside the timed interval.
-
-The term is deliberately `evicted`, not `cold`.
-
-This procedure creates software cache pressure but does not establish a
-specific hardware cache state.
-
-Focused evicted probes cover N=512, N=8192, and N=65536 for natural-like and
-stress configurations.
-
-The evicted natural-anchor results are the more conservative physical guard
-against overinterpreting warm batching.
-
-## Correctness
-
-Every generated case verifies:
-
-\[
-O_{\rm FullDense}
-\approx
-O_{\rm KLoaded}
-\approx
-O_{\rm Support}.
-\]
-
-The current deterministic f32 tolerance is:
-
-\[
-2\times10^{-5}.
-\]
-
-Support membership is constructed and checked so that:
-
-\[
-S\subseteq K_{\rm loaded}.
-\]
-
-## Negative control
-
-When:
-
-\[
-S=K_{\rm loaded},
-\]
-
-KLoaded-V and Support-V visit the same indexed physical row set.
-
-Therefore:
-
-\[
-G_{A2|A5}\approx1
-\]
-
-is expected.
-
-A large systematic speedup in this control would indicate a benchmark defect or
-measurement bias.
-
-## Current non-qualifying smoke
-
-The current one-process, seven-round Thor smoke produced:
-
-- 306 result records;
-- one complete survey;
-- zero observed Full/K and K/Support output difference;
-- zero A2 non-wins on the alpha=2 natural-like anchor;
-- zero A2 non-wins on the alpha=1.5 natural-like anchor.
-
-Observed isolated A2-after-A5 minima:
-
-- alpha=2: 4.343910x;
-- alpha=1.5: 7.207511x.
-
-Observed medians:
-
-- alpha=2: 21.011277x;
-- alpha=1.5: 17.051900x.
-
-The `S=K` control median was 1.000777x.
-
-These values are preflight evidence only.
-
-## Qualified Thor evidence
-
-Evidence directory:
-
-`evidence/a2-k-first-v-late/e2-thor-three-level-516527971fe2-20260822T142253Z`
-
-Campaign:
-
-- 5 independent processes;
-- 21 rounds per configuration;
-- 4,000,000 target scalar operations for warm batching;
-- 306 records per process;
-- 1530 aggregate records;
-- zero observed numerical difference across all three kernels;
-- zero natural-anchor A2 non-wins.
-
-For the alpha=2 natural-like anchor:
-
-- minimum isolated A2-after-A5 ratio: 4.945682x;
-- median: 21.123188x;
-- maximum: 67.185331x.
-
-For the alpha=1.5 natural-like anchor:
-
-- minimum isolated A2-after-A5 ratio: 4.882465x;
-- median: 17.026632x;
-- maximum: 52.448346x.
-
-The global worst natural-anchor result was therefore:
-
-\[
-G_{A2|A5}=4.882465.
-\]
-
-Every independent process qualified individually.
-
-The `S=K` negative control had aggregate median:
-
-\[
-G_{A2|A5}=1.000000,
-\]
-
-with per-process medians all approximately unity.
-
-Raw evidence manifest SHA-256:
-
-`3a5f428ee0fa90a2aff1259b0b38f0f5b8cab5dbe4548311f9d51999e52e8b37`
-
-The raw manifest is preserved unchanged.
-
-See the evidence-local `QUALIFICATION.md` for the complete classification
-summary and scope restrictions.
-
-## Reproduction campaign
-
-Qualification must run from a clean committed harness.
-
-Required environment:
-
-- NVIDIA Jetson AGX Thor Developer Kit;
-- MAXN;
-- fixed min/max CPU frequency on the pinned core;
-- default pinned core 13 unless explicitly overridden;
-- deterministic release binary;
-- multiple independent benchmark processes.
-
-Before measurement:
-
-- `cargo fmt --all -- --check`;
-- strict workspace Clippy;
-- workspace tests;
-- release build;
-- analyzer Python compile;
-- shell syntax validation.
-
-The qualification script records:
-
-- Git SHA;
-- system/kernel/toolchain information;
-- CPU topology;
-- NVIDIA power mode;
-- `jetson_clocks --show`;
-- thermal state before and after;
-- process snapshot;
-- one raw benchmark file per process;
-- aggregate analyzer output;
-- SHA-256 hashes for evidence files.
-
-Performance outcomes are never used as a shell success condition.
-
-Negative evidence must be preserved.
-
-## Qualification criterion
-
-A2-E2 is a positive physical CPU mechanism only if:
-
-\[
-G_{A2|A5}>1
-\]
-
-robustly across the natural E1 anchors, including both locality patterns and
-the focused evicted cases.
-
-The `S=K` control must remain consistent with approximately equal KLoaded and
-Support work.
-
-Qualification of this stage does not imply promotion to production.
+Two deterministic synthetic layouts bracket locality behavior:
+
+- `prefix`: K rows contiguous from token 0; support nested contiguously
+  inside K.
+- `spread`: K rows distributed across the full visible interval; support
+  distributed across K, remaining a subset of K.
+
+These are physical locality probes. They do **not** reproduce the natural
+Qwen support geometry measured in E1; they bound it from friendly and
+adversarial directions.
+
+## Shapes and cache regimes
+
+`value_dim = 128`, `f32`. Token counts and nominal V footprints:
+
+| N | V footprint bytes | descriptive region |
+|---|---|---|
+| 64 | 32768 | l2_capacity |
+| 128 | 65536 | l2_capacity |
+| 256 | 131072 | l2_capacity |
+| 512 | 262144 | l2_capacity |
+| 2048 | 1048576 (~1 MiB) | l2_capacity |
+| 8192 | 4194304 (~4 MiB) | l3_capacity |
+| 32768 | 16777216 (~16 MiB) | l3_capacity |
+| 65536 | 33554432 (~32 MiB) | beyond_l3 |
+
+`cache_region` labels are descriptive footprint classifications against the
+documented 1 MiB private L2 / 16 MiB shared L3 of the target. They are **not**
+claims of measured cache residency.
+
+## Timing protocol
+
+- `f32`, fixed seed, deterministic layouts, no allocation inside timed
+  kernels.
+- `std::time::Instant`; `std::hint::black_box` on case and outputs.
+- Warm mode uses batched timing: each sample times many back-to-back kernel
+  invocations chosen to reach a configurable scalar-work target, divided by
+  the batch iteration count, so samples are not dominated by timer overhead.
+  Batch iteration counts are reported per record.
+- Kernel timing order rotates per round (`Full,K,Support` /
+  `K,Support,Full` / `Support,Full,K`) to reduce ordering bias.
+- Per kernel: median, p95, MAD over rounds, plus iteration counts.
+- Speedups are emitted as integer ppm ratios
+  (`*_speedup_ppm = numerator/denominator x 1e6`).
+
+### Modes
+
+- `warm`: repeated accesses to the same tensors; caches are allowed to help.
+- `evicted`: a dedicated eviction buffer larger than shared L3 is touched
+  before each individually timed kernel call, outside the timed interval.
+  Single-call timing is required here because the eviction must precede each
+  timed access; timer overhead inflates all three kernels approximately
+  equally and therefore biases ratios toward 1, i.e. against A2, which is the
+  conservative direction.
+
+This mode is deliberately named `evicted`, not `cold`: touching a software
+buffer does not prove a precise hardware cache state.
+
+Focused evicted probes cover representative shapes `N=512`, `N=8192`,
+`N=65536` for both natural anchors under both patterns.
+
+## Output format
+
+Stable line-oriented `key=value` records prefixed `result,`, including mode,
+shape, footprint/region labels, requested and realized densities with row
+counts, per-kernel iteration counts, median/p95/MAD ns, the three speedup
+ratios in ppm, and maximum absolute correctness errors. The sentinel line
+`survey_status=complete` is printed only after the full matrix finishes
+successfully.
+
+`tools/analyze_a2_e2.py` (Python standard library only) parses one or more
+raw logs, rejects malformed records, verifies survey completion and
+correctness limits, summarizes the three ratios by anchor/pattern/mode/region,
+counts `G_A2_after_A5 <= 1` non-wins, identifies the worst natural-anchor
+`G_A2_after_A5`, and validates the `Support=KLoaded` and `K=100%` controls.
+
+## Qualification environment
+
+`scripts/thor_a2_e2.sh` runs qualification on the Thor and requires: clean
+Git tree, committed SHA, MAXN, pinned core, fixed CPU frequency, fmt check,
+strict workspace clippy, workspace tests, release build of the three-level
+runner, multiple independent pinned benchmark processes, system metadata,
+power mode, jetson_clocks output, thermal snapshots, process snapshots, raw
+evidence file, and SHA-256. `perf` is not available on this target and is not
+required.
+
+## Interpretation boundaries
+
+An E2 result means only:
+
+> On this named Thor CPU, under this protocol, with support already resolved,
+> the measured indexed support-gather V kernel was faster than the measured
+> K-loaded V kernel (or dense scan), by the stated ratio.
 
 ## Non-claims
 
-A2-E2 does not establish:
+E2 does not establish:
 
+- logical row avoidance (that is E1's accounting domain);
+- physical memory transactions, cache-line or DRAM byte counts (no PMU);
+- measured cache residency;
+- natural model V-traffic reduction on real Qwen execution;
+- GPU execution benefit;
 - end-to-end attention speedup;
-- GPU speedup;
-- HBM or DRAM byte counts;
-- cache-line transaction counts;
-- PMU events;
-- exact natural-model V traffic;
-- GQA-aware physical reuse;
-- model-quality impact;
-- production readiness;
+- production-kernel quality, GQA reuse, or model-quality suitability;
 - novelty.
 
-The machine currently has no qualified `perf`/PMU path for this experiment.
+Logical avoidance numbers come from A2-E1. Physical memory-transaction claims
+would require a qualified PMU path. GPU and end-to-end questions belong to
+later, separate experiments.
 
-## Next evidence stage
+## Promotion rule
 
-If E2 qualifies, the next stronger experiment should use actual natural support
-masks and eventually real/captured V data with GQA-aware deduplication.
-
-The frozen `ADAQK01` trace must not be silently changed.
-
-A new trace format or companion V artifact must be versioned explicitly.
+Proceed toward integrated physical execution only if `G_A2_after_A5 > 1`
+holds robustly on the natural E1 anchor regimes and both locality patterns,
+with clean `Support=KLoaded` controls. If the isolated A2 effect vanishes
+once A5's contribution is correctly factored out, the V-late physical
+strategy must be revised even though the earlier composite preflight looked
+favorable.
