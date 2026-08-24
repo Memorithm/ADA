@@ -127,6 +127,11 @@ pub struct ContentAwareMetrics {
     pub nodes_total: usize,
     pub nodes_expanded: usize,
     pub subtrees_pruned: usize,
+    /// Number of nodes for which upper bounds were materialized up front
+    /// (`bounds.len()`). This is a node count, not a count of bound
+    /// comparisons: traversal and pruning re-read the stored bounds many
+    /// times, so wall-clock or traversal-cost analyses must not treat this
+    /// value as the number of bound accesses.
     pub hybrid_bound_evaluations: usize,
     pub ball_bound_wins: usize,
     pub box_bound_wins: usize,
@@ -195,18 +200,24 @@ fn squared_distance(left: &[f64], right: &[f64]) -> f64 {
         .sum()
 }
 
-fn center_for_tokens(keys: &[f64], head_dim: usize, tokens: &[usize]) -> Vec<f64> {
+fn center_for_tokens(
+    keys: &[f64],
+    head_dim: usize,
+    tokens: &[usize],
+) -> Result<Vec<f64>, &'static str> {
     let mut center = vec![0.0_f64; head_dim];
     for &token in tokens {
         for (accumulator, &value) in center.iter_mut().zip(key_row(keys, head_dim, token)) {
             *accumulator += value;
         }
     }
-    let denominator = f64::from(u32::try_from(tokens.len()).expect("node size fits in u32"));
+    let denominator =
+        u32::try_from(tokens.len()).map_err(|_| "ADA-A5 E2 node token count must fit in u32")?;
+    let denominator = f64::from(denominator);
     for value in &mut center {
         *value /= denominator;
     }
-    center
+    Ok(center)
 }
 
 fn box_for_tokens(keys: &[f64], head_dim: usize, tokens: &[usize]) -> PageKeyBox {
@@ -230,13 +241,17 @@ fn box_for_tokens(keys: &[f64], head_dim: usize, tokens: &[usize]) -> PageKeyBox
     }
 }
 
-fn ball_for_tokens(keys: &[f64], head_dim: usize, tokens: &[usize]) -> (Vec<f64>, f64) {
-    let center = center_for_tokens(keys, head_dim, tokens);
+fn ball_for_tokens(
+    keys: &[f64],
+    head_dim: usize,
+    tokens: &[usize],
+) -> Result<(Vec<f64>, f64), &'static str> {
+    let center = center_for_tokens(keys, head_dim, tokens)?;
     let maximum_squared_distance = tokens
         .iter()
         .map(|&token| squared_distance(key_row(keys, head_dim, token), &center))
         .fold(0.0_f64, f64::max);
-    (center, maximum_squared_distance.sqrt())
+    Ok((center, maximum_squared_distance.sqrt()))
 }
 
 fn dot(left: &[f64], right: &[f64]) -> f64 {
@@ -267,12 +282,16 @@ fn farthest_token_from_point(
     best_token
 }
 
-fn content_partition(keys: &[f64], head_dim: usize, tokens: &mut [usize]) {
+fn content_partition(
+    keys: &[f64],
+    head_dim: usize,
+    tokens: &mut [usize],
+) -> Result<(), &'static str> {
     if tokens.len() <= 1 {
-        return;
+        return Ok(());
     }
 
-    let center = center_for_tokens(keys, head_dim, tokens);
+    let center = center_for_tokens(keys, head_dim, tokens)?;
 
     let anchor_token = farthest_token_from_point(keys, head_dim, tokens, &center);
     let anchor_row = key_row(keys, head_dim, anchor_token);
@@ -297,6 +316,8 @@ fn content_partition(keys: &[f64], head_dim: usize, tokens: &mut [usize]) {
     } else {
         tokens.sort_unstable();
     }
+
+    Ok(())
 }
 
 struct TreeBuildConfig<'a> {
@@ -312,12 +333,12 @@ fn build_subtree(
     end: usize,
     nodes: &mut Vec<ContentAwareNode>,
     leaves: &mut Vec<usize>,
-) -> usize {
+) -> Result<usize, &'static str> {
     let token_count = end - start;
     let tokens = &permutation[start..end];
 
     let key_box = box_for_tokens(config.keys, config.head_dim, tokens);
-    let (ball_center, ball_radius) = ball_for_tokens(config.keys, config.head_dim, tokens);
+    let (ball_center, ball_radius) = ball_for_tokens(config.keys, config.head_dim, tokens)?;
 
     if token_count <= config.leaf_size {
         let node_index = nodes.len();
@@ -333,16 +354,16 @@ fn build_subtree(
         });
 
         leaves.push(node_index);
-        return node_index;
+        return Ok(node_index);
     }
 
-    content_partition(config.keys, config.head_dim, &mut permutation[start..end]);
+    content_partition(config.keys, config.head_dim, &mut permutation[start..end])?;
 
     let midpoint = start + token_count / 2;
 
-    let left = build_subtree(config, permutation, start, midpoint, nodes, leaves);
+    let left = build_subtree(config, permutation, start, midpoint, nodes, leaves)?;
 
-    let right = build_subtree(config, permutation, midpoint, end, nodes, leaves);
+    let right = build_subtree(config, permutation, midpoint, end, nodes, leaves)?;
 
     let node_index = nodes.len();
 
@@ -356,7 +377,7 @@ fn build_subtree(
         right: Some(right),
     });
 
-    node_index
+    Ok(node_index)
 }
 
 /// Build a deterministic content-aware hierarchy independently inside each outer KV page.
@@ -399,7 +420,7 @@ pub fn build_content_aware_key_index(
             page_end,
             &mut nodes,
             &mut leaves,
-        ));
+        )?);
     }
 
     Ok(ContentAwareKeyIndex {

@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use ada_a4_entmax_bnb::{BranchAndBoundResult, EntmaxPagedCase, branch_and_bound_entmax};
 
 /// Coordinate-wise min/max metadata for one key page.
@@ -27,6 +29,11 @@ pub struct QueryKeyPagedCase {
 }
 
 impl QueryKeyPagedCase {
+    /// Number of keys implied by `keys.len() / head_dim`.
+    ///
+    /// For a case whose `keys` length is not an exact multiple of `head_dim`
+    /// this floors; call [`QueryKeyPagedCase::validate`] first, which rejects
+    /// inconsistent shapes, before relying on the value.
     #[must_use]
     pub fn key_count(&self) -> usize {
         if self.head_dim == 0 {
@@ -36,6 +43,9 @@ impl QueryKeyPagedCase {
         }
     }
 
+    /// Number of pages implied by `key_count() / page_size`, rounding up.
+    ///
+    /// Call [`QueryKeyPagedCase::validate`] first; see [`Self::key_count`].
     #[must_use]
     pub fn page_count(&self) -> usize {
         if self.page_size == 0 {

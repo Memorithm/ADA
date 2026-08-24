@@ -2,6 +2,7 @@
 
 use ada_core::AttentionCase;
 use ada_oracle::{online_softmax_baseline, online_softmax_one_exp};
+use std::error::Error;
 use std::hint::black_box;
 use std::time::Instant;
 
@@ -28,8 +29,8 @@ impl Rng {
         // Construct a uniform value in [0, 1) directly from the 23 explicit
         // mantissa bits of an IEEE-754 f32. This avoids integer-to-float casts
         // whose precision semantics would otherwise be ambiguous to Clippy.
-        let mantissa_bits = u32::try_from((self.next_u64() >> 41) & 0x007f_ffff)
-            .expect("23 mantissa bits always fit in u32");
+        #[allow(clippy::cast_possible_truncation)]
+        let mantissa_bits = ((self.next_u64() >> 41) & 0x007f_ffff) as u32;
         let unit = f32::from_bits(0x3f80_0000 | mantissa_bits) - 1.0;
         2.0 * unit - 1.0
     }
@@ -64,19 +65,23 @@ fn max_abs_diff(left: &[f32], right: &[f32]) -> f32 {
         .fold(0.0_f32, f32::max)
 }
 
-fn bench_ns_per_iteration(case: &AttentionCase, iterations: usize, candidate: bool) -> u128 {
+fn bench_ns_per_iteration(
+    case: &AttentionCase,
+    iterations: usize,
+    candidate: bool,
+) -> Result<u128, &'static str> {
     let start = Instant::now();
     for _ in 0..iterations {
         let result = if candidate {
             online_softmax_one_exp(black_box(case))
         } else {
             online_softmax_baseline(black_box(case))
-        }
-        .expect("validated deterministic case");
+        }?;
         black_box(result);
     }
-    let iterations_u128 = u128::try_from(iterations).expect("iteration count fits in u128");
-    start.elapsed().as_nanos() / iterations_u128
+    let iterations_u128 =
+        u128::try_from(iterations.max(1)).map_err(|_| "iteration count must fit in u128")?;
+    Ok(start.elapsed().as_nanos() / iterations_u128)
 }
 
 fn median(mut samples: Vec<u128>) -> u128 {
@@ -100,7 +105,15 @@ fn mad(samples: &[u128], center: u128) -> u128 {
     )
 }
 
-fn main() {
+fn warmup(case: &AttentionCase) -> Result<(), &'static str> {
+    for _ in 0..WARMUP_CALLS {
+        black_box(online_softmax_baseline(black_box(case))?);
+        black_box(online_softmax_one_exp(black_box(case))?);
+    }
+    Ok(())
+}
+
+fn run() -> Result<(), Box<dyn Error>> {
     let shapes = [
         BenchShape {
             seq_len: 128,
@@ -130,29 +143,27 @@ fn main() {
         "seq_len,head_dim,iterations,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_median_ns,candidate_median_ns,baseline_p95_ns,candidate_p95_ns,baseline_mad_ns,candidate_mad_ns,speedup_ppm"
     );
 
-    for (index, shape) in shapes.iter().copied().enumerate() {
-        let index_u64 = u64::try_from(index).expect("shape index fits in u64");
-        let case = make_case(shape.seq_len, shape.head_dim, SEED.wrapping_add(index_u64));
-        let baseline = online_softmax_baseline(&case).expect("generated case must validate");
-        let candidate = online_softmax_one_exp(&case).expect("generated case must validate");
+    let mut shape_seed = SEED;
+    for shape in shapes {
+        let case = make_case(shape.seq_len, shape.head_dim, shape_seed);
+        shape_seed = shape_seed.wrapping_add(1);
+        let baseline = online_softmax_baseline(&case)?;
+        let candidate = online_softmax_one_exp(&case)?;
         let max_o = max_abs_diff(&baseline.output, &candidate.output);
         let max_lse = (baseline.lse - candidate.lse).abs();
 
-        for _ in 0..WARMUP_CALLS {
-            black_box(online_softmax_baseline(black_box(&case)).unwrap());
-            black_box(online_softmax_one_exp(black_box(&case)).unwrap());
-        }
+        warmup(&case)?;
 
         let mut baseline_samples = Vec::with_capacity(ROUNDS);
         let mut candidate_samples = Vec::with_capacity(ROUNDS);
 
         for round in 0..ROUNDS {
             if round % 2 == 0 {
-                baseline_samples.push(bench_ns_per_iteration(&case, shape.iterations, false));
-                candidate_samples.push(bench_ns_per_iteration(&case, shape.iterations, true));
+                baseline_samples.push(bench_ns_per_iteration(&case, shape.iterations, false)?);
+                candidate_samples.push(bench_ns_per_iteration(&case, shape.iterations, true)?);
             } else {
-                candidate_samples.push(bench_ns_per_iteration(&case, shape.iterations, true));
-                baseline_samples.push(bench_ns_per_iteration(&case, shape.iterations, false));
+                candidate_samples.push(bench_ns_per_iteration(&case, shape.iterations, true)?);
+                baseline_samples.push(bench_ns_per_iteration(&case, shape.iterations, false)?);
             }
         }
 
@@ -177,4 +188,9 @@ fn main() {
     println!(
         "NOTE: CPU timings are local Thor evidence only; speedup_ppm is baseline_median/candidate_median * 1e6. No GPU/FLAT performance claim is implied."
     );
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+    run()
 }

@@ -33,7 +33,7 @@ impl HierarchyNode {
 
     #[must_use]
     pub const fn is_leaf(&self) -> bool {
-        self.left.is_none()
+        self.children().is_none()
     }
 
     #[must_use]
@@ -144,6 +144,9 @@ pub struct LazyHierarchicalMetrics {
 #[allow(clippy::cast_precision_loss)]
 fn usize_ratio(numerator: usize, denominator: usize) -> f64 {
     debug_assert!(denominator != 0);
+    if denominator == 0 {
+        return 0.0;
+    }
     numerator as f64 / denominator as f64
 }
 
@@ -730,7 +733,9 @@ fn seed_highest_lazy_bound_leaf(
 
 fn finalize_lazy_metrics(mut metrics: LazyHierarchicalMetrics) -> LazyHierarchicalMetrics {
     debug_assert!(metrics.bound_evaluations <= metrics.nodes_total);
-    metrics.nodes_never_evaluated = metrics.nodes_total - metrics.bound_evaluations;
+    metrics.nodes_never_evaluated = metrics
+        .nodes_total
+        .saturating_sub(metrics.bound_evaluations);
     metrics
 }
 
@@ -879,7 +884,9 @@ fn finalize_priority_metrics(
     mut metrics: PriorityLazyHierarchicalMetrics,
 ) -> PriorityLazyHierarchicalMetrics {
     debug_assert!(metrics.bound_evaluations <= metrics.nodes_total);
-    metrics.nodes_never_evaluated = metrics.nodes_total - metrics.bound_evaluations;
+    metrics.nodes_never_evaluated = metrics
+        .nodes_total
+        .saturating_sub(metrics.bound_evaluations);
     metrics
 }
 

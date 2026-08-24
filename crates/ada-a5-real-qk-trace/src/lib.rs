@@ -86,8 +86,10 @@ impl TraceRecord {
     ///
     /// # Errors
     ///
-    /// Returns an error when `page_size` is zero or `alpha` is outside the
-    /// current Entmax candidate domain `(1, 2]`.
+    /// Returns an error when `page_size` is zero, `alpha` is outside the
+    /// current Entmax candidate domain `(1, 2]`, or the stored tensors are
+    /// inconsistent with `head_dim`/`key_count` (possible only through manual
+    /// construction; parser output is validated at read time).
     pub fn to_query_key_case(
         &self,
         page_size: usize,
@@ -99,6 +101,20 @@ impl TraceRecord {
         if !alpha.is_finite() || alpha <= 1.0 || alpha > 2.0 {
             return Err(TraceError::Invalid(
                 "ADA-A5 E4 alpha must be finite and in (1, 2]",
+            ));
+        }
+        if self.head_dim == 0 || self.query.len() != self.head_dim {
+            return Err(TraceError::Invalid(
+                "ADA-A5 E4 record query length must equal head_dim",
+            ));
+        }
+        if self
+            .key_count
+            .checked_mul(self.head_dim)
+            .is_none_or(|expected| expected != self.keys.len())
+        {
+            return Err(TraceError::Invalid(
+                "ADA-A5 E4 record keys length must equal key_count * head_dim",
             ));
         }
         Ok(QueryKeyPagedCase {
@@ -378,7 +394,10 @@ pub fn parse_trace_bytes(bytes: &[u8]) -> Result<TraceCorpus, TraceError> {
     }
 
     let metadata = read_metadata(&mut reader)?;
-    let mut records = Vec::with_capacity(metadata.record_count);
+    // `record_count` is untrusted header data; cap the initial reservation so a
+    // truncated or hostile file cannot force a large allocation before the
+    // record loop fails on the missing bytes.
+    let mut records = Vec::with_capacity(metadata.record_count.min(1024));
     for _ in 0..metadata.record_count {
         records.push(read_record(&mut reader)?);
     }
@@ -540,5 +559,25 @@ mod tests {
             .copy_from_slice(&9_u64.to_le_bytes());
         let error = parse_trace_bytes(&bytes).unwrap_err();
         assert!(error.to_string().contains("visible key interval"));
+    }
+
+    #[test]
+    fn rejects_manually_malformed_record_shapes() {
+        let corpus = parse_trace_bytes(&valid_trace()).unwrap();
+
+        let mut bad_query = corpus.records()[0].clone();
+        bad_query.query.pop();
+        let error = bad_query.to_query_key_case(2, 1.5).unwrap_err();
+        assert!(error.to_string().contains("query length"));
+
+        let mut bad_keys = corpus.records()[0].clone();
+        bad_keys.keys.pop();
+        let error = bad_keys.to_query_key_case(2, 1.5).unwrap_err();
+        assert!(error.to_string().contains("keys length"));
+
+        let mut zero_head_dim = corpus.records()[0].clone();
+        zero_head_dim.head_dim = 0;
+        let error = zero_head_dim.to_query_key_case(2, 1.5).unwrap_err();
+        assert!(error.to_string().contains("query length"));
     }
 }

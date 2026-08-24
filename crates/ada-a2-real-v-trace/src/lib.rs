@@ -443,7 +443,10 @@ pub fn parse_value_trace_bytes(bytes: &[u8]) -> Result<ValueTraceCorpus, ValueTr
 
     let metadata = read_metadata(&mut reader)?;
 
-    let mut records = Vec::with_capacity(metadata.record_count);
+    // `record_count` is untrusted header data; cap the initial reservation so a
+    // truncated or hostile file cannot force a large allocation before the
+    // record loop fails on the missing bytes.
+    let mut records = Vec::with_capacity(metadata.record_count.min(1024));
 
     for _ in 0..metadata.record_count {
         records.push(read_record(&mut reader)?);

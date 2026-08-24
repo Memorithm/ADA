@@ -211,10 +211,10 @@ pub fn entmax_threshold_bracket(
     Ok(ThresholdBracket { lower, upper })
 }
 
-fn probabilities_at_tau(scores: &[f64], alpha: f64, tau: f64) -> Vec<f64> {
+fn probabilities_at_tau(scores: &[f64], alpha: f64, tau: f64) -> Result<Vec<f64>, &'static str> {
     let scale = alpha - 1.0;
     let exponent = scale.recip();
-    scores
+    let probabilities: Vec<f64> = scores
         .iter()
         .map(|&score| {
             let shifted = scale * score - tau;
@@ -224,20 +224,32 @@ fn probabilities_at_tau(scores: &[f64], alpha: f64, tau: f64) -> Vec<f64> {
                 0.0
             }
         })
-        .collect()
+        .collect();
+
+    // Finite scores with alpha in (1, 2] can still overflow the power when
+    // |score| approaches f64::MAX. ADA fails closed rather than publishing a
+    // distribution containing infinities.
+    if probabilities
+        .iter()
+        .any(|probability| !probability.is_finite())
+    {
+        return Err("ADA-A4 entmax probabilities are not finite");
+    }
+    Ok(probabilities)
 }
 
 /// Independent dense scalar alpha-entmax oracle for A4-E0.
 ///
 /// # Errors
 ///
-/// Returns an error when scores/alpha violate the A4-E0 scalar contract.
+/// Returns an error when scores/alpha violate the A4-E0 scalar contract or when
+/// the resulting probabilities are not finite.
 #[must_use = "the dense oracle result should be checked"]
 pub fn dense_entmax(scores: &[f64], alpha: f64) -> Result<EntmaxDistribution, &'static str> {
     let bracket = entmax_threshold_bracket(scores, alpha)?;
     let tau = bracket.midpoint();
     Ok(EntmaxDistribution {
-        probabilities: probabilities_at_tau(scores, alpha, tau),
+        probabilities: probabilities_at_tau(scores, alpha, tau)?,
         tau,
     })
 }
@@ -335,18 +347,20 @@ pub fn branch_and_bound_entmax(
         }
 
         metrics.pages_pruned = pruned_pages.iter().filter(|&&pruned| pruned).count();
-        let subset_distribution = dense_entmax(&subset_scores, case.alpha)?;
+        // The terminating round's bracket was already solved for exactly this
+        // subset, so finalize from it directly instead of solving again. This
+        // keeps `threshold_solves` equal to the number of bracket solves
+        // actually performed and is bit-identical to the dense oracle path.
+        let subset_tau = bracket.midpoint();
+        let subset_probabilities = probabilities_at_tau(&subset_scores, case.alpha, subset_tau)?;
         let mut probabilities = vec![0.0; case.scores.len()];
-        for (&index, &probability) in loaded_indices
-            .iter()
-            .zip(subset_distribution.probabilities.iter())
-        {
+        for (&index, &probability) in loaded_indices.iter().zip(subset_probabilities.iter()) {
             probabilities[index] = probability;
         }
         return Ok(BranchAndBoundResult {
             distribution: EntmaxDistribution {
                 probabilities,
-                tau: subset_distribution.tau,
+                tau: subset_tau,
             },
             loaded_pages,
             metrics,
@@ -396,6 +410,10 @@ mod tests {
     }
 
     #[test]
+    // Miri's software-float `powf` emulation does not guarantee the IEEE
+    // identity `powf(x, 1.0) == x` bit-for-bit, so this native-rounding
+    // contract is only meaningful on a real toolchain.
+    #[cfg_attr(miri, ignore)]
     fn repairs_sparsemax_lower_endpoint_rounding_conservatively() {
         // This value is derived from the Qwen3 E4 real-Q/K smoke trace.
         // For alpha=2, exact arithmetic gives score - (score - 1) == 1,
@@ -433,6 +451,26 @@ mod tests {
         assert_eq!(result.metrics.pages_loaded, 1);
         assert_eq!(result.metrics.pages_pruned, 2);
         assert_eq!(result.metrics.scores_loaded, 2);
+        // Exactly one bracket solve per round, including the terminating one.
+        assert_eq!(result.metrics.threshold_solves, result.metrics.rounds);
+    }
+
+    #[test]
+    fn non_finite_probabilities_fail_closed() {
+        // At a degenerate tau far below the score range the powered terms
+        // overflow binary64; the constructor must reject them instead of
+        // publishing infinities.
+        assert_eq!(
+            probabilities_at_tau(&[1.0e200], 1.5, f64::NEG_INFINITY).unwrap_err(),
+            "ADA-A4 entmax probabilities are not finite"
+        );
+        // Alpha exactly 2 has exponent 1: only an infinite shifted value can
+        // overflow, e.g. an infinite tau offset.
+        let linear = probabilities_at_tau(&[1.0e200], 2.0, f64::NEG_INFINITY);
+        assert_eq!(
+            linear.unwrap_err(),
+            "ADA-A4 entmax probabilities are not finite"
+        );
     }
 
     #[test]

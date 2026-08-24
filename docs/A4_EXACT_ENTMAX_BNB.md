@@ -125,3 +125,27 @@ A4-E0 may advance only if all of the following hold:
 6. fmt, strict clippy, and workspace tests are green.
 
 Only after E0 correctness should ADA consider page-bound construction from real Q/K vectors, batched expansion policies, value-traffic accounting, or GPU realization.
+
+## Industrial audit notes (2026-08-24)
+
+A source-hardening pass touched this crate without changing any qualified
+algorithmic behavior on admissible inputs:
+
+- `probabilities_at_tau` now fails closed with a typed error when a powered
+  term is non-finite, instead of publishing infinities. On admissible inputs
+  (finite scores, alpha in `(1, 2]`, converged bracket) the emitted
+  distribution was already finite; the guard closes a theoretical hole.
+- `branch_and_bound_entmax` finalizes from the terminating round's bracket
+  instead of re-solving it through the dense oracle. `metrics.threshold_solves`
+  now equals exactly the number of bracket solves performed; historical runs
+  undercounted that counter by one because the terminating solve was counted
+  twice in execution but once in metrics. No preserved A4-E2 survey artifact
+  consumed the E0 candidate's counter, so no recorded evidence changes.
+- Miri's software-float `powf` does not preserve the IEEE identity
+  `powf(x, 1.0) == x`, so the native rounding-repair test is ignored under
+  Miri only (`#[cfg_attr(miri, ignore)]`). It remains strict on real
+  toolchains.
+- Known laboratory domain limit (pre-existing, documented): when
+  `ulp((alpha-1) * max(scores)) >= 1`, the scalar solver's bracket collapses
+  and results degenerate. Model-scale scores are many orders of magnitude
+  below this regime.
