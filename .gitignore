@@ -3,3 +3,6 @@
 /evidence/*.csv
 !/evidence/README.md
 __pycache__/
+/fuzz/target
+/fuzz/artifacts
+/fuzz/coverage
