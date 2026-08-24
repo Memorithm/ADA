@@ -6,6 +6,9 @@ main() {
     ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     cd "${ROOT}" || return 2
 
+    # Evidence reproducibility: never inherit an ambient toolchain override.
+    unset RUSTUP_TOOLCHAIN
+
     CORE="${ADA_CPU_CORE:-13}"
     REPEATS="${ADA_REPEATS:-5}"
     ROUNDS="${ADA_E2_ROUNDS:-21}"

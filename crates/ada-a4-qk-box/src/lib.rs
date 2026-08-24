@@ -36,11 +36,7 @@ impl QueryKeyPagedCase {
     /// inconsistent shapes, before relying on the value.
     #[must_use]
     pub fn key_count(&self) -> usize {
-        if self.head_dim == 0 {
-            0
-        } else {
-            self.keys.len() / self.head_dim
-        }
+        self.keys.len().checked_div(self.head_dim).unwrap_or(0)
     }
 
     /// Number of pages implied by `key_count() / page_size`, rounding up.
