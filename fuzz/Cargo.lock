@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "ada-a1-neon"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+]
+
+[[package]]
 name = "ada-a2-k-first-v-late"
 version = "0.1.0"
 dependencies = [
@@ -33,6 +40,7 @@ dependencies = [
  "ada-a4-entmax-bnb",
  "ada-a4-qk-box",
  "ada-a5-hierarchical-bounds",
+ "ada-core",
 ]
 
 [[package]]
@@ -41,6 +49,7 @@ version = "0.1.0"
 dependencies = [
  "ada-a4-entmax-bnb",
  "ada-a4-qk-box",
+ "ada-core",
 ]
 
 [[package]]
@@ -73,6 +82,7 @@ dependencies = [
 name = "ada-oracle"
 version = "0.1.0"
 dependencies = [
+ "ada-a1-neon",
  "ada-core",
 ]
 
