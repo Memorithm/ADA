@@ -8,7 +8,7 @@
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
 | ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED |
 | ADA-A6 | Specialized tau solvers | E0-SPARSEMAX-SORTED-RESEARCH (`ada-a6-tau-solvers`) |
-| ADA-A7 | Moment / composable Entmax | INVESTIGATE |
+| ADA-A7 | Moment / composable Entmax | E0-COMPOSABLE-SPARSEMAX-RESEARCH (`ada-a7-composable-entmax`) |
 | ADA-A8 | Attention recurrence program synthesis | E0-IR-AND-SEARCH-RESEARCH (`ada-ir` + `ada-search`) |
 | ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) / E0-DISPATCH-PARITY (`ada-a9-dispatch`) |
 | ADA-A10 | Reproducible numerical oracle/certification | E0-SCHEMA-VALIDATOR (`ada-a10-evidence-schema`) |
@@ -44,6 +44,17 @@
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
 
+## 2026-08-25 follow-up 3: A7 composable sparsemax prototype
+
+- `E0-COMPOSABLE-SPARSEMAX-RESEARCH` (ADA-A7): per-part sufficient
+  statistics (value -> multiplicity) compose by map merge, and solving the
+  merged summary reproduces the union distribution bit-for-bit versus a
+  direct solve. Exhaustive split-composition parity across all 3^n states
+  (n up to 5), tie/duplicate cases, and moment agreement with the A4 oracle.
+  Implementation note surfaced by testing: BTreeMap keys over `to_bits`
+  do NOT order signed floats; an explicit `total_cmp` sort is mandatory.
+  Order of reconstructed probabilities follows level order, not original
+  token order - partition bookkeeping must remap support externally.
 ## 2026-08-25 follow-up 2: A6 candidate and E5c ablation harness
 
 - `E0-SPARSEMAX-SORTED-RESEARCH` (ADA-A6): sorted-projection sparsemax

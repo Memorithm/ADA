@@ -88,6 +88,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-a7-composable-entmax"
+version = "0.1.0"
+dependencies = [
+ "ada-a4-entmax-bnb",
+]
+
+[[package]]
 name = "ada-a9-dispatch"
 version = "0.1.0"
 dependencies = [
