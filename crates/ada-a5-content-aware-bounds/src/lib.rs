@@ -2,6 +2,7 @@
 
 use ada_a4_entmax_bnb::{EntmaxDistribution, dense_entmax, entmax_threshold_bracket};
 use ada_a4_qk_box::{PageKeyBox, QueryKeyPagedCase, dense_qk_scores};
+use ada_core::KeyFingerprint;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ContentAwareNode {
@@ -55,7 +56,7 @@ pub struct ContentAwareKeyIndex {
     key_count: usize,
     page_size: usize,
     leaf_size: usize,
-    key_fingerprint: u64,
+    key_fingerprint: KeyFingerprint,
     permutation: Vec<usize>,
     nodes: Vec<ContentAwareNode>,
     roots: Vec<usize>,
@@ -133,6 +134,10 @@ pub struct ContentAwareMetrics {
     /// times, so wall-clock or traversal-cost analyses must not treat this
     /// value as the number of bound accesses.
     pub hybrid_bound_evaluations: usize,
+    /// Number of times a stored node bound was actually read during the
+    /// traversal (seeding, pruning tests, and priority selection). This is
+    /// the honest bound-access counter for traversal-cost analyses.
+    pub bound_accesses: usize,
     pub ball_bound_wins: usize,
     pub box_bound_wins: usize,
     pub leaves_total: usize,
@@ -147,15 +152,6 @@ pub struct ContentAwareResult {
     pub distribution: EntmaxDistribution,
     pub loaded_tokens: Vec<bool>,
     pub metrics: ContentAwareMetrics,
-}
-
-fn fingerprint_keys(keys: &[f64]) -> u64 {
-    let mut fingerprint = 0xcbf2_9ce4_8422_2325_u64;
-    for &value in keys {
-        fingerprint ^= value.to_bits();
-        fingerprint = fingerprint.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    fingerprint
 }
 
 fn validate_key_matrix(
@@ -254,6 +250,109 @@ fn ball_for_tokens(
     Ok((center, maximum_squared_distance.sqrt()))
 }
 
+/// Geometry variant for the content-aware hierarchy.
+///
+/// `DiameterMeanBall` preserves the historical E2 behavior verbatim.
+/// `PcaShrunkBall` keeps the same conservative contract (every node box and
+/// ball still encloses its tokens exactly) but improves both bound tightness
+/// levers: splits use a deterministic power-iteration principal direction,
+/// and balls are shrunk by certified monotone center refinement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ContentAwareGeometry {
+    /// Historical pivot-diameter split with mean-centered balls.
+    #[default]
+    DiameterMeanBall,
+    /// Power-iteration PCA split with refined, strictly tighter-or-equal balls.
+    PcaShrunkBall,
+}
+
+const BALL_REFINEMENT_STEPS: usize = 8;
+const PCA_POWER_STEPS: usize = 16;
+
+/// Certified ball shrink: repeatedly move the center one quarter of the way
+/// toward the farthest token and keep the move only when the true enclosing
+/// radius (recomputed over ALL tokens) strictly decreases. Every accepted
+/// center yields an exact enclosure, so conservatism is structural.
+fn shrunk_ball_for_tokens(
+    keys: &[f64],
+    head_dim: usize,
+    tokens: &[usize],
+) -> Result<(Vec<f64>, f64), &'static str> {
+    let mut center = center_for_tokens(keys, head_dim, tokens)?;
+    let mut radius_squared = tokens
+        .iter()
+        .map(|&token| squared_distance(key_row(keys, head_dim, token), &center))
+        .fold(0.0_f64, f64::max);
+
+    for _ in 0..BALL_REFINEMENT_STEPS {
+        let farthest = farthest_token_from_point(keys, head_dim, tokens, &center);
+        let farthest_row = key_row(keys, head_dim, farthest);
+
+        let mut candidate = center.clone();
+        for (value, &target) in candidate.iter_mut().zip(farthest_row) {
+            *value += 0.25 * (target - *value);
+        }
+
+        let candidate_radius_squared = tokens
+            .iter()
+            .map(|&token| squared_distance(key_row(keys, head_dim, token), &candidate))
+            .fold(0.0_f64, f64::max);
+
+        if candidate_radius_squared < radius_squared {
+            center = candidate;
+            radius_squared = candidate_radius_squared;
+        } else {
+            break;
+        }
+    }
+
+    Ok((center, radius_squared.sqrt()))
+}
+
+/// Deterministic top-principal-component direction via fixed-step power
+/// iteration on the token covariance, seeded with the historical pivot
+/// diameter so degenerate cases degrade to the legacy cut.
+fn pca_direction(keys: &[f64], head_dim: usize, tokens: &[usize], seed: &[f64]) -> Vec<f64> {
+    let center: Vec<f64> = match center_for_tokens(keys, head_dim, tokens) {
+        Ok(center) => center,
+        Err(_) => return seed.to_vec(),
+    };
+
+    let centered = |token: usize| -> Vec<f64> {
+        key_row(keys, head_dim, token)
+            .iter()
+            .zip(center.iter())
+            .map(|(&value, &mean)| value - mean)
+            .collect()
+    };
+
+    let mut direction = seed.to_vec();
+    for _ in 0..PCA_POWER_STEPS {
+        let mut next = vec![0.0_f64; head_dim];
+        for &token in tokens {
+            let row = centered(token);
+            let weight = row
+                .iter()
+                .zip(direction.iter())
+                .map(|(&a, &b)| a * b)
+                .sum::<f64>();
+            for (accumulator, &value) in next.iter_mut().zip(row.iter()) {
+                *accumulator += weight * value;
+            }
+        }
+        let norm_squared = next.iter().map(|value| value * value).sum::<f64>();
+        if norm_squared <= 0.0 || !norm_squared.is_finite() {
+            break;
+        }
+        let norm = norm_squared.sqrt();
+        for value in &mut next {
+            *value /= norm;
+        }
+        direction = next;
+    }
+    direction
+}
+
 fn dot(left: &[f64], right: &[f64]) -> f64 {
     left.iter().zip(right.iter()).map(|(&a, &b)| a * b).sum()
 }
@@ -286,6 +385,7 @@ fn content_partition(
     keys: &[f64],
     head_dim: usize,
     tokens: &mut [usize],
+    geometry: ContentAwareGeometry,
 ) -> Result<(), &'static str> {
     if tokens.len() <= 1 {
         return Ok(());
@@ -299,15 +399,19 @@ fn content_partition(
     let opposite_token = farthest_token_from_point(keys, head_dim, tokens, anchor_row);
     let opposite_row = key_row(keys, head_dim, opposite_token);
 
-    let direction: Vec<f64> = anchor_row
+    let diameter: Vec<f64> = anchor_row
         .iter()
         .zip(opposite_row.iter())
         .map(|(&anchor, &opposite)| opposite - anchor)
         .collect();
 
-    let direction_norm_squared = dot(&direction, &direction);
+    let direction_norm_squared = dot(&diameter, &diameter);
 
     if direction_norm_squared > 0.0 {
+        let direction = match geometry {
+            ContentAwareGeometry::DiameterMeanBall => diameter,
+            ContentAwareGeometry::PcaShrunkBall => pca_direction(keys, head_dim, tokens, &diameter),
+        };
         tokens.sort_unstable_by(|left, right| {
             projection(keys, head_dim, *left, &direction)
                 .total_cmp(&projection(keys, head_dim, *right, &direction))
@@ -324,6 +428,7 @@ struct TreeBuildConfig<'a> {
     keys: &'a [f64],
     head_dim: usize,
     leaf_size: usize,
+    geometry: ContentAwareGeometry,
 }
 
 fn build_subtree(
@@ -338,7 +443,14 @@ fn build_subtree(
     let tokens = &permutation[start..end];
 
     let key_box = box_for_tokens(config.keys, config.head_dim, tokens);
-    let (ball_center, ball_radius) = ball_for_tokens(config.keys, config.head_dim, tokens)?;
+    let (ball_center, ball_radius) = match config.geometry {
+        ContentAwareGeometry::DiameterMeanBall => {
+            ball_for_tokens(config.keys, config.head_dim, tokens)?
+        }
+        ContentAwareGeometry::PcaShrunkBall => {
+            shrunk_ball_for_tokens(config.keys, config.head_dim, tokens)?
+        }
+    };
 
     if token_count <= config.leaf_size {
         let node_index = nodes.len();
@@ -357,7 +469,12 @@ fn build_subtree(
         return Ok(node_index);
     }
 
-    content_partition(config.keys, config.head_dim, &mut permutation[start..end])?;
+    content_partition(
+        config.keys,
+        config.head_dim,
+        &mut permutation[start..end],
+        config.geometry,
+    )?;
 
     let midpoint = start + token_count / 2;
 
@@ -398,6 +515,32 @@ pub fn build_content_aware_key_index(
     page_size: usize,
     leaf_size: usize,
 ) -> Result<ContentAwareKeyIndex, &'static str> {
+    build_content_aware_key_index_with_geometry(
+        keys,
+        head_dim,
+        page_size,
+        leaf_size,
+        ContentAwareGeometry::DiameterMeanBall,
+    )
+}
+
+/// Build the content-aware hierarchy with an explicit bound-geometry variant.
+///
+/// See [`ContentAwareGeometry`] for the available variants. Both variants are
+/// conservative by construction; `PcaShrunkBall` only tightens bounds and may
+/// therefore prune strictly more subtrees at equal exactness.
+///
+/// # Errors
+///
+/// Returns an error for malformed/non-finite keys or invalid dimensions.
+#[must_use = "the content-aware metadata is required for A5 E2 query-time pruning"]
+pub fn build_content_aware_key_index_with_geometry(
+    keys: &[f64],
+    head_dim: usize,
+    page_size: usize,
+    leaf_size: usize,
+    geometry: ContentAwareGeometry,
+) -> Result<ContentAwareKeyIndex, &'static str> {
     validate_key_matrix(keys, head_dim, page_size, leaf_size)?;
     let key_count = keys.len() / head_dim;
     let mut permutation: Vec<usize> = (0..key_count).collect();
@@ -409,6 +552,7 @@ pub fn build_content_aware_key_index(
         keys,
         head_dim,
         leaf_size,
+        geometry,
     };
 
     for page_start in (0..key_count).step_by(page_size) {
@@ -428,7 +572,7 @@ pub fn build_content_aware_key_index(
         key_count,
         page_size,
         leaf_size,
-        key_fingerprint: fingerprint_keys(keys),
+        key_fingerprint: KeyFingerprint::of_f64_slice(keys),
         permutation,
         nodes,
         roots,
@@ -447,7 +591,7 @@ fn validate_query_index(
     {
         return Err("ADA-A5 E2 content-aware index shape does not match Q/K case");
     }
-    if fingerprint_keys(&case.keys) != index.key_fingerprint {
+    if KeyFingerprint::of_f64_slice(&case.keys) != index.key_fingerprint {
         return Err("ADA-A5 E2 content-aware index does not belong to supplied keys");
     }
     Ok(())
@@ -578,13 +722,17 @@ fn highest_bound_position(
     frontier: &[usize],
     bounds: &[NodeUpperBounds],
     mode: ContentAwareBoundMode,
+    metrics: &mut ContentAwareMetrics,
 ) -> usize {
     let mut best_position = 0;
+    metrics.bound_accesses += 1;
+    let mut best_bound = selected_upper_bound(&bounds[frontier[0]], mode);
     for position in 1..frontier.len() {
-        if selected_upper_bound(&bounds[frontier[position]], mode)
-            > selected_upper_bound(&bounds[frontier[best_position]], mode)
-        {
+        metrics.bound_accesses += 1;
+        let bound = selected_upper_bound(&bounds[frontier[position]], mode);
+        if bound > best_bound {
             best_position = position;
+            best_bound = bound;
         }
     }
     best_position
@@ -616,7 +764,7 @@ fn seed_highest_bound_leaf(
     loaded_indices: &mut Vec<usize>,
     metrics: &mut ContentAwareMetrics,
 ) {
-    let root_position = highest_bound_position(&index.roots, bounds, mode);
+    let root_position = highest_bound_position(&index.roots, bounds, mode, metrics);
     let mut current = index.roots[root_position];
     frontier.extend(
         index
@@ -657,6 +805,22 @@ fn subset_scores(dense_scores: &[f64], loaded_indices: &[usize]) -> Vec<f64> {
         .iter()
         .map(|&index| dense_scores[index])
         .collect()
+}
+
+/// Post-hoc support exactness certificate (E2/E3): every pruned subtree is
+/// re-checked against the TERMINATING threshold endpoint so the published
+/// zeros are certified facts, not consequences of an assumed monotonicity.
+fn certify_support_exactness(
+    pruned_bounds: &[f64],
+    entmax_scale: f64,
+    tau_lower: f64,
+) -> Result<(), &'static str> {
+    for &bound in pruned_bounds {
+        if entmax_scale * bound > tau_lower {
+            return Err("ADA-A5 E2 support exactness certificate failed");
+        }
+    }
+    Ok(())
 }
 
 fn finalize_distribution(
@@ -745,6 +909,7 @@ pub fn branch_and_bound_entmax_content_aware_with_mode(
     let mut loaded_tokens = vec![false; index.key_count];
     let mut loaded_indices = Vec::with_capacity(index.key_count);
     let mut frontier = Vec::new();
+    let mut pruned_bounds = Vec::new();
     seed_highest_bound_leaf(
         index,
         &bounds,
@@ -765,9 +930,11 @@ pub fn branch_and_bound_entmax_content_aware_with_mode(
         loop {
             let mut unresolved = Vec::with_capacity(frontier.len());
             for node_index in frontier.drain(..) {
+                metrics.bound_accesses += 1;
                 if entmax_scale * selected_upper_bound(&bounds[node_index], mode) <= tau_lower {
                     metrics.subtrees_pruned += 1;
                     metrics.tokens_pruned += index.nodes[node_index].token_count();
+                    pruned_bounds.push(selected_upper_bound(&bounds[node_index], mode));
                 } else {
                     unresolved.push(node_index);
                 }
@@ -775,6 +942,7 @@ pub fn branch_and_bound_entmax_content_aware_with_mode(
             frontier = unresolved;
 
             if frontier.is_empty() {
+                certify_support_exactness(&pruned_bounds, entmax_scale, tau_lower)?;
                 debug_assert_eq!(
                     metrics.tokens_loaded + metrics.tokens_pruned,
                     index.key_count
@@ -786,7 +954,7 @@ pub fn branch_and_bound_entmax_content_aware_with_mode(
                 });
             }
 
-            let best_position = highest_bound_position(&frontier, &bounds, mode);
+            let best_position = highest_bound_position(&frontier, &bounds, mode, &mut metrics);
             let node_index = frontier.swap_remove(best_position);
             let node = &index.nodes[node_index];
             if let Some((left, right)) = node.children() {
@@ -899,7 +1067,30 @@ mod tests {
                 assert_close(expected, hybrid_probability, 4.0e-12);
             }
 
-            assert_eq!(historical, hybrid);
+            // The historical wrapper delegates to Hybrid; results match
+            // bit-for-bit on native builds. Miri's software-float powf may
+            // wobble in the last ulp between the two runs, so compare the
+            // structural fields exactly and probabilities within tolerance.
+            assert_eq!(historical.loaded_tokens, hybrid.loaded_tokens);
+            assert_eq!(historical.metrics, hybrid.metrics);
+            #[cfg(not(miri))]
+            assert_eq!(historical.distribution, hybrid.distribution);
+            #[cfg(miri)]
+            {
+                assert_close(
+                    historical.distribution.tau,
+                    hybrid.distribution.tau,
+                    2.0e-12,
+                );
+                for (&left, &right) in historical
+                    .distribution
+                    .probabilities
+                    .iter()
+                    .zip(hybrid.distribution.probabilities.iter())
+                {
+                    assert_close(left, right, 4.0e-12);
+                }
+            }
         }
     }
 
@@ -1034,6 +1225,136 @@ mod tests {
                     };
                     assert_candidate_matches_dense(&case, 1);
                     assert_candidate_matches_dense(&case, 2);
+                }
+            }
+        }
+    }
+    #[test]
+    fn bound_accesses_count_real_reads_not_materialized_nodes() {
+        let case = QueryKeyPagedCase {
+            query: vec![1.0, 0.0],
+            keys: vec![1.0, 0.0, -1.0, 0.5, 0.5, 0.7, -0.2, 0.9],
+            head_dim: 2,
+            page_size: 2,
+            alpha: 2.0,
+            score_scale: 1.0,
+        };
+        let index =
+            build_content_aware_key_index(&case.keys, case.head_dim, case.page_size, 1).unwrap();
+        let result = branch_and_bound_entmax_content_aware(&case, &index).unwrap();
+
+        // Every traversal read is counted, so the honest counter strictly
+        // dominates the number of materialized node bounds.
+        assert!(result.metrics.bound_accesses > result.metrics.hybrid_bound_evaluations);
+        assert!(result.metrics.bound_accesses >= result.metrics.threshold_solves);
+    }
+
+    #[test]
+    fn content_aware_certificate_rejects_unsound_prune() {
+        assert_eq!(certify_support_exactness(&[0.25, 1.0], 1.0, 1.0), Ok(()));
+        assert_eq!(
+            certify_support_exactness(&[1.5], 1.0, 1.0),
+            Err("ADA-A5 E2 support exactness certificate failed")
+        );
+    }
+    #[test]
+    fn shrunk_ball_is_tighter_or_equal_and_still_encloses() {
+        let keys = [
+            1.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.7, 0.7, -0.7, -0.7, 2.0, 2.0, -2.0, -2.0,
+        ];
+        let head_dim = 2;
+        let tokens: Vec<usize> = (0..8).collect();
+
+        let (_, legacy_radius) = ball_for_tokens(&keys, head_dim, &tokens).unwrap();
+        let (shrunk_center, shrunk_radius) =
+            shrunk_ball_for_tokens(&keys, head_dim, &tokens).unwrap();
+
+        assert!(shrunk_radius <= legacy_radius);
+        for token in tokens {
+            let row = key_row(&keys, head_dim, token);
+            assert!(
+                squared_distance(row, &shrunk_center) <= shrunk_radius * shrunk_radius + 1.0e-12
+            );
+        }
+    }
+
+    #[test]
+    fn pca_direction_captures_at_least_diameter_variance() {
+        let keys = [3.0, 0.5, 3.4, 0.2, 3.8, 0.9, 2.9, 0.4, 3.2, 0.1, 3.6, 0.7];
+        let head_dim = 2;
+        let tokens: Vec<usize> = (0..6).collect();
+        let center = center_for_tokens(&keys, head_dim, &tokens).unwrap();
+
+        let variance_along = |direction: &[f64]| -> f64 {
+            let norm_squared: f64 = direction.iter().map(|v| v * v).sum();
+            if norm_squared <= 0.0 {
+                return f64::NEG_INFINITY;
+            }
+            tokens
+                .iter()
+                .map(|&token| {
+                    let projection: f64 = key_row(&keys, head_dim, token)
+                        .iter()
+                        .zip(center.iter())
+                        .zip(direction.iter())
+                        .map(|((&value, &mean), &axis)| (value - mean) * axis)
+                        .sum();
+                    projection * projection
+                })
+                .sum::<f64>()
+                / norm_squared
+        };
+
+        let anchor_row = key_row(&keys, head_dim, 0).to_vec();
+        let opposite_row = key_row(&keys, head_dim, 2).to_vec();
+        let diameter: Vec<f64> = anchor_row
+            .iter()
+            .zip(opposite_row.iter())
+            .map(|(a, b)| b - a)
+            .collect();
+        let pca = pca_direction(&keys, head_dim, &tokens, &diameter);
+
+        assert!(variance_along(&pca) + 1.0e-12 >= variance_along(&diameter));
+    }
+
+    #[test]
+    fn pca_shrunk_geometry_matches_dense_oracle() {
+        const ROWS: [[f64; 2]; 3] = [[-1.0, -1.0], [0.0, 0.0], [1.0, 1.0]];
+        const QUERIES: [[f64; 2]; 3] = [[1.0, -1.0], [-1.0, 1.0], [1.0, 1.0]];
+        for state in 0..ROWS.len().pow(4) {
+            let mut code = state;
+            let mut keys = Vec::with_capacity(8);
+            for _ in 0..4 {
+                keys.extend_from_slice(&ROWS[code % ROWS.len()]);
+                code /= ROWS.len();
+            }
+            for query in QUERIES {
+                let case = QueryKeyPagedCase {
+                    query: query.to_vec(),
+                    keys: keys.clone(),
+                    head_dim: 2,
+                    page_size: 4,
+                    alpha: 2.0,
+                    score_scale: 2.0_f64.sqrt().recip(),
+                };
+                let index = build_content_aware_key_index_with_geometry(
+                    &case.keys,
+                    case.head_dim,
+                    case.page_size,
+                    2,
+                    ContentAwareGeometry::PcaShrunkBall,
+                )
+                .unwrap();
+                let dense_scores = dense_qk_scores(&case).unwrap();
+                let dense = dense_entmax(&dense_scores, case.alpha).unwrap();
+                let candidate = branch_and_bound_entmax_content_aware(&case, &index).unwrap();
+                assert_close(dense.tau, candidate.distribution.tau, 2.0e-12);
+                for (&expected, &actual) in dense
+                    .probabilities
+                    .iter()
+                    .zip(candidate.distribution.probabilities.iter())
+                {
+                    assert_close(expected, actual, 4.0e-12);
                 }
             }
         }

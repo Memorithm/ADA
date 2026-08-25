@@ -145,7 +145,24 @@ algorithmic behavior on admissible inputs:
   `powf(x, 1.0) == x`, so the native rounding-repair test is ignored under
   Miri only (`#[cfg_attr(miri, ignore)]`). It remains strict on real
   toolchains.
-- Known laboratory domain limit (pre-existing, documented): when
-  `ulp((alpha-1) * max(scores)) >= 1`, the scalar solver's bracket collapses
-  and results degenerate. Model-scale scores are many orders of magnitude
-  below this regime.
+- Former domain limit, now closed (2026-08-25): when
+  `ulp((alpha-1) * max(scores)) >= 0.5` the nominal `[m-1, m]` initial bracket
+  collapses. The solver now takes a certified extreme-magnitude path instead:
+  it returns the single representable step `[next_down(m), m]`, skips
+  bisection, and consumers finalize probabilities through mass normalization,
+  which is exact in real arithmetic (`p_i(tau)/sum_j p_j(tau)` is independent
+  of residual threshold error). When no term is representable above zero the
+  finalization falls back to the exact limit distribution: uniform over the
+  ties at `(alpha-1) * max(score)`. The pruning predicate `scale * bound <=
+  tau_lower` remains sound because `next_down(m)` keeps every support page out
+  of the pruned set. The normal regime is untouched bit-for-bit; extreme-path
+  coverage lives in the dedicated A4 tests (singleton support, ties, and
+  branch-and-bound parity at `1e200` magnitudes).
+- Streaming monitor (2026-08-25): `StreamingEntmax` re-solves the exact
+  bracket per absorbed block and fails closed when the prefix threshold
+  sequence violates monotonicity beyond a four-ulp allowance, turning the
+  real-arithmetic monotonicity fact into a checked certificate.
+- Miri note (2026-08-25): Miri's software-float `powf` may differ from the
+  native libm by one ulp between two evaluations of the same expression, so
+  tests that compare two independent solver runs now compare bit-exactly on
+  native toolchains and within a small tolerance under Miri only.

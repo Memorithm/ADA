@@ -135,6 +135,36 @@ fn next_down(value: f64) -> f64 {
     }
 }
 
+fn next_up(value: f64) -> f64 {
+    if value.is_nan() || value == f64::INFINITY {
+        return value;
+    }
+    if value == 0.0 {
+        return f64::from_bits(1);
+    }
+
+    let bits = value.to_bits();
+    if value > 0.0 {
+        f64::from_bits(bits + 1)
+    } else {
+        f64::from_bits(bits - 1)
+    }
+}
+
+/// One unit in the last place of `value`, for finite positive-normal values.
+fn ulp_of(value: f64) -> f64 {
+    next_up(value) - value
+}
+
+/// Above this ulp width the nominal `[m-1, m]` initial bracket collapses: the
+/// lower endpoint rounds back onto `m`, so bisection cannot resolve the
+/// threshold. The solver then takes the certified extreme-magnitude path,
+/// which exploits the real-arithmetic invariance `p_i(tau)/sum_j p_j(tau)` to
+/// normalize the distribution and falls back to the exact limit distribution
+/// (uniform over the scaled-maximum ties) when even the maximum term is not
+/// representable.
+const EXTREME_ULTP_THRESHOLD: f64 = 0.5;
+
 fn objective(scores: &[f64], alpha: f64, tau: f64) -> f64 {
     let scale = alpha - 1.0;
     let exponent = scale.recip();
@@ -155,6 +185,12 @@ fn objective(scores: &[f64], alpha: f64, tau: f64) -> f64 {
 /// upper endpoint every contribution is zero. Bisection keeps `lower` on the
 /// non-negative-objective side and `upper` on the non-positive side.
 ///
+/// When `ulp(m) >= 0.5` the interval collapses; the returned bracket is the
+/// single representable step `[next_down(m), m]` and bisection is skipped.
+/// Consumers must finalize probabilities through `finalize_probabilities`,
+/// which normalizes by the realized mass (exact in real arithmetic) or falls
+/// back to the uniform-over-ties limit when no term is representable.
+///
 /// # Errors
 ///
 /// Returns an error when scores/alpha violate the A4-E0 scalar contract.
@@ -170,6 +206,19 @@ pub fn entmax_threshold_bracket(
         .copied()
         .map(|score| scale * score)
         .fold(f64::NEG_INFINITY, f64::max);
+
+    if ulp_of(max_scaled) >= EXTREME_ULTP_THRESHOLD {
+        // One representable step below `m` keeps every page whose bound
+        // reaches the scaled maximum out of the `<=` pruning set, and the
+        // top-token term `(ulp)^exponent` stays positive because ulp >= 0.5.
+        // The usual objective-side bracket invariant is intentionally not
+        // claimed on this path; bisection is skipped entirely.
+        return Ok(ThresholdBracket {
+            lower: next_down(max_scaled),
+            upper: max_scaled,
+        });
+    }
+
     let mut lower = max_scaled - 1.0;
     let mut upper = max_scaled;
 
@@ -211,10 +260,10 @@ pub fn entmax_threshold_bracket(
     Ok(ThresholdBracket { lower, upper })
 }
 
-fn probabilities_at_tau(scores: &[f64], alpha: f64, tau: f64) -> Result<Vec<f64>, &'static str> {
+fn raw_probabilities_at_tau(scores: &[f64], alpha: f64, tau: f64) -> Vec<f64> {
     let scale = alpha - 1.0;
     let exponent = scale.recip();
-    let probabilities: Vec<f64> = scores
+    scores
         .iter()
         .map(|&score| {
             let shifted = scale * score - tau;
@@ -224,18 +273,57 @@ fn probabilities_at_tau(scores: &[f64], alpha: f64, tau: f64) -> Result<Vec<f64>
                 0.0
             }
         })
-        .collect();
+        .collect()
+}
 
-    // Finite scores with alpha in (1, 2] can still overflow the power when
-    // |score| approaches f64::MAX. ADA fails closed rather than publishing a
-    // distribution containing infinities.
-    if probabilities
-        .iter()
-        .any(|probability| !probability.is_finite())
-    {
+/// Finalize raw powered terms into a probability vector.
+///
+/// Real-arithmetic invariance `p_i(tau)/sum_j p_j(tau)` makes the normalized
+/// distribution independent of residual threshold error, which is what makes
+/// the extreme-magnitude path sound. When the realized mass is exactly zero
+/// (no term representable above zero), the exact limit distribution is uniform
+/// over the ties at `(alpha-1) * max(score)`.
+///
+/// # Errors
+///
+/// Returns an error when any raw term is non-finite.
+fn finalize_probabilities(scores: &[f64], alpha: f64, tau: f64) -> Result<Vec<f64>, &'static str> {
+    let scale = alpha - 1.0;
+    let raw = raw_probabilities_at_tau(scores, alpha, tau);
+
+    if raw.iter().any(|probability| !probability.is_finite()) {
         return Err("ADA-A4 entmax probabilities are not finite");
     }
-    Ok(probabilities)
+
+    let mass: f64 = raw.iter().copied().sum();
+    if mass > 0.0 && mass.is_finite() {
+        return Ok(raw
+            .into_iter()
+            .map(|probability| probability / mass)
+            .collect());
+    }
+
+    let max_scaled = scores
+        .iter()
+        .copied()
+        .map(|score| scale * score)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let max_bits = max_scaled.to_bits();
+    let tie_count = scores
+        .iter()
+        .filter(|&&score| (scale * score).to_bits() == max_bits)
+        .count();
+    let weight = f64::from(u32::try_from(tie_count.max(1)).unwrap_or(u32::MAX)).recip();
+    Ok(scores
+        .iter()
+        .map(|&score| {
+            if (scale * score).to_bits() == max_bits {
+                weight
+            } else {
+                0.0
+            }
+        })
+        .collect())
 }
 
 /// Independent dense scalar alpha-entmax oracle for A4-E0.
@@ -249,7 +337,7 @@ pub fn dense_entmax(scores: &[f64], alpha: f64) -> Result<EntmaxDistribution, &'
     let bracket = entmax_threshold_bracket(scores, alpha)?;
     let tau = bracket.midpoint();
     Ok(EntmaxDistribution {
-        probabilities: probabilities_at_tau(scores, alpha, tau)?,
+        probabilities: finalize_probabilities(scores, alpha, tau)?,
         tau,
     })
 }
@@ -352,7 +440,7 @@ pub fn branch_and_bound_entmax(
         // keeps `threshold_solves` equal to the number of bracket solves
         // actually performed and is bit-identical to the dense oracle path.
         let subset_tau = bracket.midpoint();
-        let subset_probabilities = probabilities_at_tau(&subset_scores, case.alpha, subset_tau)?;
+        let subset_probabilities = finalize_probabilities(&subset_scores, case.alpha, subset_tau)?;
         let mut probabilities = vec![0.0; case.scores.len()];
         for (&index, &probability) in loaded_indices.iter().zip(subset_probabilities.iter()) {
             probabilities[index] = probability;
@@ -365,6 +453,119 @@ pub fn branch_and_bound_entmax(
             loaded_pages,
             metrics,
         });
+    }
+}
+
+/// Per-block certificate emitted by [`StreamingEntmax`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StreamingCertificate {
+    /// Total scores absorbed so far.
+    pub tokens_seen: usize,
+    /// Lower endpoint of the exact threshold bracket on the prefix multiset.
+    pub tau_lower: f64,
+    /// Upper endpoint of the same bracket.
+    pub tau_upper: f64,
+}
+
+/// Streaming prefix monitor for alpha-entmax with a monotone threshold
+/// certificate.
+///
+/// Real-arithmetic fact: adding scores to the multiset can only increase the
+/// entmax threshold root, because the objective is strictly decreasing in
+/// `tau` and every added term is non-negative. Each `push_block` re-solves the
+/// exact bracket on the accumulated prefix and FAILS CLOSED when the binary64
+/// sequence violates monotonicity beyond a small ulp allowance, so downstream
+/// consumers can rely on the emitted lower bounds as genuinely non-decreasing.
+///
+/// The monitor never publishes probabilities mid-stream; call `finalize`
+/// (which is `Self::finalize`) once the stream ends.
+pub struct StreamingEntmax {
+    alpha: f64,
+    scores: Vec<f64>,
+    last_lower: Option<f64>,
+    certificates: Vec<StreamingCertificate>,
+}
+
+/// Monotonicity allowance for solver rounding, expressed in ulps of the
+/// previous lower endpoint.
+const STREAMING_MONOTONE_ULPS: i32 = 4;
+
+fn monotone_within_ulps(previous: f64, current: f64) -> bool {
+    if current >= previous {
+        return true;
+    }
+    let mut relaxed = previous;
+    for _ in 0..STREAMING_MONOTONE_ULPS {
+        relaxed = next_down(relaxed);
+    }
+    current >= relaxed
+}
+
+impl StreamingEntmax {
+    /// Create an empty streaming monitor for the given alpha in (1, 2].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when alpha is outside the A4-E0 contract.
+    pub fn new(alpha: f64) -> Result<Self, &'static str> {
+        if !alpha.is_finite() || alpha <= 1.0 || alpha > 2.0 {
+            return Err("ADA-A4 E0 requires finite alpha in (1, 2]");
+        }
+        Ok(Self {
+            alpha,
+            scores: Vec::new(),
+            last_lower: None,
+            certificates: Vec::new(),
+        })
+    }
+
+    /// Absorb one block of scores and certify the extended prefix.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error on empty blocks, non-finite scores, solver failures,
+    /// or a monotonicity violation beyond the ulp allowance.
+    pub fn push_block(&mut self, block: &[f64]) -> Result<StreamingCertificate, &'static str> {
+        if block.is_empty() {
+            return Err("ADA-A4 streaming blocks must be non-empty");
+        }
+        if block.iter().any(|value| !value.is_finite()) {
+            return Err("ADA-A4 streaming scores must be finite");
+        }
+
+        self.scores.extend_from_slice(block);
+        let bracket = entmax_threshold_bracket(&self.scores, self.alpha)?;
+
+        if let Some(previous) = self.last_lower {
+            if !monotone_within_ulps(previous, bracket.lower) {
+                return Err("ADA-A4 streaming monotonicity certificate failed");
+            }
+        }
+
+        let certificate = StreamingCertificate {
+            tokens_seen: self.scores.len(),
+            tau_lower: bracket.lower,
+            tau_upper: bracket.upper,
+        };
+        self.last_lower = Some(bracket.lower);
+        self.certificates.push(certificate);
+        Ok(certificate)
+    }
+
+    /// Finalize the stream into the exact distribution over all absorbed
+    /// scores, matching [`dense_entmax`] bit-for-bit on the same multiset.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when no block was pushed or the solver fails.
+    pub fn finalize(self) -> Result<EntmaxDistribution, &'static str> {
+        dense_entmax(&self.scores, self.alpha)
+    }
+
+    /// Certificates emitted so far.
+    #[must_use]
+    pub fn certificates(&self) -> &[StreamingCertificate] {
+        &self.certificates
     }
 }
 
@@ -458,19 +659,66 @@ mod tests {
     #[test]
     fn non_finite_probabilities_fail_closed() {
         // At a degenerate tau far below the score range the powered terms
-        // overflow binary64; the constructor must reject them instead of
+        // overflow binary64; finalization must reject them instead of
         // publishing infinities.
         assert_eq!(
-            probabilities_at_tau(&[1.0e200], 1.5, f64::NEG_INFINITY).unwrap_err(),
+            finalize_probabilities(&[1.0e200], 1.5, f64::NEG_INFINITY).unwrap_err(),
             "ADA-A4 entmax probabilities are not finite"
         );
         // Alpha exactly 2 has exponent 1: only an infinite shifted value can
         // overflow, e.g. an infinite tau offset.
-        let linear = probabilities_at_tau(&[1.0e200], 2.0, f64::NEG_INFINITY);
+        let linear = finalize_probabilities(&[1.0e200], 2.0, f64::NEG_INFINITY);
         assert_eq!(
             linear.unwrap_err(),
             "ADA-A4 entmax probabilities are not finite"
         );
+    }
+
+    #[test]
+    fn extreme_magnitude_support_is_exact() {
+        // ulp((alpha-1) * 1e200) is astronomically above the collapse
+        // threshold, so the solver must take the certified extreme path
+        // instead of bisecting a collapsed interval.
+        let scores = [1.0e200, -1.0e200];
+        for alpha in [1.5, 2.0] {
+            let bracket = entmax_threshold_bracket(&scores, alpha).unwrap();
+            let expected_upper = (alpha - 1.0) * 1.0e200;
+            assert_eq!(bracket.upper.to_bits(), expected_upper.to_bits());
+            assert_eq!(bracket.lower.to_bits(), next_down(bracket.upper).to_bits());
+
+            let dense = dense_entmax(&scores, alpha).unwrap();
+            assert!(dense.tau.is_finite());
+            assert_close(dense.probabilities[0], 1.0, 2.0e-15);
+            assert_eq!(dense.probabilities[1].to_bits(), 0.0f64.to_bits());
+
+            let mass: f64 = dense.probabilities.iter().copied().sum();
+            assert_close(mass, 1.0, 4.0e-15);
+        }
+    }
+
+    #[test]
+    fn extreme_magnitude_ties_share_mass_uniformly() {
+        let scores = [5.0e199, 5.0e199];
+        for alpha in [1.5, 2.0] {
+            let dense = dense_entmax(&scores, alpha).unwrap();
+            assert_close(dense.probabilities[0], 0.5, 2.0e-15);
+            assert_close(dense.probabilities[1], 0.5, 2.0e-15);
+        }
+    }
+
+    #[test]
+    fn extreme_magnitude_branch_and_bound_matches_dense() {
+        let scores = vec![1.0e200, -1.0e200, -1.0e200, -1.0e200];
+        let case = EntmaxPagedCase {
+            page_upper_bounds: exact_page_bounds(&scores, 2),
+            scores,
+            page_size: 2,
+            alpha: 2.0,
+        };
+        let result = assert_candidate_matches_dense(&case);
+        assert_eq!(result.metrics.pages_loaded, 1);
+        assert_eq!(result.metrics.pages_pruned, 1);
+        assert_eq!(result.metrics.threshold_solves, result.metrics.rounds);
     }
 
     #[test]
@@ -590,5 +838,80 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn streaming_certificates_are_monotone_and_finalize_matches_dense() {
+        let blocks: Vec<Vec<f64>> = vec![
+            vec![5.0, 1.0],
+            vec![0.2],
+            vec![-3.0, -7.0, 4.0],
+            vec![0.5, -1.0],
+        ];
+        for alpha in [1.5, 2.0] {
+            let mut stream = StreamingEntmax::new(alpha).unwrap();
+            let mut previous_lower = f64::NEG_INFINITY;
+            for block in &blocks {
+                let certificate = stream.push_block(block).unwrap();
+                assert_eq!(certificate.tokens_seen, {
+                    // tokens_seen is cumulative across blocks.
+                    stream.certificates().last().unwrap().tokens_seen
+                });
+                // Contract: monotone within the documented ulp allowance
+                // (Miri's software-float powf may wobble by a few ulps).
+                assert!(monotone_within_ulps(previous_lower, certificate.tau_lower));
+                assert!(certificate.tau_lower <= certificate.tau_upper);
+                previous_lower = certificate.tau_lower;
+            }
+
+            let all_scores: Vec<f64> = blocks.iter().flatten().copied().collect();
+            let dense = dense_entmax(&all_scores, alpha).unwrap();
+            let final_distribution = stream.finalize().unwrap();
+            // Native builds finalize bit-identically (same solver, same
+            // multiset, same order); Miri's software-float powf may differ in
+            // the last ulp between the two evaluations, so compare exactly on
+            // native and within tolerance under Miri.
+            #[cfg(miri)]
+            for (&left, &right) in dense
+                .probabilities
+                .iter()
+                .zip(final_distribution.probabilities.iter())
+            {
+                assert!((left - right).abs() <= 2.0e-12);
+            }
+            #[cfg(not(miri))]
+            {
+                assert_eq!(dense.probabilities, final_distribution.probabilities);
+                assert_eq!(dense.tau.to_bits(), final_distribution.tau.to_bits());
+            }
+            #[cfg(miri)]
+            {
+                assert!((dense.tau - final_distribution.tau).abs() <= 2.0e-12);
+            }
+        }
+    }
+
+    #[test]
+    fn streaming_rejects_bad_blocks_and_violations() {
+        let mut stream = StreamingEntmax::new(1.5).unwrap();
+
+        // Empty and non-finite blocks fail closed.
+        assert_eq!(
+            stream.push_block(&[]).unwrap_err(),
+            "ADA-A4 streaming blocks must be non-empty"
+        );
+        assert_eq!(
+            stream.push_block(&[f64::NAN]).unwrap_err(),
+            "ADA-A4 streaming scores must be finite"
+        );
+
+        stream.push_block(&[10.0]).unwrap();
+
+        // The comparator itself rejects a genuine drop beyond the allowance.
+        assert!(!monotone_within_ulps(1.0, -1.0));
+        assert!(monotone_within_ulps(1.0, next_down(1.0)));
+
+        // Alpha contract is checked at construction.
+        assert!(StreamingEntmax::new(2.5).is_err());
     }
 }

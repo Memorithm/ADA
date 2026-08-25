@@ -7,6 +7,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+ada-core = { path = "../ada-core" }
 ada-a4-entmax-bnb = { path = "../ada-a4-entmax-bnb" }
 ada-a4-qk-box = { path = "../ada-a4-qk-box" }
 ada-a5-hierarchical-bounds = { path = "../ada-a5-hierarchical-bounds" }
