@@ -4,14 +4,14 @@
 | --- | --- | --- |
 | ADA-A1 | Exact Online Softmax recurrence search | CPU-L2-QUALIFIED / GPU-Q4-DIRECT-MAPPINGS-REJECTED / NVIDIA-BACKEND-INVESTIGATE |
 | ADA-A2 | K-first / V-late staging and scheduling | E0-K-FIRST-V-LATE-CORRECTNESS / E1-NATURAL-LOGICAL-KV-ACCOUNTING-QUALIFIED / E2-THOR-PHYSICAL-V-LATE-QUALIFIED / E3A-NATURAL-GQA-UNIQUE-V-ROW-ACCOUNTING-QUALIFIED / E3B-NATURAL-GQA-V-OUTPUT-CORRECTNESS-QUALIFIED |
-| ADA-A3 | Certified error-budgeted Softmax | PLANNED |
+| ADA-A3 | Certified error-budgeted Softmax | E0-CERTIFIED-BUDGET-CORRECTNESS (`ada-a3-certified-softmax`) |
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
 | ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED |
 | ADA-A6 | Specialized tau solvers | RESEARCH |
 | ADA-A7 | Moment / composable Entmax | INVESTIGATE |
-| ADA-A8 | Attention recurrence program synthesis | PLANNED |
-| ADA-A9 | Distribution-aware execution selection | PLANNED |
-| ADA-A10 | Reproducible numerical oracle/certification | PLANNED |
+| ADA-A8 | Attention recurrence program synthesis | E0-IR-AND-SEARCH-RESEARCH (`ada-ir` + `ada-search`) |
+| ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) |
+| ADA-A10 | Reproducible numerical oracle/certification | E0-SCHEMA-VALIDATOR (`ada-a10-evidence-schema`) |
 
 ## Status semantics
 
@@ -43,3 +43,37 @@
 - None of these statuses means production-qualified, novel, or adopted by FLAT-ATTENTION.
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
+
+## 2026-08-25 hardening and research additions
+
+- `E0-CERTIFIED-BUDGET-CORRECTNESS` (ADA-A3): `budgeted_softmax` computes
+  softmax/LSE in f64 compensated arithmetic, derives a rigorous relative-error
+  certificate from documented per-operation bounds, and fails closed when the
+  achieved bound exceeds the caller budget. Zero or negative budgets are
+  rejected before any work; the achieved bound is a property of the
+  computation, not of the requested budget.
+- `E0-IR-AND-SEARCH-RESEARCH` (ADA-A8): `ada-ir` provides the restricted
+  straight-line grammar (scalar state, comparisons, select/max, arithmetic,
+  exp/log, reductions, broadcast/zip vector algebra, accumulate) with a
+  fail-closed interpreter (non-finite intermediates rejected) and structural
+  validation. `ada-search` instantiates the qualified two-exp / one-exp online
+  recurrences as real IR programs and verifies them against the dense f64
+  reference; candidates deviating beyond tolerance are rejected loudly.
+  This is source-level research scaffolding only: no performance claim.
+- `E0-SIGNAL-RULES-RESEARCH` (ADA-A9): deterministic plan selection over
+  {dense, A4 paged BnB, A5 hierarchical, A5 content-aware} from measurable
+  signals, including the certified degenerate-magnitude check mirroring the
+  A4 collapse threshold. Thresholds trace to the qualified Thor evidence but
+  the selector itself is unqualified for production dispatch.
+- `E0-SCHEMA-VALIDATOR` (ADA-A10): dependency-free fail-closed validation of
+  evidence-record metadata (identifier grammar, compact ISO-8601 timestamp,
+  40-hex commit binding, 64-hex SHA-256 digest, finite metrics).
+- Workspace hardening: key-index fingerprints upgraded to a dual-lane
+  digest with length sentinel (`ada-core::KeyFingerprint`); post-hoc support
+  exactness certificates added to all A5 controllers; honest bound-access
+  counter in content-aware metrics; PCA-cut/shrunk-ball geometry variant for
+  the content-aware hierarchy (conservative by construction); explicit NEON
+  kernels isolated in the single unsafe-scoped crate `ada-a1-neon`; runner
+  environment overrides that preserve byte-compatible default output;
+  dependency-free A1 bench example (`cargo run --release -p ada-oracle
+  --example bench_a1`).
