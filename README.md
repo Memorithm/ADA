@@ -38,4 +38,18 @@ cargo test --workspace
 cargo run -p ada-runner --release
 ```
 
+## Verification ladder
+
+Beyond the quick-start gates, the workspace is qualified with:
+
+- `cargo miri test` — UB and arithmetic-overflow detection on the oracle and
+  trace-parser crates (the one IEEE-rounding-contract test in `ada-a4-entmax-bnb`
+  is ignored under Miri because Miri's soft-float `powf` does not preserve
+  `powf(x, 1.0) == x`; see `docs/A4_EXACT_ENTMAX_BNB.md`).
+- `cargo fuzz` — ASan-backed libFuzzer campaigns over both binary trace
+  parsers (`ADAQK01`, `ADAV01`) and a differential A1 softmax parity target;
+  harnesses live under `fuzz/`.
+- `cargo audit` / `cargo deny check advisories sources` — supply-chain gates.
+  The workspace has no third-party runtime dependencies.
+
 Hardware performance claims require recorded device evidence; logical operation counts are not physical bandwidth or instruction counts.

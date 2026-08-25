@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+ada-a1-neon = { path = "../ada-a1-neon" }
 ada-core = { path = "../ada-core" }
 
 [lints]

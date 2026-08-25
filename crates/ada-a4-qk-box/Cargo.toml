@@ -1,0 +1,13 @@
+[package]
+name = "ada-a4-qk-box"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+ada-a4-entmax-bnb = { path = "../ada-a4-entmax-bnb" }
+
+[lints]
+workspace = true

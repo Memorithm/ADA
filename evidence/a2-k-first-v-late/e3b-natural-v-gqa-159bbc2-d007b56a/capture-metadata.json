@@ -1,0 +1,42 @@
+{
+  "capture_id": "qwen3-0.6b-a2-e3b-v-wikitext2raw-val16",
+  "format": "ADAV01\\0",
+  "format_version": 1,
+  "model_config": {
+    "head_dim": 128,
+    "num_attention_heads": 16,
+    "num_key_value_heads": 8,
+    "q_per_kv": 2
+  },
+  "model_id": "Qwen/Qwen3-0.6B",
+  "model_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+  "record_count": 384,
+  "sample_count": 16,
+  "samples_sha256": "8b3cb29d52850020134bd37c1e58dac2ff79508144db49f87ca2801e4e0b4bb0",
+  "selection": {
+    "kv_heads": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "layers": [
+      0,
+      13,
+      27
+    ],
+    "sequence_length": 512
+  },
+  "source_dtype": "bfloat16",
+  "storage_dtype": "f32-le",
+  "tensor_stage": "attention_value_input_pre_repeat_kv",
+  "tokenizer_id": "Qwen/Qwen3-0.6B",
+  "tokenizer_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+  "torch_version": "2.10.0+cpu",
+  "trace_sha256": "d007b56a7c4588568bb9211c58250d8b214d8eb31ee2483eb0d1b033ffac11c5",
+  "transformers_version": "5.13.0.dev0"
+}

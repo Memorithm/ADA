@@ -3,13 +3,103 @@
 version = 4
 
 [[package]]
+name = "ada-a1-neon"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+]
+
+[[package]]
+name = "ada-a10-evidence-schema"
+version = "0.1.0"
+
+[[package]]
+name = "ada-a2-k-first-v-late"
+version = "0.1.0"
+dependencies = [
+ "ada-a4-entmax-bnb",
+ "ada-a4-qk-box",
+ "ada-a5-hierarchical-bounds",
+]
+
+[[package]]
+name = "ada-a2-real-v-trace"
+version = "0.1.0"
+dependencies = [
+ "ada-a4-entmax-bnb",
+ "ada-a4-qk-box",
+ "ada-a5-hierarchical-bounds",
+ "ada-a5-real-qk-trace",
+]
+
+[[package]]
+name = "ada-a3-certified-softmax"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+]
+
+[[package]]
+name = "ada-a4-entmax-bnb"
+version = "0.1.0"
+
+[[package]]
+name = "ada-a4-qk-box"
+version = "0.1.0"
+dependencies = [
+ "ada-a4-entmax-bnb",
+]
+
+[[package]]
+name = "ada-a5-content-aware-bounds"
+version = "0.1.0"
+dependencies = [
+ "ada-a4-entmax-bnb",
+ "ada-a4-qk-box",
+ "ada-a5-hierarchical-bounds",
+ "ada-core",
+]
+
+[[package]]
+name = "ada-a5-hierarchical-bounds"
+version = "0.1.0"
+dependencies = [
+ "ada-a4-entmax-bnb",
+ "ada-a4-qk-box",
+ "ada-core",
+]
+
+[[package]]
+name = "ada-a5-real-qk-trace"
+version = "0.1.0"
+dependencies = [
+ "ada-a2-k-first-v-late",
+ "ada-a4-entmax-bnb",
+ "ada-a4-qk-box",
+ "ada-a5-content-aware-bounds",
+ "ada-a5-hierarchical-bounds",
+]
+
+[[package]]
+name = "ada-a9-plan-selector"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+]
+
+[[package]]
 name = "ada-core"
+version = "0.1.0"
+
+[[package]]
+name = "ada-ir"
 version = "0.1.0"
 
 [[package]]
 name = "ada-oracle"
 version = "0.1.0"
 dependencies = [
+ "ada-a1-neon",
  "ada-core",
 ]
 
@@ -19,4 +109,12 @@ version = "0.1.0"
 dependencies = [
  "ada-core",
  "ada-oracle",
+]
+
+[[package]]
+name = "ada-search"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-ir",
 ]

@@ -1,0 +1,16 @@
+[package]
+name = "ada-a5-content-aware-bounds"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+ada-core = { path = "../ada-core" }
+ada-a4-entmax-bnb = { path = "../ada-a4-entmax-bnb" }
+ada-a4-qk-box = { path = "../ada-a4-qk-box" }
+ada-a5-hierarchical-bounds = { path = "../ada-a5-hierarchical-bounds" }
+
+[lints]
+workspace = true

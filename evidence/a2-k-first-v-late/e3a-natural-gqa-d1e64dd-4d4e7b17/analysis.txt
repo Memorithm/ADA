@@ -1,0 +1,87 @@
+analyzer=ada_a2_e3a_gqa_union_v1
+log_sha256=64352e29f5fd6beabf3f860481fd4ca1de868bcf59fd6a84b7936249538ae935
+group_count=3072
+aggregate_count=32
+complete_count=1
+structural_contract_ok=True
+cardinality_invariant_failures=0
+numerical_parity_failures=0
+
+alpha=1.5
+cases=1536
+visible_rows=368640
+q_k_sum=202542
+q_support_sum=11202
+k_union=137098
+support_union=8555
+k_intersection=65444
+support_intersection=2647
+naive_per_q_a2_after_k=0.944692953
+gqa_unique_a2_after_k=0.937599381
+gqa_effect_percentage_points=-0.709357
+total_unique_v_avoidance=0.976793077
+k_unique_row_dedup_saving=0.323113231
+support_unique_row_dedup_saving=0.236297090
+a2_avoidance_min=0.000000
+a2_avoidance_median=0.909091
+a2_avoidance_q01=0.250000
+a2_avoidance_q05=0.500000
+a2_avoidance_q95=0.982005
+a2_avoidance_q99=0.992287
+groups_without_residual_a2=6
+groups_without_residual_fraction=0.003906250
+exceptions_by_layer={27: 6}
+exceptions_by_position={63: 2, 127: 1, 255: 2, 511: 1}
+exceptions_by_kv_head={1: 2, 2: 3, 4: 1}
+exceptions_by_k_union={2: 4, 4: 2}
+no_residual,index=1,sample=ff47460b2e62b09f,layer=27,kv_head=1,q0=2,q1=3,position=127,key_count=128,k_union=2,support_union=2
+no_residual,index=2,sample=ff47460b2e62b09f,layer=27,kv_head=1,q0=2,q1=3,position=255,key_count=256,k_union=4,support_union=4
+no_residual,index=3,sample=ff47460b2e62b09f,layer=27,kv_head=2,q0=4,q1=5,position=63,key_count=64,k_union=2,support_union=2
+no_residual,index=4,sample=ff47460b2e62b09f,layer=27,kv_head=4,q0=8,q1=9,position=255,key_count=256,k_union=2,support_union=2
+no_residual,index=5,sample=33b9c91d4506a1ae,layer=27,kv_head=2,q0=4,q1=5,position=63,key_count=64,k_union=4,support_union=4
+no_residual,index=6,sample=f6eb333226287da1,layer=27,kv_head=2,q0=4,q1=5,position=511,key_count=512,k_union=2,support_union=2
+
+alpha=2.0
+cases=1536
+visible_rows=368640
+q_k_sum=157448
+q_support_sum=6004
+k_union=110536
+support_union=4466
+k_intersection=46912
+support_intersection=1538
+naive_per_q_a2_after_k=0.961866775
+gqa_unique_a2_after_k=0.959596873
+gqa_effect_percentage_points=-0.226990
+total_unique_v_avoidance=0.987885200
+k_unique_row_dedup_saving=0.297952340
+support_unique_row_dedup_saving=0.256162558
+a2_avoidance_min=0.000000
+a2_avoidance_median=0.930795
+a2_avoidance_q01=0.250000
+a2_avoidance_q05=0.500000
+a2_avoidance_q95=0.988636
+a2_avoidance_q99=0.993708
+groups_without_residual_a2=13
+groups_without_residual_fraction=0.008463542
+exceptions_by_layer={27: 13}
+exceptions_by_position={63: 7, 127: 2, 255: 3, 511: 1}
+exceptions_by_kv_head={1: 4, 2: 4, 4: 3, 5: 2}
+exceptions_by_k_union={2: 13}
+no_residual,index=1,sample=ff47460b2e62b09f,layer=27,kv_head=1,q0=2,q1=3,position=63,key_count=64,k_union=2,support_union=2
+no_residual,index=2,sample=ff47460b2e62b09f,layer=27,kv_head=1,q0=2,q1=3,position=127,key_count=128,k_union=2,support_union=2
+no_residual,index=3,sample=ff47460b2e62b09f,layer=27,kv_head=2,q0=4,q1=5,position=63,key_count=64,k_union=2,support_union=2
+no_residual,index=4,sample=ff47460b2e62b09f,layer=27,kv_head=2,q0=4,q1=5,position=255,key_count=256,k_union=2,support_union=2
+no_residual,index=5,sample=ff47460b2e62b09f,layer=27,kv_head=4,q0=8,q1=9,position=255,key_count=256,k_union=2,support_union=2
+no_residual,index=6,sample=ff47460b2e62b09f,layer=27,kv_head=5,q0=10,q1=11,position=127,key_count=128,k_union=2,support_union=2
+no_residual,index=7,sample=33b9c91d4506a1ae,layer=27,kv_head=1,q0=2,q1=3,position=63,key_count=64,k_union=2,support_union=2
+no_residual,index=8,sample=33b9c91d4506a1ae,layer=27,kv_head=1,q0=2,q1=3,position=255,key_count=256,k_union=2,support_union=2
+no_residual,index=9,sample=33b9c91d4506a1ae,layer=27,kv_head=4,q0=8,q1=9,position=63,key_count=64,k_union=2,support_union=2
+no_residual,index=10,sample=33b9c91d4506a1ae,layer=27,kv_head=5,q0=10,q1=11,position=63,key_count=64,k_union=2,support_union=2
+no_residual,index=11,sample=f6eb333226287da1,layer=27,kv_head=2,q0=4,q1=5,position=63,key_count=64,k_union=2,support_union=2
+no_residual,index=12,sample=f6eb333226287da1,layer=27,kv_head=2,q0=4,q1=5,position=511,key_count=512,k_union=2,support_union=2
+no_residual,index=13,sample=f6eb333226287da1,layer=27,kv_head=4,q0=8,q1=9,position=63,key_count=64,k_union=2,support_union=2
+
+qualification_contract_ok=True
+classification=A2-E3A-NATURAL-GQA-UNIQUE-V-ROW-ACCOUNTING-QUALIFIED
+analysis_status=complete

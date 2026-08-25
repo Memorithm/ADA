@@ -1,0 +1,46 @@
+[package]
+name = "ada-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.ada-core]
+path = "../crates/ada-core"
+
+[dependencies.ada-oracle]
+path = "../crates/ada-oracle"
+
+[dependencies.ada-a5-real-qk-trace]
+path = "../crates/ada-a5-real-qk-trace"
+
+[dependencies.ada-a2-real-v-trace]
+path = "../crates/ada-a2-real-v-trace"
+
+[[bin]]
+name = "aqk01_parser"
+path = "fuzz_targets/aqk01_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "adav01_parser"
+path = "fuzz_targets/adav01_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "a1_softmax_parity"
+path = "fuzz_targets/a1_softmax_parity.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]

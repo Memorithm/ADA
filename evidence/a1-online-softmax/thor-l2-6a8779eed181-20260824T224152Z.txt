@@ -1,0 +1,217 @@
+ADA experiment: ADA-A1 One-Exp Online Softmax
+evidence_level=L2
+ada_sha=6a8779eed18103500b8a1fccc3dae9bdbde49ed6
+utc=20260824T224152Z
+working_tree_before=clean
+cpu_core=13
+process_repeats=5
+
+=== SYSTEM ===
+Linux tarek 6.8.12-tegra #1 SMP PREEMPT Tue Dec 30 15:40:41 PST 2025 aarch64 aarch64 aarch64 GNU/Linux
+
+PRETTY_NAME="Ubuntu 24.04.4 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.4 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+
+rustc 1.98.0 (88d9e12ae 2026-08-18)
+cargo 1.98.0 (797e8a9bc 2026-08-05)
+
+=== CPU ===
+Architecture:                         aarch64
+CPU op-mode(s):                       64-bit
+Byte Order:                           Little Endian
+CPU(s):                               14
+On-line CPU(s) list:                  0-13
+Vendor ID:                            ARM
+BIOS Vendor ID:                       NVIDIA
+Model name:                           -
+BIOS Model name:                      Thor Not Specified CPU @ 2.6GHz
+BIOS CPU family:                      257
+Model:                                0
+Thread(s) per core:                   1
+Core(s) per cluster:                  14
+Socket(s):                            1
+Cluster(s):                           1
+Stepping:                             r0p0
+CPU(s) scaling MHz:                   100%
+CPU max MHz:                          2601.0000
+CPU min MHz:                          54.0000
+BogoMIPS:                             2000.00
+Flags:                                fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 sve asimdfhm dit uscat ilrcpc flagm ssbs sb paca pacg dcpodp sve2 sveaes svepmull svebitperm svesha3 svesm4 flagm2 frint svei8mm svebf16 i8mm bf16 dgh bti ecv afp wfxt
+L1d cache:                            896 KiB (14 instances)
+L1i cache:                            896 KiB (14 instances)
+L2 cache:                             14 MiB (14 instances)
+NUMA node(s):                         1
+NUMA node0 CPU(s):                    0-13
+Vulnerability Gather data sampling:   Not affected
+Vulnerability Itlb multihit:          Not affected
+Vulnerability L1tf:                   Not affected
+Vulnerability Mds:                    Not affected
+Vulnerability Meltdown:               Not affected
+Vulnerability Mmio stale data:        Not affected
+Vulnerability Reg file data sampling: Not affected
+Vulnerability Retbleed:               Not affected
+Vulnerability Spec rstack overflow:   Not affected
+Vulnerability Spec store bypass:      Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:             Mitigation; __user pointer sanitization
+Vulnerability Spectre v2:             Not affected
+Vulnerability Srbds:                  Not affected
+Vulnerability Tsx async abort:        Not affected
+
+pinned_core=13
+governor=schedutil
+min_khz=2601000
+current_khz_before=2601000
+max_khz=2601000
+
+=== NVPModel ===
+NV Power Mode: MAXN
+0
+
+=== JETSON CLOCKS ===
+SOC family:tegra264  Machine:NVIDIA Jetson AGX Thor Developer Kit
+Online CPUs: 0-13, Offline CPUs: 
+cpu0:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu1:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu2:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu3:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu4:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu5:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu6:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu7:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu8:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu9:  Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu10: Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu11: Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu12: Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+cpu13: Governor=schedutil MinFreq=2601000 MaxFreq=2601000 CurrentFreq=2601000 IdleStates: WFI=0 cc7=0 
+gpu-gpc-0 MinFreq=1575000000 MaxFreq=1575000000 CurrentFreq=1575000000
+gpu-nvd-0 MinFreq=1692000000 MaxFreq=1692000000 CurrentFreq=1692000000
+EMC MinFreq=4266000000 MaxFreq=4266000000 CurrentFreq=4266000000
+PVA0_VPS0: Online=0 MinFreq=0 MaxFreq=1215000000 CurrentFreq=1215000000
+PVA0_AXI:  Online=0 MinFreq=0 MaxFreq=909000000 CurrentFreq=909000000
+FAN Dynamic Speed Control=nvfancontrol hwmon1_pwm1=75
+FAN Dynamic Speed Control=nvfancontrol hwmon1_pwm1_enable=1
+NV Power Mode: MAXN
+
+=== NVIDIA ===
+Tue Aug 25 00:41:52 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.00                 Driver Version: 580.00         CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA Thor                    On  |   00000000:01:00.0 Off |                  N/A |
+| N/A   46C  N/A               5W /  N/A  | Not Supported          |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A         1566847    C+G   .../wgpu_matrix-bf8b7c4db8ed99c3        916MiB |
++-----------------------------------------------------------------------------------------+
+
+=== THERMALS BEFORE ===
+tj-thermal=48406
+gpu-thermal=46500
+cpu-thermal=48781
+soc012-thermal=47437
+soc345-thermal=46343
+
+=== PROCESS SNAPSHOT BEFORE ===
+    PID PSR %CPU %MEM COMMAND
+1578226   2 84.1  2.1 soullink-scan
+ 700957  11 52.9  0.8 opencode
+ 913147   8 51.1  0.7 opencode
+ 710935   5 33.9  0.6 opencode
+ 737147  12 25.8  0.8 opencode
+1724118  10 12.5  1.0 opencode
+1159607   4 10.8  0.8 opencode
+1522370   8 10.3  0.0 kworker/u28:2+devfreq_wq
+1242734   1  8.9  0.0 kworker/u28:1-ext4-rsv-conversion
+1386080   3  7.9  0.8 opencode
+    108  12  2.1  0.0 kcompactd0
+1566847   1  1.2  0.4 wgpu_matrix-bf8
+1576979   2  0.7  0.0 synergie
+   2032   9  0.2  0.0 rustdesk
+1408811   7  0.2  0.0 rustdesk
+   1005   9  0.2  0.0 dbus-daemon
+2841659  13  0.1  0.2 hermes
+ 700676  13  0.1  0.0 sshd
+ 921241   5  0.1  0.0 kworker/5:2-events
+
+=== ADA-A1 PINNED RELEASE BENCH ===
+--- process_run=1/5 ---
+ADA-A1 deterministic CPU evidence v1
+seed=0xada0000000000001 rounds=21 warmup_calls=20
+seq_len,head_dim,iterations,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_median_ns,candidate_median_ns,baseline_p95_ns,candidate_p95_ns,baseline_mad_ns,candidate_mad_ns,speedup_ppm
+128,64,512,0.000000000e0,0.000000000e0,255,127,6800,6119,8766,11122,59,56,1111292
+512,64,128,0.000000000e0,0.000000000e0,1023,511,27247,24601,27471,24822,23,93,1107556
+2048,128,16,0.000000000e0,0.000000000e0,4095,2047,188229,168746,191783,171419,1268,428,1115457
+4096,128,8,0.000000000e0,0.000000000e0,8191,4095,373633,336768,376657,342446,2285,768,1109467
+NOTE: CPU timings are local Thor evidence only; speedup_ppm is baseline_median/candidate_median * 1e6. No GPU/FLAT performance claim is implied.
+
+--- process_run=2/5 ---
+ADA-A1 deterministic CPU evidence v1
+seed=0xada0000000000001 rounds=21 warmup_calls=20
+seq_len,head_dim,iterations,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_median_ns,candidate_median_ns,baseline_p95_ns,candidate_p95_ns,baseline_mad_ns,candidate_mad_ns,speedup_ppm
+128,64,512,0.000000000e0,0.000000000e0,255,127,7590,6937,7930,10145,6,8,1094132
+512,64,128,0.000000000e0,0.000000000e0,1023,511,30240,27526,30307,39384,51,31,1098597
+2048,128,16,0.000000000e0,0.000000000e0,4095,2047,187755,169136,191697,171677,515,588,1110083
+4096,128,8,0.000000000e0,0.000000000e0,8191,4095,373573,336252,377770,339091,2893,572,1110991
+NOTE: CPU timings are local Thor evidence only; speedup_ppm is baseline_median/candidate_median * 1e6. No GPU/FLAT performance claim is implied.
+
+--- process_run=3/5 ---
+ADA-A1 deterministic CPU evidence v1
+seed=0xada0000000000001 rounds=21 warmup_calls=20
+seq_len,head_dim,iterations,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_median_ns,candidate_median_ns,baseline_p95_ns,candidate_p95_ns,baseline_mad_ns,candidate_mad_ns,speedup_ppm
+128,64,512,0.000000000e0,0.000000000e0,255,127,6733,6075,6766,6129,3,6,1108312
+512,64,128,0.000000000e0,0.000000000e0,1023,511,27177,24602,27457,24783,51,43,1104666
+2048,128,16,0.000000000e0,0.000000000e0,4095,2047,192349,174595,194520,176916,913,556,1101686
+4096,128,8,0.000000000e0,0.000000000e0,8191,4095,377311,342009,384467,348678,4367,2536,1103219
+NOTE: CPU timings are local Thor evidence only; speedup_ppm is baseline_median/candidate_median * 1e6. No GPU/FLAT performance claim is implied.
+
+--- process_run=4/5 ---
+ADA-A1 deterministic CPU evidence v1
+seed=0xada0000000000001 rounds=21 warmup_calls=20
+seq_len,head_dim,iterations,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_median_ns,candidate_median_ns,baseline_p95_ns,candidate_p95_ns,baseline_mad_ns,candidate_mad_ns,speedup_ppm
+128,64,512,0.000000000e0,0.000000000e0,255,127,6755,6229,7344,6324,17,70,1084443
+512,64,128,0.000000000e0,0.000000000e0,1023,511,27176,24560,27264,24667,25,41,1106514
+2048,128,16,0.000000000e0,0.000000000e0,4095,2047,187790,168966,188772,171148,458,240,1111407
+4096,128,8,0.000000000e0,0.000000000e0,8191,4095,375146,337375,384136,349909,2370,1423,1111955
+NOTE: CPU timings are local Thor evidence only; speedup_ppm is baseline_median/candidate_median * 1e6. No GPU/FLAT performance claim is implied.
+
+--- process_run=5/5 ---
+ADA-A1 deterministic CPU evidence v1
+seed=0xada0000000000001 rounds=21 warmup_calls=20
+seq_len,head_dim,iterations,max_abs_O,max_abs_LSE,baseline_exp,candidate_exp,baseline_median_ns,candidate_median_ns,baseline_p95_ns,candidate_p95_ns,baseline_mad_ns,candidate_mad_ns,speedup_ppm
+128,64,512,0.000000000e0,0.000000000e0,255,127,7586,6110,7666,6324,3,7,1241571
+512,64,128,0.000000000e0,0.000000000e0,1023,511,29657,27225,30258,27542,570,215,1089329
+2048,128,16,0.000000000e0,0.000000000e0,4095,2047,191504,172531,192453,175609,525,289,1109968
+4096,128,8,0.000000000e0,0.000000000e0,8191,4095,380709,342525,404990,367426,3361,3574,1111477
+NOTE: CPU timings are local Thor evidence only; speedup_ppm is baseline_median/candidate_median * 1e6. No GPU/FLAT performance claim is implied.
+
+=== PINNED CORE AFTER ===
+current_khz_after=2601000
+
+=== THERMALS AFTER ===
+tj-thermal=48156
+gpu-thermal=45968
+cpu-thermal=48031
+soc012-thermal=48156
+soc345-thermal=45906

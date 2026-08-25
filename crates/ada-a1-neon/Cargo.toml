@@ -1,0 +1,17 @@
+[package]
+name = "ada-a1-neon"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+ada-core = { path = "../ada-core" }
+
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"

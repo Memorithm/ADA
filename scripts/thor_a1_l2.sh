@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 
+# Evidence reproducibility: never inherit an ambient toolchain override; the
+# recorded rustc/cargo versions must come from the workspace default toolchain.
+unset RUSTUP_TOOLCHAIN
+
 CORE="${ADA_CPU_CORE:-13}"
 REPEATS="${ADA_REPEATS:-5}"
 
