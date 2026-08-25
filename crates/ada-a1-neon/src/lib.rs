@@ -11,7 +11,15 @@
 #![cfg_attr(not(target_arch = "aarch64"), forbid(unsafe_code))]
 #![cfg_attr(target_arch = "aarch64", allow(unsafe_code))]
 
-use ada_core::{AttentionCase, AttentionResult, LogicalMetrics};
+#[cfg(target_arch = "aarch64")]
+use ada_core::LogicalMetrics;
+use ada_core::{AttentionCase, AttentionResult};
+
+/// Error returned on hosts without the required architecture support.
+/// Only present on targets where the fail-closed stubs exist.
+#[cfg(not(target_arch = "aarch64"))]
+const UNSUPPORTED_TARGET: &str =
+    "ADA-A1 NEON kernels require an aarch64 host (compile for target_arch = aarch64)";
 
 #[cfg(target_arch = "aarch64")]
 #[allow(unsafe_code)]
