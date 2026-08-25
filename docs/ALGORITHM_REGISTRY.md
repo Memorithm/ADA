@@ -7,7 +7,7 @@
 | ADA-A3 | Certified error-budgeted Softmax | E0-CERTIFIED-BUDGET-CORRECTNESS (`ada-a3-certified-softmax`) |
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
 | ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED |
-| ADA-A6 | Specialized tau solvers | RESEARCH |
+| ADA-A6 | Specialized tau solvers | E0-SPARSEMAX-SORTED-RESEARCH (`ada-a6-tau-solvers`) |
 | ADA-A7 | Moment / composable Entmax | INVESTIGATE |
 | ADA-A8 | Attention recurrence program synthesis | E0-IR-AND-SEARCH-RESEARCH (`ada-ir` + `ada-search`) |
 | ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) / E0-DISPATCH-PARITY (`ada-a9-dispatch`) |
@@ -44,6 +44,19 @@
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
 
+## 2026-08-25 follow-up 2: A6 candidate and E5c ablation harness
+
+- `E0-SPARSEMAX-SORTED-RESEARCH` (ADA-A6): sorted-projection sparsemax
+  (alpha = 2) as a specialized tau solver. Exhaustive parity against the
+  canonical bisection oracle over all 3^n score states up to n=6 plus wide
+  dynamics/tie cases; certified fallback to the A4 extreme semantics on
+  degenerate magnitudes; fail-closed on invalid inputs.
+- E5c geometry-ablation example (`e5c_geometry_survey`): replays either a
+  frozen natural trace or a deterministic synthetic grid, comparing legacy
+  pivot-diameter/mean-ball versus PCA-cut/shrunk-ball pruning fractions under
+  an exactness gate (dense support must be loaded). First synthetic run:
+  both geometries exact, identical pruning on strongly separated workloads;
+  the natural-slice measurement awaits the `.adaqk` artifact.
 ## 2026-08-25 follow-up: fuzz coverage and end-to-end dispatch
 
 - Four new libFuzzer harnesses (60k smoke execs each, no crashes):
