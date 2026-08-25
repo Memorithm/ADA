@@ -44,3 +44,39 @@ doc = false
 bench = false
 
 [workspace]
+
+[dependencies.ada-ir]
+path = "../crates/ada-ir"
+
+[[bin]]
+name = "ir_interpreter"
+path = "fuzz_targets/ir_interpreter.rs"
+test = false
+bench = false
+
+[dependencies.ada-a3-certified-softmax]
+path = "../crates/ada-a3-certified-softmax"
+
+[dependencies.ada-a10-evidence-schema]
+path = "../crates/ada-a10-evidence-schema"
+
+[dependencies.ada-a9-plan-selector]
+path = "../crates/ada-a9-plan-selector"
+
+[[bin]]
+name = "a3_budget_softmax"
+path = "fuzz_targets/a3_budget_softmax.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "a10_evidence_record"
+path = "fuzz_targets/a10_evidence_record.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "a9_plan_selector"
+path = "fuzz_targets/a9_plan_selector.rs"
+test = false
+bench = false

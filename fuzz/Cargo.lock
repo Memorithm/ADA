@@ -10,6 +10,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-a10-evidence-schema"
+version = "0.1.0"
+
+[[package]]
 name = "ada-a2-k-first-v-late"
 version = "0.1.0"
 dependencies = [
@@ -21,6 +25,13 @@ dependencies = [
 [[package]]
 name = "ada-a2-real-v-trace"
 version = "0.1.0"
+
+[[package]]
+name = "ada-a3-certified-softmax"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+]
 
 [[package]]
 name = "ada-a4-entmax-bnb"
@@ -64,6 +75,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-a9-plan-selector"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+]
+
+[[package]]
 name = "ada-core"
 version = "0.1.0"
 
@@ -71,12 +89,20 @@ version = "0.1.0"
 name = "ada-fuzz"
 version = "0.0.0"
 dependencies = [
+ "ada-a10-evidence-schema",
  "ada-a2-real-v-trace",
+ "ada-a3-certified-softmax",
  "ada-a5-real-qk-trace",
+ "ada-a9-plan-selector",
  "ada-core",
+ "ada-ir",
  "ada-oracle",
  "libfuzzer-sys",
 ]
+
+[[package]]
+name = "ada-ir"
+version = "0.1.0"
 
 [[package]]
 name = "ada-oracle"
