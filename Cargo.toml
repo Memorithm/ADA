@@ -1,6 +1,11 @@
 [workspace]
 resolver = "3"
 members = [
+    "crates/ada-a1-neon",
+    "crates/ada-a10-evidence-schema",
+    "crates/ada-a9-plan-selector",
+    "crates/ada-ir",
+    "crates/ada-a3-certified-softmax",
     "crates/ada-a2-k-first-v-late",
     "crates/ada-a2-real-v-trace",
     "crates/ada-a4-entmax-bnb",
@@ -11,6 +16,7 @@ members = [
     "crates/ada-core",
     "crates/ada-oracle",
     "crates/ada-runner",
+    "crates/ada-search",
 ]
 
 [workspace.package]

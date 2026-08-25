@@ -1,13 +1,10 @@
 [package]
-name = "ada-oracle"
+name = "ada-a10-evidence-schema"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-
-[dependencies]
-ada-a1-neon = { path = "../ada-a1-neon" }
-ada-core = { path = "../ada-core" }
+publish = false
 
 [lints]
 workspace = true

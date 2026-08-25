@@ -1,12 +1,13 @@
 [package]
-name = "ada-oracle"
+name = "ada-search"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+publish = false
 
 [dependencies]
-ada-a1-neon = { path = "../ada-a1-neon" }
+ada-ir = { path = "../ada-ir" }
 ada-core = { path = "../ada-core" }
 
 [lints]

@@ -1,12 +1,12 @@
 [package]
-name = "ada-oracle"
+name = "ada-a9-plan-selector"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+publish = false
 
 [dependencies]
-ada-a1-neon = { path = "../ada-a1-neon" }
 ada-core = { path = "../ada-core" }
 
 [lints]
