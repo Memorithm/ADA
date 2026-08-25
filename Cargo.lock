@@ -81,6 +81,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-a9-dispatch"
+version = "0.1.0"
+dependencies = [
+ "ada-a4-entmax-bnb",
+ "ada-a4-qk-box",
+ "ada-a5-content-aware-bounds",
+ "ada-a5-hierarchical-bounds",
+ "ada-a5-real-qk-trace",
+ "ada-a9-plan-selector",
+ "ada-core",
+]
+
+[[package]]
 name = "ada-a9-plan-selector"
 version = "0.1.0"
 dependencies = [

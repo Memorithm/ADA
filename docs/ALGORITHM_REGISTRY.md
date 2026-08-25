@@ -10,7 +10,7 @@
 | ADA-A6 | Specialized tau solvers | RESEARCH |
 | ADA-A7 | Moment / composable Entmax | INVESTIGATE |
 | ADA-A8 | Attention recurrence program synthesis | E0-IR-AND-SEARCH-RESEARCH (`ada-ir` + `ada-search`) |
-| ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) |
+| ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) / E0-DISPATCH-PARITY (`ada-a9-dispatch`) |
 | ADA-A10 | Reproducible numerical oracle/certification | E0-SCHEMA-VALIDATOR (`ada-a10-evidence-schema`) |
 
 ## Status semantics
@@ -43,6 +43,21 @@
 - None of these statuses means production-qualified, novel, or adopted by FLAT-ATTENTION.
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
+
+## 2026-08-25 follow-up: fuzz coverage and end-to-end dispatch
+
+- Four new libFuzzer harnesses (60k smoke execs each, no crashes):
+  `ir_interpreter` (arbitrary programs must validate/interpret-finite or
+  fail closed with typed errors), `a3_budget_softmax` (certified results
+  respect their own bounds), `a10_evidence_record` (total validation),
+  `a9_plan_selector` (precedence table cross-checked against an independent
+  reimplementation).
+- `E0-DISPATCH-PARITY` (ADA-A9): the `ada-a9-dispatch` crate wires selector
+  to controllers end-to-end. Integration tests prove plan parity across
+  {dense, paged BnB, hierarchical, content-aware} on crossing workloads and
+  certified Dense fallback in the degenerate-magnitude regime; an
+  `e4_dispatch_replay` example replays frozen natural traces through the
+  dispatcher wherever the `.adaqk` artifact is available.
 
 ## 2026-08-25 hardening and research additions
 
