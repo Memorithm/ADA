@@ -2,7 +2,7 @@
 
 | ID | Mission | Current status |
 | --- | --- | --- |
-| ADA-A1 | Exact Online Softmax recurrence search | CPU-L2-QUALIFIED / GPU-Q4-DIRECT-MAPPINGS-REJECTED / NVIDIA-BACKEND-INVESTIGATE |
+| ADA-A1 | Exact Online Softmax recurrence search | CPU-L2-QUALIFIED / GPU-Q4-DIRECT-MAPPINGS-REJECTED / NVIDIA-TWO-PASS-PARITY-INVESTIGATED |
 | ADA-A2 | K-first / V-late staging and scheduling | E0-K-FIRST-V-LATE-CORRECTNESS / E1-NATURAL-LOGICAL-KV-ACCOUNTING-QUALIFIED / E2-THOR-PHYSICAL-V-LATE-QUALIFIED / E3A-NATURAL-GQA-UNIQUE-V-ROW-ACCOUNTING-QUALIFIED / E3B-NATURAL-GQA-V-OUTPUT-CORRECTNESS-QUALIFIED |
 | ADA-A3 | Certified error-budgeted Softmax | E0-CERTIFIED-BUDGET-CORRECTNESS (`ada-a3-certified-softmax`) |
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
@@ -44,6 +44,17 @@
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
 
+## 2026-08-25 follow-up 4: NVIDIA backend investigation
+
+- `NVIDIA-TWO-PASS-PARITY-INVESTIGATED` (ADA-A1): the sequential one-exp
+  recurrence remains GPU-incompatible, but a two-pass reformulation (grid
+  max -> elementwise expf + block reductions -> gemv epilogue) reproduces
+  the CPU float results on Thor sm=110 within ordinary f32 noise
+  (O <= 2.6e-07, LSE <= 1.9e-06 device-vs-host; same order as the float
+  host path's distance to an f64 reference). Source and captured run:
+  `investigations/a1-nvidia-backend/`, analysis in
+  `docs/NVIDIA_BACKEND_INVESTIGATION.md`. This is an investigation only -
+  no performance claim, no adoption decision.
 ## 2026-08-25 follow-up 3: A7 composable sparsemax prototype
 
 - `E0-COMPOSABLE-SPARSEMAX-RESEARCH` (ADA-A7): per-part sufficient
