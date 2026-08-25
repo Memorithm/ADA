@@ -153,3 +153,24 @@ HASH="$(sha256sum "${OUT}")"
 echo
 echo "${HASH}"
 echo "EVIDENCE=${OUT}"
+
+# A10 gate: bind the artifact to its provenance metadata and fail the protocol
+# if the sidecar does not satisfy the evidence schema. This runs AFTER the
+# artifact is written and hashed, so measurements are untouched.
+META="${OUT}.meta"
+cat > "${META}" <<EOF_META
+algorithm_id=ADA-A1
+host_fingerprint=thor-l2-${SHA:0:12}
+timestamp_utc=${STAMP}
+toolchain=$(rustc --version)
+git_commit=${SHA}
+sha256_evidence=$(printf '%s' "${HASH}" | awk '{print $1}')
+metric.process_repeats=${REPEATS}
+EOF_META
+
+if ! cargo run --quiet --release -p ada-a10-evidence-schema --bin a10-validate -- "${META}"; then
+    echo "error: ADA L2 evidence failed the A10 schema gate" >&2
+    rm -f "${META}"
+    exit 4
+fi
+echo "META=${META}"

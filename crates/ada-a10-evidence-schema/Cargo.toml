@@ -8,3 +8,7 @@ publish = false
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "a10-validate"
+path = "src/bin/validate.rs"

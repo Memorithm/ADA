@@ -52,6 +52,14 @@ Statuses are research administration only; they are not claims of novelty or fea
   respect their own bounds), `a10_evidence_record` (total validation),
   `a9_plan_selector` (precedence table cross-checked against an independent
   reimplementation).
+- IR text codec (A8): canonical s-expression pretty-printing
+  (`to_ir_text`) with a fail-closed parser (`from_ir_text`); constants are
+  exact `0x`-prefixed bit patterns so round trips are bit-preserving.
+  Round-trip and malformed-input tests included.
+- A10 CLI: `a10-validate` validates evidence metadata sidecars (`key=value`)
+  fail-closed — unknown/duplicate keys rejected, metrics must be finite —
+  and is now invoked by `scripts/thor_a1_l2.sh` as a post-artifact schema
+  gate (exit 4 on violation), leaving measurements untouched.
 - `E0-DISPATCH-PARITY` (ADA-A9): the `ada-a9-dispatch` crate wires selector
   to controllers end-to-end. Integration tests prove plan parity across
   {dense, paged BnB, hierarchical, content-aware} on crossing workloads and
