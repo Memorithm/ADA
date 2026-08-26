@@ -1,0 +1,54 @@
+{
+  "capture_id": "qwen3-e4-7372e74eb2a1-cb63a3689a88",
+  "device": "cpu",
+  "format": "ADAQK01\\0",
+  "format_version": 1,
+  "model_config": {
+    "head_dim": 128,
+    "num_attention_heads": 16,
+    "num_hidden_layers": 28,
+    "num_key_value_heads": 8,
+    "rope_parameters": {
+      "rope_theta": 1000000,
+      "rope_type": "default"
+    },
+    "rope_theta": 1000000.0,
+    "use_sliding_window": false
+  },
+  "model_id": "Qwen/Qwen3-0.6B",
+  "model_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+  "platform": "Linux-6.8.12-tegra-aarch64-with-glibc2.39",
+  "python": "3.12.3",
+  "record_count": 768,
+  "sample_count": 16,
+  "samples_jsonl": "/tmp/opencode/e4corpus/wikitext16.jsonl",
+  "samples_sha256": "7372e74eb2a1fd17be42134b95c433e48c931238234fe162931837bf666120aa",
+  "selection": {
+    "layers": [
+      0,
+      13,
+      27
+    ],
+    "max_tokens": 512,
+    "positions": [
+      63,
+      127,
+      255,
+      511
+    ],
+    "query_heads": [
+      0,
+      5,
+      10,
+      15
+    ]
+  },
+  "source_dtype": "bfloat16",
+  "tensor_stage": "attention_score_input",
+  "tokenizer_id": "Qwen/Qwen3-0.6B",
+  "tokenizer_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+  "torch": "2.10.0+cpu",
+  "trace_file": "/tmp/opencode/e4corpus/qwen3-e4-natural.adaqk",
+  "trace_sha256": "9e7eda5dd8cd513342c97af734a2770bc0e863b03fcf6723d8a54dc3a7c928d1",
+  "transformers": "5.13.0.dev0"
+}
