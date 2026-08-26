@@ -1,0 +1,13 @@
+dispatch_replay records=768 alpha=2 page_size=16 leaf_size=8
+record,plan,tokens,max_abs_O,max_abs_LSE
+0,dense,64,0.000e0,0.000e0
+128,dense,64,0.000e0,0.000e0
+256,dense,64,0.000e0,0.000e0
+384,dense,64,0.000e0,0.000e0
+512,dense,64,0.000e0,0.000e0
+640,dense,64,0.000e0,0.000e0
+767,content-aware,512,0.000e0,0.000e0
+=== PLAN DISTRIBUTION ===
+content-aware=384
+dense=384
+worst_abs_O=0.000e0 worst_abs_tau=0.000e0

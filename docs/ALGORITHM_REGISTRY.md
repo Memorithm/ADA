@@ -6,7 +6,7 @@
 | ADA-A2 | K-first / V-late staging and scheduling | E0-K-FIRST-V-LATE-CORRECTNESS / E1-NATURAL-LOGICAL-KV-ACCOUNTING-QUALIFIED / E2-THOR-PHYSICAL-V-LATE-QUALIFIED / E3A-NATURAL-GQA-UNIQUE-V-ROW-ACCOUNTING-QUALIFIED / E3B-NATURAL-GQA-V-OUTPUT-CORRECTNESS-QUALIFIED |
 | ADA-A3 | Certified error-budgeted Softmax | E0-CERTIFIED-BUDGET-CORRECTNESS (`ada-a3-certified-softmax`) |
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
-| ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED |
+| ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED / E5C-NATURAL-GEOMETRY-ABLATION-QUALIFIED |
 | ADA-A6 | Specialized tau solvers | E0-SPARSEMAX-SORTED-RESEARCH (`ada-a6-tau-solvers`) |
 | ADA-A7 | Moment / composable Entmax | E0-COMPOSABLE-SPARSEMAX-RESEARCH (`ada-a7-composable-entmax`) |
 | ADA-A8 | Attention recurrence program synthesis | E0-IR-AND-SEARCH-RESEARCH (`ada-ir` + `ada-search`) |
@@ -44,6 +44,27 @@
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
 
+## 2026-08-26 follow-up 5: natural-trace campaigns (E5c + A9 dispatch)
+
+The frozen `.adaqk` artifact was reconstructed from primary sources on this
+host: parquet re-downloaded at the immutable revision (SHA verified), JSONL
+rebuilt per the documented selection rule (16/16 samples verify to exactly
+512 Qwen3 tokens at the pinned tokenizer revision; byte-level JSONL
+serialization differs from the historical hash - cosmetic fields are not
+recorded in the protocol - and this is documented in PROVENANCE.md), then
+captured with the official adapter on CPU (768 records, trace SHA-256
+`9e7eda5d...`). The binary artifact is intentionally uncommitted.
+
+- `E5C-NATURAL-GEOMETRY-ABLATION-QUALIFIED` (ADA-A5): on all 768 natural
+  records, both geometries stay exact (dense support always loaded) and the
+  v2 PCA-cut/shrunk-ball geometry strictly dominates the historical one:
+  +11.0% token pruning at alpha 2.0 and +14.4% at alpha 1.5, winning 116/768
+  records at alpha 2.0 and never losing one. This overturns the E4-era
+  "ball wins 0/18,432" observation for the new ball formulation.
+- ADA-A9 dispatch validated end-to-end on the same natural slice:
+  selector chose dense/content-aware exactly as the size rules dictate and
+  dispatched distributions match the dense oracle bit-exactly at alpha 2.0
+  and within 9e-16 at alpha 1.5.
 ## 2026-08-25 follow-up 4: NVIDIA backend investigation
 
 - `NVIDIA-TWO-PASS-PARITY-INVESTIGATED` (ADA-A1): the sequential one-exp
