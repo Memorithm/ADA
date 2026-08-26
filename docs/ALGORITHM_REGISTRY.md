@@ -2,15 +2,15 @@
 
 | ID | Mission | Current status |
 | --- | --- | --- |
-| ADA-A1 | Exact Online Softmax recurrence search | CPU-L2-QUALIFIED / GPU-Q4-DIRECT-MAPPINGS-REJECTED / NVIDIA-BACKEND-INVESTIGATE |
+| ADA-A1 | Exact Online Softmax recurrence search | CPU-L2-QUALIFIED / GPU-Q4-DIRECT-MAPPINGS-REJECTED / NVIDIA-TWO-PASS-PARITY-INVESTIGATED |
 | ADA-A2 | K-first / V-late staging and scheduling | E0-K-FIRST-V-LATE-CORRECTNESS / E1-NATURAL-LOGICAL-KV-ACCOUNTING-QUALIFIED / E2-THOR-PHYSICAL-V-LATE-QUALIFIED / E3A-NATURAL-GQA-UNIQUE-V-ROW-ACCOUNTING-QUALIFIED / E3B-NATURAL-GQA-V-OUTPUT-CORRECTNESS-QUALIFIED |
 | ADA-A3 | Certified error-budgeted Softmax | E0-CERTIFIED-BUDGET-CORRECTNESS (`ada-a3-certified-softmax`) |
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
 | ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED |
-| ADA-A6 | Specialized tau solvers | RESEARCH |
-| ADA-A7 | Moment / composable Entmax | INVESTIGATE |
+| ADA-A6 | Specialized tau solvers | E0-SPARSEMAX-SORTED-RESEARCH (`ada-a6-tau-solvers`) |
+| ADA-A7 | Moment / composable Entmax | E0-COMPOSABLE-SPARSEMAX-RESEARCH (`ada-a7-composable-entmax`) |
 | ADA-A8 | Attention recurrence program synthesis | E0-IR-AND-SEARCH-RESEARCH (`ada-ir` + `ada-search`) |
-| ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) |
+| ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) / E0-DISPATCH-PARITY (`ada-a9-dispatch`) |
 | ADA-A10 | Reproducible numerical oracle/certification | E0-SCHEMA-VALIDATOR (`ada-a10-evidence-schema`) |
 
 ## Status semantics
@@ -43,6 +43,64 @@
 - None of these statuses means production-qualified, novel, or adopted by FLAT-ATTENTION.
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
+
+## 2026-08-25 follow-up 4: NVIDIA backend investigation
+
+- `NVIDIA-TWO-PASS-PARITY-INVESTIGATED` (ADA-A1): the sequential one-exp
+  recurrence remains GPU-incompatible, but a two-pass reformulation (grid
+  max -> elementwise expf + block reductions -> gemv epilogue) reproduces
+  the CPU float results on Thor sm=110 within ordinary f32 noise
+  (O <= 2.6e-07, LSE <= 1.9e-06 device-vs-host; same order as the float
+  host path's distance to an f64 reference). Source and captured run:
+  `investigations/a1-nvidia-backend/`, analysis in
+  `docs/NVIDIA_BACKEND_INVESTIGATION.md`. This is an investigation only -
+  no performance claim, no adoption decision.
+## 2026-08-25 follow-up 3: A7 composable sparsemax prototype
+
+- `E0-COMPOSABLE-SPARSEMAX-RESEARCH` (ADA-A7): per-part sufficient
+  statistics (value -> multiplicity) compose by map merge, and solving the
+  merged summary reproduces the union distribution bit-for-bit versus a
+  direct solve. Exhaustive split-composition parity across all 3^n states
+  (n up to 5), tie/duplicate cases, and moment agreement with the A4 oracle.
+  Implementation note surfaced by testing: BTreeMap keys over `to_bits`
+  do NOT order signed floats; an explicit `total_cmp` sort is mandatory.
+  Order of reconstructed probabilities follows level order, not original
+  token order - partition bookkeeping must remap support externally.
+## 2026-08-25 follow-up 2: A6 candidate and E5c ablation harness
+
+- `E0-SPARSEMAX-SORTED-RESEARCH` (ADA-A6): sorted-projection sparsemax
+  (alpha = 2) as a specialized tau solver. Exhaustive parity against the
+  canonical bisection oracle over all 3^n score states up to n=6 plus wide
+  dynamics/tie cases; certified fallback to the A4 extreme semantics on
+  degenerate magnitudes; fail-closed on invalid inputs.
+- E5c geometry-ablation example (`e5c_geometry_survey`): replays either a
+  frozen natural trace or a deterministic synthetic grid, comparing legacy
+  pivot-diameter/mean-ball versus PCA-cut/shrunk-ball pruning fractions under
+  an exactness gate (dense support must be loaded). First synthetic run:
+  both geometries exact, identical pruning on strongly separated workloads;
+  the natural-slice measurement awaits the `.adaqk` artifact.
+## 2026-08-25 follow-up: fuzz coverage and end-to-end dispatch
+
+- Four new libFuzzer harnesses (60k smoke execs each, no crashes):
+  `ir_interpreter` (arbitrary programs must validate/interpret-finite or
+  fail closed with typed errors), `a3_budget_softmax` (certified results
+  respect their own bounds), `a10_evidence_record` (total validation),
+  `a9_plan_selector` (precedence table cross-checked against an independent
+  reimplementation).
+- IR text codec (A8): canonical s-expression pretty-printing
+  (`to_ir_text`) with a fail-closed parser (`from_ir_text`); constants are
+  exact `0x`-prefixed bit patterns so round trips are bit-preserving.
+  Round-trip and malformed-input tests included.
+- A10 CLI: `a10-validate` validates evidence metadata sidecars (`key=value`)
+  fail-closed — unknown/duplicate keys rejected, metrics must be finite —
+  and is now invoked by `scripts/thor_a1_l2.sh` as a post-artifact schema
+  gate (exit 4 on violation), leaving measurements untouched.
+- `E0-DISPATCH-PARITY` (ADA-A9): the `ada-a9-dispatch` crate wires selector
+  to controllers end-to-end. Integration tests prove plan parity across
+  {dense, paged BnB, hierarchical, content-aware} on crossing workloads and
+  certified Dense fallback in the degenerate-magnitude regime; an
+  `e4_dispatch_replay` example replays frozen natural traces through the
+  dispatcher wherever the `.adaqk` artifact is available.
 
 ## 2026-08-25 hardening and research additions
 
