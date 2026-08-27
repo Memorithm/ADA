@@ -6,6 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 publish = false
 
+[dependencies]
+ada-core = { path = "../ada-core" }
+ada-workload = { path = "../ada-workload" }
+
 [lints]
 workspace = true
 

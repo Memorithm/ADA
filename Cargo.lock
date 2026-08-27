@@ -12,6 +12,10 @@ dependencies = [
 [[package]]
 name = "ada-a10-evidence-schema"
 version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-workload",
+]
 
 [[package]]
 name = "ada-a11-semantic-oracle"

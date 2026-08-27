@@ -1,14 +1,22 @@
 //! ADA-A10: offline schema validation for ADA evidence records.
 //!
-//! The evidence protocol (see `scripts/thor_a1_l2.sh`) records SHA-256
-//! bindings between a git commit and measured artifacts. This crate gives the
-//! workspace a dependency-free, fail-closed validator so any tool (human or
-//! automated) can check that an evidence file's metadata is structurally
-//! sound before trusting its numbers.
+//! The historical hardware evidence protocol (see `scripts/thor_a1_l2.sh`)
+//! records SHA-256 bindings between a git commit and measured artifacts. A10
+//! keeps that validator intact and also hosts the versioned A11 semantic
+//! evidence interchange used to bind external mechanistic evidence to explicit
+//! semantic/workload identities.
 
 #![forbid(unsafe_code)]
 
-/// One structured evidence record.
+mod semantic;
+
+pub use semantic::{
+    EvidenceWorkloadFingerprint, MAX_EVIDENCE_IDENTIFIER_BYTES, MAX_SEMANTIC_EVIDENCE_BYTES,
+    MAX_SUMMARY_METRICS, SEMANTIC_EVIDENCE_HEADER, SEMANTIC_EVIDENCE_VERSION,
+    SemanticEvidenceError, SemanticEvidenceRecord, SemanticEvidenceSpec,
+};
+
+/// One structured historical hardware evidence record.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EvidenceRecord {
     /// Algorithm identifier, e.g. `ADA-A1` or `ADA-A4-ENTMAX`.
