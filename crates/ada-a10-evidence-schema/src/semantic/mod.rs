@@ -6,9 +6,7 @@
 //! harnesses and later producers can bind evidence to the same ADA semantic and
 //! workload without becoming dependencies of `ada-core`.
 
-use ada_core::{
-    DiagnosticEvidenceKind, DiagnosticEvidenceRef, SemanticContractError, SemanticId,
-};
+use ada_core::{DiagnosticEvidenceKind, DiagnosticEvidenceRef, SemanticContractError, SemanticId};
 use ada_workload::{WorkloadContract, WorkloadFingerprint};
 
 mod canonical;
