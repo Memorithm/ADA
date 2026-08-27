@@ -3,9 +3,9 @@
 mod semantic;
 
 pub use semantic::{
-    DiagnosticEvidenceKind, DiagnosticEvidenceRef, FlatGraduationRecord,
-    ImplementationCandidateId, MaskContract, QualificationVerdict, SemanticContractError,
-    SemanticDescriptor, SemanticFamily, SemanticId, StateContract, WeightContract,
+    DiagnosticEvidenceKind, DiagnosticEvidenceRef, FlatGraduationRecord, ImplementationCandidateId,
+    MaskContract, QualificationVerdict, SemanticContractError, SemanticDescriptor, SemanticFamily,
+    SemanticId, StateContract, WeightContract,
 };
 
 /// Logical algorithmic work. These fields are deliberately not hardware
