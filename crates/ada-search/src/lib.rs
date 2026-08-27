@@ -9,9 +9,20 @@
 
 #![forbid(unsafe_code)]
 
+mod checkpoint;
+mod enumerator;
+
 use ada_core::AttentionCase;
 use ada_ir::{
     BinaryOp, CompareOp, Interpreter, Program, ReduceOp, ScalarExpr, Statement, VectorExpr,
+};
+
+pub use enumerator::{
+    MAX_CHECKPOINT_CANDIDATE_BYTES, MAX_CHECKPOINT_SEEN, MAX_CHECKPOINT_TEXT_BYTES,
+    MAX_PROGRAM_COST, MAX_SEARCH_ALTERNATIVES, MAX_SEARCH_EXPANSIONS, MAX_SEARCH_SPACE_CARDINALITY,
+    SEARCH_CHECKPOINT_VERSION, SEARCH_SPACE_VERSION, SearchBudget, SearchCandidate,
+    SearchCheckpoint, SearchEngine, SearchError, SearchFingerprint, SearchSpace, SearchStats,
+    SemanticSearchConfig, SemanticSearchSpace,
 };
 
 /// One searched candidate: its program plus verified deviation metrics.

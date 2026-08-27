@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 ada-ir = { path = "../ada-ir" }
 ada-core = { path = "../ada-core" }
+ada-semantic = { path = "../ada-semantic" }
 
 [lints]
 workspace = true

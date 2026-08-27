@@ -5,14 +5,16 @@ when the repository has an executable, validated, tested path for it. A field
 in the workload contract is not, by itself, an oracle, a searchable semantic,
 or hardware evidence.
 
-The current slices add versioned geometry and experiment-mode metadata plus a
-small executable semantic IR. The semantic reference path currently covers
-single-batch, single-head, explicit-Q/K/V, full-KV, row-major f64 reference
-execution for scaled dot products, masking, bounded selection, softmax or
-signed weighting, and weighted value mixing. It does not turn any declared
-low-precision, latent-KV, recurrent, paged, or distributed field into an
-implementation, and it does not add implementation schedules to the semantic
-identity.
+The current slices add versioned geometry and experiment-mode metadata, a
+small executable semantic IR, and a bounded cost-ordered semantic generator
+with canonical deduplication and checkpoint/resume. The semantic reference
+path currently covers single-batch, single-head, explicit-Q/K/V, full-KV,
+row-major f64 reference execution for scaled dot products, masking, bounded
+selection, softmax or signed weighting, and weighted value mixing. Generation
+still performs no oracle qualification or novelty review. It does not turn
+any declared low-precision, latent-KV, recurrent, paged, or distributed field
+into an implementation, and it does not add implementation schedules to the
+semantic identity.
 
 | Research family | Semantic | Reference oracle | Searchable | Forward | Backward | Prefill | Decode | GQA/MQA | Paged KV | Low precision | Distributed | Hardware evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -50,7 +52,7 @@ The next layers are intentionally separate:
             ↓
     executable semantic IR
             ↓
-    bounded search / CEGIS / oracle
+    CEGIS / oracle / differential evidence
             ↓
     implementation + schedule/memory IR
             ↓
