@@ -36,11 +36,8 @@ pub const TOKEN_COUNT: usize = 3;
 ///
 /// The fixture is intentionally not represented as Q/K + softmax. The workload
 /// contract records it as a named precomputed interaction rule.
-pub const MIXER: [[f64; TOKEN_COUNT]; TOKEN_COUNT] = [
-    [0.5, 0.5, 0.0],
-    [0.25, 0.5, 0.25],
-    [0.0, 0.5, 0.5],
-];
+pub const MIXER: [[f64; TOKEN_COUNT]; TOKEN_COUNT] =
+    [[0.5, 0.5, 0.0], [0.25, 0.5, 0.25], [0.0, 0.5, 0.5]];
 
 /// Finite scalar sequence state for the deterministic E1 evaluator.
 #[derive(Debug, Clone, Copy, PartialEq)]
