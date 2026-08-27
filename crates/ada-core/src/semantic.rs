@@ -70,9 +70,7 @@ fn validate_name(name: &str) -> Result<(), SemanticContractError> {
     }
 
     let valid = name.bytes().all(|byte| {
-        byte.is_ascii_lowercase()
-            || byte.is_ascii_digit()
-            || matches!(byte, b'-' | b'_' | b'.')
+        byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'_' | b'.')
     });
     if !valid {
         return Err(SemanticContractError::InvalidName);
@@ -404,10 +402,10 @@ mod tests {
         let signed = SemanticId::new(SemanticFamily::DifferentialSigned, "signed-difference", 1)
             .expect("valid semantic");
 
-        let softmax_impl = ImplementationCandidateId::new(softmax, "reference", 1)
-            .expect("valid implementation");
-        let signed_impl = ImplementationCandidateId::new(signed, "reference", 1)
-            .expect("valid implementation");
+        let softmax_impl =
+            ImplementationCandidateId::new(softmax, "reference", 1).expect("valid implementation");
+        let signed_impl =
+            ImplementationCandidateId::new(signed, "reference", 1).expect("valid implementation");
 
         assert_ne!(softmax_impl.semantic(), signed_impl.semantic());
     }
