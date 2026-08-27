@@ -121,10 +121,7 @@ impl SemanticEvidenceRecord {
             semantic,
             workload,
             kind: parse_evidence_kind(field("evidence_kind")?)?,
-            producer_repository: hex_decode(
-                "producer_repository",
-                field("producer_repository")?,
-            )?,
+            producer_repository: hex_decode("producer_repository", field("producer_repository")?)?,
             producer_revision: field("producer_revision")?.to_string(),
             artifact_identity: hex_decode("artifact_identity", field("artifact_identity")?)?,
             intervention_identity: parse_optional_hex_identifier(
@@ -151,11 +148,7 @@ fn append_field(text: &mut String, key: &str, value: &str) {
 
 fn append_metrics(text: &mut String, metrics: &[(String, f64)]) {
     for (index, (name, value)) in metrics.iter().enumerate() {
-        append_field(
-            text,
-            &format!("metric_{index}_name"),
-            &hex_encode(name),
-        );
+        append_field(text, &format!("metric_{index}_name"), &hex_encode(name));
         append_field(
             text,
             &format!("metric_{index}_bits"),
@@ -185,9 +178,7 @@ fn parse_fields(text: &str) -> Result<FieldMap<'_>, SemanticEvidenceError> {
                 "field is missing '='".into(),
             ));
         };
-        if key.is_empty()
-            || value.contains('=')
-            || fields.insert(key.to_string(), value).is_some()
+        if key.is_empty() || value.contains('=') || fields.insert(key.to_string(), value).is_some()
         {
             return Err(SemanticEvidenceError::MalformedCanonicalText(
                 "empty, duplicate, or ambiguous field".into(),
