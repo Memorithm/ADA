@@ -152,6 +152,15 @@ version = "0.1.0"
 dependencies = [
  "ada-core",
  "ada-ir",
+ "ada-semantic",
+]
+
+[[package]]
+name = "ada-semantic"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-workload",
 ]
 
 [[package]]
