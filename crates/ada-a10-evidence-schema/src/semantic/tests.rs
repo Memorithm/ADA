@@ -1,8 +1,8 @@
 use ada_core::{DiagnosticEvidenceKind, SemanticFamily, SemanticId};
 use ada_workload::{
-    AttentionGeometry, AttentionTopology, GeometrySpec, HeadGrouping, InputRepresentation, MaskKind,
-    MaskSpec, PrecisionPolicy, ScalarPrecision, SequenceLengths, StateSpec, WorkloadContract,
-    WorkloadMode, WorkloadOptions,
+    AttentionGeometry, AttentionTopology, GeometrySpec, HeadGrouping, InputRepresentation,
+    MaskKind, MaskSpec, PrecisionPolicy, ScalarPrecision, SequenceLengths, StateSpec,
+    WorkloadContract, WorkloadMode, WorkloadOptions,
 };
 
 use super::{
