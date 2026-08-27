@@ -25,6 +25,9 @@ The first bench is intentionally CPU/reference-only. GPU kernels and FLAT integr
 - `crates/ada-core` — shared contracts and logical operation metrics.
 - `crates/ada-oracle` — deterministic reference implementations and candidate algorithms.
 - `crates/ada-runner` — reproducible local benchmark/falsification runner.
+- `crates/ada-search` — historical A8 recurrence fixtures plus bounded,
+  cost-ordered semantic generation, canonical deduplication, statistics, and
+  checkpoint/resume infrastructure.
 - `crates/ada-workload` — versioned, validated geometry and experiment-mode
   contracts, with an explicit adapter for historical A1 fixtures.
 - `crates/ada-semantic` — bounded executable semantic programs with an
