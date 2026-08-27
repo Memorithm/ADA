@@ -27,6 +27,9 @@ The first bench is intentionally CPU/reference-only. GPU kernels and FLAT integr
 - `crates/ada-runner` — reproducible local benchmark/falsification runner.
 - `crates/ada-workload` — versioned, validated geometry and experiment-mode
   contracts, with an explicit adapter for historical A1 fixtures.
+- `crates/ada-semantic` — bounded executable semantic programs with an
+  independent f64 reference evaluator, canonical text, and stable identity
+  fingerprints.
 - `docs/ADA_SPEC.md` — architecture and research invariants.
 - `docs/RESEARCH_PROTOCOL.md` — evidence and promotion rules.
 - `docs/ALGORITHM_REGISTRY.md` — ADA-A1…A10 mission registry.
