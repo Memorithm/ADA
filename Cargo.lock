@@ -145,3 +145,10 @@ dependencies = [
  "ada-core",
  "ada-ir",
 ]
+
+[[package]]
+name = "ada-workload"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+]
