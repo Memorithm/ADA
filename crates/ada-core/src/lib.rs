@@ -1,5 +1,13 @@
 #![forbid(unsafe_code)]
 
+mod semantic;
+
+pub use semantic::{
+    DiagnosticEvidenceKind, DiagnosticEvidenceRef, FlatGraduationRecord,
+    ImplementationCandidateId, MaskContract, QualificationVerdict, SemanticContractError,
+    SemanticDescriptor, SemanticFamily, SemanticId, StateContract, WeightContract,
+};
+
 /// Logical algorithmic work. These fields are deliberately not hardware
 /// instruction or bandwidth counters.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
