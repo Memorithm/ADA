@@ -17,7 +17,10 @@ re-tests prior survivors, and retains candidate/counterexample artifacts. The
 semantic reference path and CEGIS runner still make no novelty or hardware
 claim. They do not turn any declared low-precision, latent-KV, recurrent,
 paged, or distributed field into an implementation, and they do not add
-implementation schedules to semantic identity.
+implementation schedules to semantic identity. The objective layer now stores
+typed, independently directed dimensions and a bounded Pareto decision log;
+it does not collapse them into a scalar score or turn estimates into
+measurements.
 
 | Research family | Semantic | Reference oracle | Searchable | Forward | Backward | Prefill | Decode | GQA/MQA | Paged KV | Low precision | Distributed | Hardware evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -56,6 +59,8 @@ The next layers are intentionally separate:
     executable semantic IR
             ↓
     bounded search + CEGIS / oracle / differential evidence
+            ↓
+    objective vectors / Pareto archive
             ↓
     implementation + schedule/memory IR
             ↓

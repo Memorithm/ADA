@@ -23,6 +23,7 @@ members = [
     "crates/ada-workload",
     "crates/ada-semantic",
     "crates/ada-cegis",
+    "crates/ada-objective",
 ]
 
 [workspace.package]

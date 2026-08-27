@@ -132,6 +132,10 @@ name = "ada-ir"
 version = "0.1.0"
 
 [[package]]
+name = "ada-objective"
+version = "0.1.0"
+
+[[package]]
 name = "ada-oracle"
 version = "0.1.0"
 dependencies = [
