@@ -216,6 +216,18 @@ mod tests {
     use super::*;
     use ada_workload::{InputRepresentation, MaskKind, ScalarPrecision};
 
+    fn assert_state_bits(actual: &ScalarSequenceState, expected: &ScalarSequenceState) {
+        for (actual_value, expected_value) in actual.values().iter().zip(expected.values()) {
+            assert_eq!(actual_value.to_bits(), expected_value.to_bits());
+        }
+    }
+
+    fn assert_values_bits(actual: &[f64; TOKEN_COUNT], expected: [f64; TOKEN_COUNT]) {
+        for (actual_value, expected_value) in actual.iter().zip(expected) {
+            assert_eq!(actual_value.to_bits(), expected_value.to_bits());
+        }
+    }
+
     #[test]
     fn semantic_and_implementation_identities_are_separate_but_bound() {
         let semantic = semantic_descriptor().expect("hard-coded semantic identity is valid");
@@ -261,14 +273,15 @@ mod tests {
     fn mixer_rows_are_probability_simplex_rows() {
         for row in MIXER {
             assert!(row.iter().all(|value| value.is_finite() && *value >= 0.0));
-            assert_eq!(row.iter().sum::<f64>(), 1.0);
+            assert_eq!(row.iter().sum::<f64>().to_bits(), 1.0_f64.to_bits());
         }
     }
 
     #[test]
     fn constant_mode_is_invariant_under_row_stochastic_mixing() {
         let constant = ScalarSequenceState::new([2.0, 2.0, 2.0]).expect("finite fixture");
-        assert_eq!(advance(&constant).expect("finite output"), constant);
+        let advanced = advance(&constant).expect("finite output");
+        assert_state_bits(&advanced, &constant);
     }
 
     #[test]
@@ -276,32 +289,28 @@ mod tests {
         let seed = antisymmetric_seed();
         for horizon in 0..=16 {
             let evaluated = advance_horizon(&seed, horizon).expect("dyadic fixture remains finite");
-            assert_eq!(evaluated, antisymmetric_oracle(horizon));
+            let expected = antisymmetric_oracle(horizon);
+            assert_state_bits(&evaluated, &expected);
         }
     }
 
     #[test]
     fn first_three_downstream_states_match_gate_b_fixture() {
         let seed = antisymmetric_seed();
-        assert_eq!(
-            advance_horizon(&seed, 1).expect("finite output").values(),
-            &[0.5, 0.0, -0.5]
-        );
-        assert_eq!(
-            advance_horizon(&seed, 2).expect("finite output").values(),
-            &[0.25, 0.0, -0.25]
-        );
-        assert_eq!(
-            advance_horizon(&seed, 3).expect("finite output").values(),
-            &[0.125, 0.0, -0.125]
-        );
+        let first = advance_horizon(&seed, 1).expect("finite output");
+        let second = advance_horizon(&seed, 2).expect("finite output");
+        let third = advance_horizon(&seed, 3).expect("finite output");
+
+        assert_values_bits(first.values(), [0.5, 0.0, -0.5]);
+        assert_values_bits(second.values(), [0.25, 0.0, -0.25]);
+        assert_values_bits(third.values(), [0.125, 0.0, -0.125]);
     }
 
     #[test]
     fn non_finite_state_fails_closed() {
-        assert_eq!(
+        assert!(matches!(
             ScalarSequenceState::new([0.0, f64::INFINITY, 0.0]),
             Err(StateError::NonFinite { index: 1 })
-        );
+        ));
     }
 }
