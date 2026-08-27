@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "crates/ada-a1-neon",
     "crates/ada-a10-evidence-schema",
+    "crates/ada-a11-semantic-oracle",
     "crates/ada-a7-composable-entmax",
     "crates/ada-a6-tau-solvers",
     "crates/ada-a9-dispatch",
