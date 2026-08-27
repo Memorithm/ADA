@@ -147,6 +147,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-semantic"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-workload",
+]
+
+[[package]]
 name = "ada-workload"
 version = "0.1.0"
 dependencies = [

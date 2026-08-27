@@ -5,10 +5,14 @@ when the repository has an executable, validated, tested path for it. A field
 in the workload contract is not, by itself, an oracle, a searchable semantic,
 or hardware evidence.
 
-The current ada-workload slice adds versioned geometry and experiment-mode
-metadata. It does not extend the A8 executable grammar and it does not turn
-any declared low-precision, latent-KV, recurrent, paged, or distributed field
-into an implementation.
+The current slices add versioned geometry and experiment-mode metadata plus a
+small executable semantic IR. The semantic reference path currently covers
+single-batch, single-head, explicit-Q/K/V, full-KV, row-major f64 reference
+execution for scaled dot products, masking, bounded selection, softmax or
+signed weighting, and weighted value mixing. It does not turn any declared
+low-precision, latent-KV, recurrent, paged, or distributed field into an
+implementation, and it does not add implementation schedules to the semantic
+identity.
 
 | Research family | Semantic | Reference oracle | Searchable | Forward | Backward | Prefill | Decode | GQA/MQA | Paged KV | Low precision | Distributed | Hardware evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -27,8 +31,9 @@ into an implementation.
 
 ## Interpretation
 
-- partial means that a bounded contract or historical fixture exists, but the
-  complete executable/reference/search/evidence path is not present.
+- partial means that a bounded contract, executable semantic/reference slice,
+  or historical fixture exists, but the complete family-specific
+  executable/reference/search/evidence path is not present.
 - L1 means existing ADA evidence or source-level investigation, not a general
   hardware qualification. It does not imply a speedup for any unmeasured
   device or workload.
