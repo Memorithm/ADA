@@ -271,6 +271,16 @@ impl SearchFingerprint {
         }
     }
 
+    /// Compute a stable fingerprint for a canonical text representation.
+    ///
+    /// This constructor lets downstream search-space implementations use the
+    /// same identity contract without depending on the internal hashing
+    /// implementation.
+    #[must_use]
+    pub fn of_canonical_text(text: &str) -> Self {
+        Self::of_bytes(text.as_bytes())
+    }
+
     pub(crate) const fn from_parts(primary: u64, secondary: u64, length: u64) -> Self {
         Self {
             primary,
@@ -309,7 +319,7 @@ impl Display for SearchFingerprint {
 }
 
 /// A generated candidate with all information required for inspection.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SearchCandidate<T> {
     candidate: T,
     ordinal: u64,
