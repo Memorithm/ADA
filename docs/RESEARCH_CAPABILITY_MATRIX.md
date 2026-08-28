@@ -16,11 +16,18 @@ fixtures, asks a caller-owned adversarial generator for bounded fixtures,
 re-tests prior survivors, and retains candidate/counterexample artifacts. The
 semantic reference path and CEGIS runner still make no novelty or hardware
 claim. They do not turn any declared low-precision, latent-KV, recurrent,
-paged, or distributed field into an implementation, and they do not add
-implementation schedules to semantic identity. The objective layer now stores
-typed, independently directed dimensions and a bounded Pareto decision log;
-it does not collapse them into a scalar score or turn estimates into
+paged, or distributed field into an implementation. The objective layer now
+stores typed, independently directed dimensions and a bounded Pareto decision
+log; it does not collapse them into a scalar score or turn estimates into
 measurements.
+
+A separate backend-neutral implementation IR now represents algorithmic
+realization, tiling, work partitioning, reduction topology, exponential
+strategy, pipeline stages, vector width, buffering, memory placement,
+workspace, alignment, and optional KV-page geometry. Those choices are bound
+to an `ImplementationCandidateId` and remain outside `SemanticId`. This is a
+representation/identity capability only: no backend compiler or measured
+speedup is implied by the existence of a schedule.
 
 | Research family | Semantic | Reference oracle | Searchable | Forward | Backward | Prefill | Decode | GQA/MQA | Paged KV | Low precision | Distributed | Hardware evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -37,6 +44,22 @@ measurements.
 | Low-precision attention | partial | no | no | no | no | partial | partial | no | no | partial | no | none |
 | Distributed / ring-style block attention | no | no | no | no | no | no | no | no | no | no | partial | none |
 
+## Infrastructure capability
+
+| Infrastructure layer | Status | Boundary |
+| --- | --- | --- |
+| Semantic identity | yes | semantic identity is independent from implementation/evidence |
+| Workload contract | yes | broad metadata contract; not every declared mode is executable |
+| Executable semantic IR | partial | bounded f64 single-batch/single-head reference domain |
+| Deterministic semantic search | yes | bounded generation/dedup/checkpoint; survival is not qualification |
+| CEGIS / retained counterexamples | yes | bounded differential/adversarial orchestration; no proof claim |
+| Multi-objective/Pareto archive | yes | typed dimensions; no hidden scalar weighting |
+| Implementation identity | yes | multiple implementation candidates may share one semantic |
+| Implementation/schedule/memory IR | yes | representation only; no backend lowering or performance claim |
+| Backend compiler/lowering | no | no general CUDA/Triton/CuTe/WGSL lowering |
+| General hardware cost calibration | no | estimates and measurements remain separate |
+| FLAT graduation automation | no | reference-semantic promotion remains a later explicit gate |
+
 ## Interpretation
 
 - partial means that a bounded contract, executable semantic/reference slice,
@@ -52,7 +75,7 @@ measurements.
 
 ## Current boundary
 
-The next layers are intentionally separate:
+The layers are intentionally separate:
 
     validated workload geometry
             ↓
@@ -64,8 +87,15 @@ The next layers are intentionally separate:
             ↓
     implementation + schedule/memory IR
             ↓
-    measured backend evidence
+    backend lowering / measured backend evidence
 
-Adding an enum or metadata field must not move a row to yes. The row changes
-only when the corresponding reference evaluator, validation tests, and
-evidence protocol exist.
+The next major infrastructure gate is a lowering/cost-model boundary that can
+consume the implementation IR without embedding device state or benchmark
+numbers into semantic identity. Family-specific executable work (sparse,
+latent-KV, recurrent, low precision, backward, distributed) remains separate
+and must not be marked complete because the implementation IR can represent a
+related schedule field.
+
+Adding an enum or metadata field must not move a research-family row to yes.
+The row changes only when the corresponding reference evaluator, validation
+tests, and evidence protocol exist.
