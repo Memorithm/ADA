@@ -128,6 +128,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-backward"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-semantic",
+]
+
+[[package]]
+name = "ada-cache-reference"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-semantic",
+ "ada-workload",
+]
+
+[[package]]
 name = "ada-cegis"
 version = "0.1.0"
 dependencies = [
@@ -147,6 +164,35 @@ dependencies = [
  "ada-core",
  "ada-implementation",
  "ada-objective",
+ "ada-workload",
+]
+
+[[package]]
+name = "ada-equivalence"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-semantic",
+ "ada-workload",
+]
+
+[[package]]
+name = "ada-experiment"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-implementation",
+ "ada-objective",
+ "ada-semantic",
+ "ada-workload",
+]
+
+[[package]]
+name = "ada-gradient"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-semantic",
  "ada-workload",
 ]
 
@@ -240,6 +286,16 @@ name = "ada-semantic"
 version = "0.1.0"
 dependencies = [
  "ada-core",
+ "ada-workload",
+]
+
+[[package]]
+name = "ada-trace"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-implementation",
+ "ada-semantic",
  "ada-workload",
 ]
 
