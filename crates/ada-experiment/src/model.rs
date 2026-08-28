@@ -424,10 +424,7 @@ impl Display for ExperimentFingerprint {
     }
 }
 
-pub(crate) fn validate_identifier(
-    field: &'static str,
-    value: &str,
-) -> Result<(), ExperimentError> {
+pub(crate) fn validate_identifier(field: &'static str, value: &str) -> Result<(), ExperimentError> {
     if value.is_empty()
         || value.len() > MAX_IDENTIFIER_BYTES
         || value.chars().any(char::is_control)
