@@ -35,6 +35,7 @@ members = [
     "crates/ada-backward",
     "crates/ada-trace",
     "crates/ada-gradient",
+    "crates/ada-cache-reference",
 ]
 
 [workspace.package]
