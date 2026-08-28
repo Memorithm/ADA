@@ -249,30 +249,9 @@ pub fn estimate_cost(
     assumptions.validate()?;
     validate_supported_workload(workload)?;
 
-    let geometry = workload.geometry();
-    let qk_dimension = geometry
-        .qk_dimension()
-        .ok_or(CostModelError::Unsupported("missing Q/K dimension"))?;
-    let query_heads = to_u64(geometry.query_heads(), "query_heads")?;
-    let kv_heads = to_u64(geometry.kv_heads(), "kv_heads")?;
-    let value_dimension = to_u64(geometry.value_dimension(), "value_dimension")?;
-    let qk_dimension = to_u64(qk_dimension, "qk_dimension")?;
-    let q_tile = u64::from(implementation.schedule().tile.queries);
-    let kv_tile = u64::from(implementation.schedule().tile.keys);
-    let score_passes = u64::from(assumptions.score_passes);
-    let value_passes = u64::from(assumptions.value_passes);
-    let kv_head_reads = if assumptions.reuse_shared_kv_across_query_heads {
-        kv_heads
-    } else {
-        query_heads
-    };
-
-    let input_bits = precision_bits(workload.precision().input());
-    let storage_bits = precision_bits(workload.precision().storage());
-    let output_bits = precision_bits(workload.precision().output());
-
+    let dimensions = ModelDimensions::new(workload, implementation, assumptions)?;
+    let lengths = workload.geometry().sequence_lengths();
     let mut totals = RunningTotals::default();
-    let lengths = geometry.sequence_lengths();
     for batch in 0..lengths.batch_count() {
         let query_length = to_u64(
             lengths
@@ -286,81 +265,226 @@ pub fn estimate_cost(
                 .ok_or(CostModelError::ArithmeticOverflow("kv_length"))?,
             "kv_length",
         )?;
-        let query_tiles = query_length.div_ceil(q_tile);
-        let kv_tiles = kv_length.div_ceil(kv_tile);
-
-        let base_pairs = product(&[query_length, query_heads, kv_length], "score_pairs")?;
-        totals.score_pairs = checked_add(
-            totals.score_pairs,
-            checked_mul(base_pairs, score_passes, "score_pairs")?,
-            "score_pairs",
-        )?;
-
-        let base_value_elements = checked_mul(base_pairs, value_dimension, "value_elements")?;
-        totals.value_elements = checked_add(
-            totals.value_elements,
-            checked_mul(base_value_elements, value_passes, "value_elements")?,
-            "value_elements",
-        )?;
-
-        let output_elements = product(
-            &[query_length, query_heads, value_dimension],
-            "output_elements",
-        )?;
-        totals.output_elements =
-            checked_add(totals.output_elements, output_elements, "output_elements")?;
-
-        let q_elements = product(&[query_length, query_heads, qk_dimension], "query_elements")?;
-        let q_reloads = if assumptions.reload_query_per_kv_tile {
-            checked_mul(score_passes, kv_tiles, "query_reloads")?
-        } else {
-            score_passes
-        };
-        let q_read_bits = product(&[q_elements, q_reloads, input_bits], "query_read_bits")?;
-
-        let k_elements = product(&[kv_length, kv_head_reads, qk_dimension], "key_elements")?;
-        let k_read_bits = product(
-            &[k_elements, query_tiles, score_passes, storage_bits],
-            "key_read_bits",
-        )?;
-
-        let v_elements = product(
-            &[kv_length, kv_head_reads, value_dimension],
-            "value_source_elements",
-        )?;
-        let v_read_bits = product(
-            &[v_elements, query_tiles, value_passes, storage_bits],
-            "value_read_bits",
-        )?;
-        totals.read_bits = checked_add(
-            totals.read_bits,
-            checked_add(
-                q_read_bits,
-                checked_add(k_read_bits, v_read_bits, "kv_read_bits")?,
-                "input_read_bits",
-            )?,
-            "payload_read_bits",
-        )?;
-
-        let write_bits = checked_mul(output_elements, output_bits, "output_write_bits")?;
-        totals.write_bits = checked_add(totals.write_bits, write_bits, "payload_write_bits")?;
-
-        let logical_kv_elements = product(
-            &[
-                kv_length,
-                kv_heads,
-                checked_add(qk_dimension, value_dimension, "kv_dimensions")?,
-            ],
-            "kv_cache_elements",
-        )?;
-        let logical_kv_bits = checked_mul(logical_kv_elements, storage_bits, "kv_cache_bits")?;
-        totals.kv_payload_bits = checked_add(
-            totals.kv_payload_bits,
-            logical_kv_bits,
-            "kv_cache_payload_bits",
-        )?;
+        accumulate_batch(&mut totals, query_length, kv_length, dimensions)?;
     }
 
+    finish_report(workload, implementation, operations, totals)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ModelDimensions {
+    query_heads: u64,
+    kv_heads: u64,
+    value_dimension: u64,
+    qk_dimension: u64,
+    q_tile: u64,
+    kv_tile: u64,
+    score_passes: u64,
+    value_passes: u64,
+    kv_head_reads: u64,
+    input_bits: u64,
+    storage_bits: u64,
+    output_bits: u64,
+    reload_query_per_kv_tile: bool,
+}
+
+impl ModelDimensions {
+    fn new(
+        workload: &WorkloadContract,
+        implementation: &ImplementationPlan,
+        assumptions: CostAssumptions,
+    ) -> Result<Self, CostModelError> {
+        let geometry = workload.geometry();
+        let qk_dimension = geometry
+            .qk_dimension()
+            .ok_or(CostModelError::Unsupported("missing Q/K dimension"))?;
+        let query_heads = to_u64(geometry.query_heads(), "query_heads")?;
+        let kv_heads = to_u64(geometry.kv_heads(), "kv_heads")?;
+        let kv_head_reads = if assumptions.reuse_shared_kv_across_query_heads {
+            kv_heads
+        } else {
+            query_heads
+        };
+        Ok(Self {
+            query_heads,
+            kv_heads,
+            value_dimension: to_u64(geometry.value_dimension(), "value_dimension")?,
+            qk_dimension: to_u64(qk_dimension, "qk_dimension")?,
+            q_tile: u64::from(implementation.schedule().tile.queries),
+            kv_tile: u64::from(implementation.schedule().tile.keys),
+            score_passes: u64::from(assumptions.score_passes),
+            value_passes: u64::from(assumptions.value_passes),
+            kv_head_reads,
+            input_bits: precision_bits(workload.precision().input()),
+            storage_bits: precision_bits(workload.precision().storage()),
+            output_bits: precision_bits(workload.precision().output()),
+            reload_query_per_kv_tile: assumptions.reload_query_per_kv_tile,
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+struct RunningTotals {
+    score_pairs: u64,
+    value_elements: u64,
+    output_elements: u64,
+    read_bits: u64,
+    write_bits: u64,
+    kv_payload_bits: u64,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct PayloadBits {
+    read: u64,
+    write: u64,
+    kv_cache: u64,
+}
+
+fn accumulate_batch(
+    totals: &mut RunningTotals,
+    query_length: u64,
+    kv_length: u64,
+    dimensions: ModelDimensions,
+) -> Result<(), CostModelError> {
+    let base_pairs = product(
+        &[query_length, dimensions.query_heads, kv_length],
+        "score_pairs",
+    )?;
+    totals.score_pairs = checked_add(
+        totals.score_pairs,
+        checked_mul(base_pairs, dimensions.score_passes, "score_pairs")?,
+        "score_pairs",
+    )?;
+
+    let base_value_elements = checked_mul(
+        base_pairs,
+        dimensions.value_dimension,
+        "value_elements",
+    )?;
+    totals.value_elements = checked_add(
+        totals.value_elements,
+        checked_mul(
+            base_value_elements,
+            dimensions.value_passes,
+            "value_elements",
+        )?,
+        "value_elements",
+    )?;
+
+    let output_elements = product(
+        &[
+            query_length,
+            dimensions.query_heads,
+            dimensions.value_dimension,
+        ],
+        "output_elements",
+    )?;
+    totals.output_elements =
+        checked_add(totals.output_elements, output_elements, "output_elements")?;
+
+    let payload = payload_bits_for_batch(query_length, kv_length, output_elements, dimensions)?;
+    totals.read_bits = checked_add(totals.read_bits, payload.read, "payload_read_bits")?;
+    totals.write_bits = checked_add(totals.write_bits, payload.write, "payload_write_bits")?;
+    totals.kv_payload_bits = checked_add(
+        totals.kv_payload_bits,
+        payload.kv_cache,
+        "kv_cache_payload_bits",
+    )?;
+    Ok(())
+}
+
+fn payload_bits_for_batch(
+    query_length: u64,
+    kv_length: u64,
+    output_elements: u64,
+    dimensions: ModelDimensions,
+) -> Result<PayloadBits, CostModelError> {
+    let query_tiles = query_length.div_ceil(dimensions.q_tile);
+    let kv_tiles = kv_length.div_ceil(dimensions.kv_tile);
+    let q_elements = product(
+        &[
+            query_length,
+            dimensions.query_heads,
+            dimensions.qk_dimension,
+        ],
+        "query_elements",
+    )?;
+    let q_reloads = if dimensions.reload_query_per_kv_tile {
+        checked_mul(dimensions.score_passes, kv_tiles, "query_reloads")?
+    } else {
+        dimensions.score_passes
+    };
+    let q_read_bits = product(
+        &[q_elements, q_reloads, dimensions.input_bits],
+        "query_read_bits",
+    )?;
+
+    let k_elements = product(
+        &[
+            kv_length,
+            dimensions.kv_head_reads,
+            dimensions.qk_dimension,
+        ],
+        "key_elements",
+    )?;
+    let k_read_bits = product(
+        &[
+            k_elements,
+            query_tiles,
+            dimensions.score_passes,
+            dimensions.storage_bits,
+        ],
+        "key_read_bits",
+    )?;
+    let v_elements = product(
+        &[
+            kv_length,
+            dimensions.kv_head_reads,
+            dimensions.value_dimension,
+        ],
+        "value_source_elements",
+    )?;
+    let v_read_bits = product(
+        &[
+            v_elements,
+            query_tiles,
+            dimensions.value_passes,
+            dimensions.storage_bits,
+        ],
+        "value_read_bits",
+    )?;
+    let read = checked_add(
+        q_read_bits,
+        checked_add(k_read_bits, v_read_bits, "kv_read_bits")?,
+        "input_read_bits",
+    )?;
+    let write = checked_mul(output_elements, dimensions.output_bits, "output_write_bits")?;
+    let kv_elements = product(
+        &[
+            kv_length,
+            dimensions.kv_heads,
+            checked_add(
+                dimensions.qk_dimension,
+                dimensions.value_dimension,
+                "kv_dimensions",
+            )?,
+        ],
+        "kv_cache_elements",
+    )?;
+    let kv_cache = checked_mul(kv_elements, dimensions.storage_bits, "kv_cache_bits")?;
+    Ok(PayloadBits {
+        read,
+        write,
+        kv_cache,
+    })
+}
+
+fn finish_report(
+    workload: &WorkloadContract,
+    implementation: &ImplementationPlan,
+    operations: OperationProfile,
+    totals: RunningTotals,
+) -> Result<EstimatedCostReport, CostModelError> {
     let score_flops = checked_mul(
         totals.score_pairs,
         operations.score_flops_per_pair,
@@ -386,12 +510,8 @@ pub fn estimate_cost(
         operations.transcendentals_per_pair,
         "transcendentals",
     )?;
-    let reduction_operations = reduction_operations(implementation, totals.output_elements)?;
-    let logical_kv_cache_payload_bits = if matches!(workload.kv_cache(), KvCacheSpec::None) {
-        None
-    } else {
-        Some(totals.kv_payload_bits)
-    };
+    let logical_kv_cache_payload_bits = (!matches!(workload.kv_cache(), KvCacheSpec::None))
+        .then_some(totals.kv_payload_bits);
 
     Ok(EstimatedCostReport {
         score_pairs: totals.score_pairs,
@@ -399,22 +519,12 @@ pub fn estimate_cost(
         output_elements: totals.output_elements,
         logical_flops,
         transcendental_operations,
-        reduction_operations,
+        reduction_operations: reduction_operations(implementation, totals.output_elements)?,
         logical_payload_read_bits: totals.read_bits,
         logical_payload_write_bits: totals.write_bits,
         logical_kv_cache_payload_bits,
         workspace_bytes: implementation.memory().workspace_bytes,
     })
-}
-
-#[derive(Debug, Default, Clone, Copy)]
-struct RunningTotals {
-    score_pairs: u64,
-    value_elements: u64,
-    output_elements: u64,
-    read_bits: u64,
-    write_bits: u64,
-    kv_payload_bits: u64,
 }
 
 fn validate_supported_workload(workload: &WorkloadContract) -> Result<(), CostModelError> {
@@ -657,8 +767,10 @@ mod tests {
 
     #[test]
     fn unsupported_semantic_dependencies_fail_closed() {
-        let mut options = WorkloadOptions::default();
-        options.mask = MaskSpec::new(MaskKind::Causal).unwrap();
+        let options = WorkloadOptions {
+            mask: MaskSpec::new(MaskKind::Causal).unwrap(),
+            ..WorkloadOptions::default()
+        };
         let geometry = AttentionGeometry::new(GeometrySpec {
             sequence_lengths: SequenceLengths::uniform(1, 4, 4).unwrap(),
             query_heads: 1,
