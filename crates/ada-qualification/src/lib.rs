@@ -746,10 +746,8 @@ mod tests {
 
         let wrong_semantic =
             SemanticId::new(SemanticFamily::Experimental, "wrong-semantic", 1).unwrap();
-        let wrong_semantic_evidence = evidence_for(
-            wrong_semantic,
-            qualification.workload_fingerprint(),
-        );
+        let wrong_semantic_evidence =
+            evidence_for(wrong_semantic, qualification.workload_fingerprint());
         assert_eq!(
             qualification
                 .clone()
