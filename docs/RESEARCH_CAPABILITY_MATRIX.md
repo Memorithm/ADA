@@ -11,10 +11,16 @@ with canonical deduplication and checkpoint/resume. The semantic reference
 path currently covers single-batch, single-head, explicit-Q/K/V, full-KV,
 row-major f64 reference execution for scaled dot products, masking, bounded
 selection, softmax or signed weighting, and weighted value mixing. Generation
-still performs no oracle qualification or novelty review. It does not turn
-any declared low-precision, latent-KV, recurrent, paged, or distributed field
-into an implementation, and it does not add implementation schedules to the
-semantic identity.
+is now consumable by a bounded generic CEGIS runner that checks explicit seed
+fixtures, asks a caller-owned adversarial generator for bounded fixtures,
+re-tests prior survivors, and retains candidate/counterexample artifacts. The
+semantic reference path and CEGIS runner still make no novelty or hardware
+claim. They do not turn any declared low-precision, latent-KV, recurrent,
+paged, or distributed field into an implementation, and they do not add
+implementation schedules to semantic identity. The objective layer now stores
+typed, independently directed dimensions and a bounded Pareto decision log;
+it does not collapse them into a scalar score or turn estimates into
+measurements.
 
 | Research family | Semantic | Reference oracle | Searchable | Forward | Backward | Prefill | Decode | GQA/MQA | Paged KV | Low precision | Distributed | Hardware evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -52,7 +58,9 @@ The next layers are intentionally separate:
             ↓
     executable semantic IR
             ↓
-    CEGIS / oracle / differential evidence
+    bounded search + CEGIS / oracle / differential evidence
+            ↓
+    objective vectors / Pareto archive
             ↓
     implementation + schedule/memory IR
             ↓

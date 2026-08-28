@@ -127,11 +127,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-cegis"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-search",
+ "ada-semantic",
+]
+
+[[package]]
 name = "ada-core"
 version = "0.1.0"
 
 [[package]]
 name = "ada-ir"
+version = "0.1.0"
+
+[[package]]
+name = "ada-objective"
 version = "0.1.0"
 
 [[package]]

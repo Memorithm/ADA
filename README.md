@@ -33,6 +33,12 @@ The first bench is intentionally CPU/reference-only. GPU kernels and FLAT integr
 - `crates/ada-semantic` — bounded executable semantic programs with an
   independent f64 reference evaluator, canonical text, and stable identity
   fingerprints.
+- `crates/ada-cegis` — bounded CEGIS orchestration with deterministic fixture
+  checks, adversarial counterexample insertion, survivor re-evaluation, and
+  persisted rejection artifacts.
+- `crates/ada-objective` — typed multi-objective vectors and a deterministic
+  Pareto archive that keeps correctness, numerical, logical, estimated,
+  measured, and task-quality dimensions separate.
 - `docs/ADA_SPEC.md` — architecture and research invariants.
 - `docs/RESEARCH_PROTOCOL.md` — evidence and promotion rules.
 - `docs/ALGORITHM_REGISTRY.md` — ADA-A1…A10 mission registry.

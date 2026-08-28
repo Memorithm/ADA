@@ -1,0 +1,16 @@
+[package]
+name = "ada-cegis"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ada-search = { path = "../ada-search" }
+
+[dev-dependencies]
+ada-core = { path = "../ada-core" }
+ada-semantic = { path = "../ada-semantic" }
+
+[lints]
+workspace = true
