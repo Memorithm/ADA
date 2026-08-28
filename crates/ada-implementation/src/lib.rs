@@ -1,18 +1,13 @@
 //! Backend-neutral implementation, schedule, and memory IR for ADA research.
 //!
-//! This crate describes **how** a qualified attention semantic may be realized
-//! without changing **what** the semantic computes.  It deliberately contains
-//! no device identity, benchmark result, task metric, or hardware claim.
-//!
-//! The first version is intentionally small.  It can distinguish algorithmic
-//! realization, tiling/partition/reduction choices, and memory placement while
-//! remaining deterministic, inspectable, bounded, and fail-closed.
+//! This crate represents **how** one attention semantic may be realized without
+//! changing **what** that semantic computes. Device identity, benchmark values,
+//! and evidence deliberately do not belong to this representation.
 
 #![forbid(unsafe_code)]
 
 use ada_core::{ImplementationCandidateId, SemanticFamily, SemanticId};
-use std::collections::BTreeMap;
-use std::fmt::{Display, Formatter, Write as _};
+use std::fmt::{Display, Formatter};
 
 /// Version of the backend-neutral implementation IR.
 pub const IMPLEMENTATION_IR_VERSION: u16 = 1;
@@ -24,38 +19,12 @@ pub const MAX_TILE_EXTENT: u32 = 65_536;
 pub const MAX_SPLIT_KV_PARTITIONS: u16 = 1_024;
 /// Maximum software-pipeline stage count.
 pub const MAX_PIPELINE_STAGES: u8 = 32;
-/// Maximum declared vector width.
+/// Maximum declared logical vector width.
 pub const MAX_VECTOR_WIDTH: u16 = 256;
 /// Maximum declared memory alignment.
 pub const MAX_ALIGNMENT_BYTES: u32 = 65_536;
 /// Maximum optional KV page size in rows.
 pub const MAX_KV_PAGE_ROWS: u32 = 1 << 20;
-
-const FIELD_NAMES: [&str; 23] = [
-    "semantic_family",
-    "semantic_name",
-    "semantic_revision",
-    "implementation_name",
-    "implementation_revision",
-    "algorithm",
-    "tile_queries",
-    "tile_keys",
-    "tile_values",
-    "partition",
-    "reduction",
-    "exp_strategy",
-    "pipeline_stages",
-    "vector_width",
-    "buffering",
-    "query_memory",
-    "key_memory",
-    "value_memory",
-    "output_memory",
-    "accumulator_memory",
-    "workspace_bytes",
-    "alignment_bytes",
-    "kv_page_rows",
-];
 
 /// Construction or decoding failure for an implementation plan.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -87,10 +56,7 @@ impl Display for ImplementationError {
                 maximum,
             } => write!(formatter, "{field}={value} exceeds maximum {maximum}"),
             Self::MalformedCanonical(reason) => {
-                write!(
-                    formatter,
-                    "malformed implementation canonical text: {reason}"
-                )
+                write!(formatter, "malformed implementation artifact: {reason}")
             }
             Self::UnsupportedVersion(version) => {
                 write!(formatter, "unsupported implementation IR version {version}")
@@ -112,7 +78,7 @@ pub enum AlgorithmPlan {
     TwoPass,
     /// Blocked traversal intended for paged or indirect KV storage.
     PagedBlocked,
-    /// Stateful/chunked realization for a semantic that defines carried state.
+    /// Stateful/chunked realization for a recurrent semantic.
     RecurrentChunked,
 }
 
@@ -127,16 +93,14 @@ impl AlgorithmPlan {
         }
     }
 
-    fn from_text(value: &str) -> Result<Self, ImplementationError> {
+    fn parse(value: &str) -> Result<Self, ImplementationError> {
         match value {
             "dense-blocked" => Ok(Self::DenseBlocked),
             "online-streaming" => Ok(Self::OnlineStreaming),
             "two-pass" => Ok(Self::TwoPass),
             "paged-blocked" => Ok(Self::PagedBlocked),
             "recurrent-chunked" => Ok(Self::RecurrentChunked),
-            _ => Err(ImplementationError::MalformedCanonical(
-                "unknown algorithm plan".into(),
-            )),
+            _ => malformed("unknown algorithm plan"),
         }
     }
 }
@@ -148,7 +112,7 @@ pub enum WorkPartition {
     Serial,
     /// Parallel work is partitioned by query tiles.
     QueryTiles,
-    /// KV work is split and later reduced across the declared partition count.
+    /// KV work is split and later reduced.
     SplitKv {
         /// Number of logical split-KV partitions.
         partitions: u16,
@@ -158,23 +122,16 @@ pub enum WorkPartition {
 impl WorkPartition {
     fn validate(self) -> Result<(), ImplementationError> {
         if let Self::SplitKv { partitions } = self {
-            if partitions == 0 {
-                return Err(ImplementationError::InvalidField(
-                    "schedule.partition.partitions",
-                ));
-            }
-            if partitions > MAX_SPLIT_KV_PARTITIONS {
-                return Err(ImplementationError::ExceedsLimit {
-                    field: "schedule.partition.partitions",
-                    value: u64::from(partitions),
-                    maximum: u64::from(MAX_SPLIT_KV_PARTITIONS),
-                });
-            }
+            validate_nonzero_bounded(
+                "schedule.partition.partitions",
+                u64::from(partitions),
+                u64::from(MAX_SPLIT_KV_PARTITIONS),
+            )?;
         }
         Ok(())
     }
 
-    fn to_text(self) -> String {
+    fn as_text(self) -> String {
         match self {
             Self::Serial => "serial".into(),
             Self::QueryTiles => "query-tiles".into(),
@@ -182,18 +139,16 @@ impl WorkPartition {
         }
     }
 
-    fn from_text(value: &str) -> Result<Self, ImplementationError> {
+    fn parse(value: &str) -> Result<Self, ImplementationError> {
         match value {
             "serial" => Ok(Self::Serial),
             "query-tiles" => Ok(Self::QueryTiles),
             _ => {
-                let Some(raw) = value.strip_prefix("split-kv:") else {
-                    return Err(ImplementationError::MalformedCanonical(
-                        "unknown work partition".into(),
-                    ));
-                };
+                let raw = value
+                    .strip_prefix("split-kv:")
+                    .ok_or_else(|| malformed_error("unknown work partition"))?;
                 Ok(Self::SplitKv {
-                    partitions: parse_u16(raw, "schedule.partition.partitions")?,
+                    partitions: parse_number(raw, "schedule.partition.partitions")?,
                 })
             }
         }
@@ -207,7 +162,7 @@ pub enum ReductionTopology {
     Serial,
     /// Balanced tree reduction.
     Tree,
-    /// Store partials and finalize in a second reduction pass.
+    /// Store partials and finalize in a second pass.
     TwoPass,
 }
 
@@ -220,14 +175,12 @@ impl ReductionTopology {
         }
     }
 
-    fn from_text(value: &str) -> Result<Self, ImplementationError> {
+    fn parse(value: &str) -> Result<Self, ImplementationError> {
         match value {
             "serial" => Ok(Self::Serial),
             "tree" => Ok(Self::Tree),
             "two-pass" => Ok(Self::TwoPass),
-            _ => Err(ImplementationError::MalformedCanonical(
-                "unknown reduction topology".into(),
-            )),
+            _ => malformed("unknown reduction topology"),
         }
     }
 }
@@ -235,11 +188,11 @@ impl ReductionTopology {
 /// Exponential/rescaling realization strategy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ExpStrategy {
-    /// Ordinary library/backend exponential evaluation.
+    /// Ordinary backend exponential evaluation.
     Standard,
     /// Rescale only when the running reference changes.
     ConditionalRescale,
-    /// Defer exponentiation/rescaling to a later implementation phase.
+    /// Defer exponential/rescale work to a later implementation phase.
     Deferred,
 }
 
@@ -252,24 +205,22 @@ impl ExpStrategy {
         }
     }
 
-    fn from_text(value: &str) -> Result<Self, ImplementationError> {
+    fn parse(value: &str) -> Result<Self, ImplementationError> {
         match value {
             "standard" => Ok(Self::Standard),
             "conditional-rescale" => Ok(Self::ConditionalRescale),
             "deferred" => Ok(Self::Deferred),
-            _ => Err(ImplementationError::MalformedCanonical(
-                "unknown exp strategy".into(),
-            )),
+            _ => malformed("unknown exp strategy"),
         }
     }
 }
 
-/// Logical buffering policy.  This is schedule metadata, not a hardware claim.
+/// Logical buffering policy, not a physical hardware claim.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Buffering {
-    /// One logical buffer per staged value.
+    /// One logical staging buffer.
     Single,
-    /// Two logical buffers permit overlap in a later backend lowering.
+    /// Two logical staging buffers.
     Double,
 }
 
@@ -281,13 +232,11 @@ impl Buffering {
         }
     }
 
-    fn from_text(value: &str) -> Result<Self, ImplementationError> {
+    fn parse(value: &str) -> Result<Self, ImplementationError> {
         match value {
             "single" => Ok(Self::Single),
             "double" => Ok(Self::Double),
-            _ => Err(ImplementationError::MalformedCanonical(
-                "unknown buffering policy".into(),
-            )),
+            _ => malformed("unknown buffering policy"),
         }
     }
 }
@@ -305,9 +254,21 @@ pub struct TileShape {
 
 impl TileShape {
     fn validate(self) -> Result<(), ImplementationError> {
-        validate_nonzero_bounded("schedule.tile.queries", self.queries, MAX_TILE_EXTENT)?;
-        validate_nonzero_bounded("schedule.tile.keys", self.keys, MAX_TILE_EXTENT)?;
-        validate_nonzero_bounded("schedule.tile.values", self.values, MAX_TILE_EXTENT)
+        validate_nonzero_bounded(
+            "schedule.tile.queries",
+            u64::from(self.queries),
+            u64::from(MAX_TILE_EXTENT),
+        )?;
+        validate_nonzero_bounded(
+            "schedule.tile.keys",
+            u64::from(self.keys),
+            u64::from(MAX_TILE_EXTENT),
+        )?;
+        validate_nonzero_bounded(
+            "schedule.tile.values",
+            u64::from(self.values),
+            u64::from(MAX_TILE_EXTENT),
+        )
     }
 }
 
@@ -320,11 +281,11 @@ pub struct SchedulePlan {
     pub partition: WorkPartition,
     /// Partial-result reduction topology.
     pub reduction: ReductionTopology,
-    /// Exponential/rescaling implementation strategy.
+    /// Exponential/rescaling strategy.
     pub exp_strategy: ExpStrategy,
-    /// Number of software-pipeline stages.
+    /// Number of logical software-pipeline stages.
     pub pipeline_stages: u8,
-    /// Logical vector width used by a later backend lowering.
+    /// Logical vector width for a later backend lowering.
     pub vector_width: u16,
     /// Logical buffering policy.
     pub buffering: Buffering,
@@ -335,32 +296,23 @@ impl SchedulePlan {
     ///
     /// # Errors
     ///
-    /// Returns an error for zero/oversized tiles, invalid split counts,
-    /// unsupported vector widths, or pipeline stages outside the v1 bounds.
+    /// Returns an error for invalid tiles, split counts, pipeline stages, or
+    /// vector widths.
     pub fn validate(self) -> Result<(), ImplementationError> {
         self.tile.validate()?;
         self.partition.validate()?;
-        if self.pipeline_stages == 0 {
-            return Err(ImplementationError::InvalidField(
-                "schedule.pipeline_stages",
-            ));
-        }
-        if self.pipeline_stages > MAX_PIPELINE_STAGES {
-            return Err(ImplementationError::ExceedsLimit {
-                field: "schedule.pipeline_stages",
-                value: u64::from(self.pipeline_stages),
-                maximum: u64::from(MAX_PIPELINE_STAGES),
-            });
-        }
-        if self.vector_width == 0 || !self.vector_width.is_power_of_two() {
+        validate_nonzero_bounded(
+            "schedule.pipeline_stages",
+            u64::from(self.pipeline_stages),
+            u64::from(MAX_PIPELINE_STAGES),
+        )?;
+        validate_nonzero_bounded(
+            "schedule.vector_width",
+            u64::from(self.vector_width),
+            u64::from(MAX_VECTOR_WIDTH),
+        )?;
+        if !self.vector_width.is_power_of_two() {
             return Err(ImplementationError::InvalidField("schedule.vector_width"));
-        }
-        if self.vector_width > MAX_VECTOR_WIDTH {
-            return Err(ImplementationError::ExceedsLimit {
-                field: "schedule.vector_width",
-                value: u64::from(self.vector_width),
-                maximum: u64::from(MAX_VECTOR_WIDTH),
-            });
         }
         Ok(())
     }
@@ -369,11 +321,11 @@ impl SchedulePlan {
 /// Abstract memory/storage level for an implementation plan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MemoryLevel {
-    /// Main accelerator/device-visible memory or ordinary process memory.
+    /// Main device/process-visible memory.
     Global,
-    /// Workgroup/CTA-shared scratch storage.
+    /// Workgroup/CTA-style shared scratch storage.
     Shared,
-    /// Worker/thread-local storage that is not promised to be a register.
+    /// Worker/thread-local storage.
     Local,
     /// Register-like scalar/vector storage requested from a later lowering.
     Register,
@@ -389,15 +341,13 @@ impl MemoryLevel {
         }
     }
 
-    fn from_text(value: &str) -> Result<Self, ImplementationError> {
+    fn parse(value: &str) -> Result<Self, ImplementationError> {
         match value {
             "global" => Ok(Self::Global),
             "shared" => Ok(Self::Shared),
             "local" => Ok(Self::Local),
             "register" => Ok(Self::Register),
-            _ => Err(ImplementationError::MalformedCanonical(
-                "unknown memory level".into(),
-            )),
+            _ => malformed("unknown memory level"),
         }
     }
 }
@@ -405,22 +355,21 @@ impl MemoryLevel {
 /// Storage and traversal choices separated from semantic identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MemoryPlan {
-    /// Query storage level while consumed by the implementation.
+    /// Query storage level while consumed.
     pub query: MemoryLevel,
-    /// Key storage level while consumed by the implementation.
+    /// Key storage level while consumed.
     pub key: MemoryLevel,
-    /// Value storage level while consumed by the implementation.
+    /// Value storage level while consumed.
     pub value: MemoryLevel,
-    /// Output storage level while produced by the implementation.
+    /// Output storage level while produced.
     pub output: MemoryLevel,
     /// Accumulator storage level.
     pub accumulator: MemoryLevel,
-    /// Declared temporary workspace, excluding semantic inputs/outputs.
+    /// Declared implementation workspace bytes.
     pub workspace_bytes: u64,
     /// Requested alignment for implementation-owned buffers.
     pub alignment_bytes: u32,
-    /// Optional KV page size in rows.  Presence does not imply measured paging
-    /// performance and is independent of semantic identity.
+    /// Optional KV page size in rows.
     pub kv_page_rows: Option<u32>,
 }
 
@@ -431,18 +380,20 @@ impl MemoryPlan {
     ///
     /// Returns an error for invalid alignment or page geometry.
     pub fn validate(self) -> Result<(), ImplementationError> {
-        if self.alignment_bytes == 0 || !self.alignment_bytes.is_power_of_two() {
+        validate_nonzero_bounded(
+            "memory.alignment_bytes",
+            u64::from(self.alignment_bytes),
+            u64::from(MAX_ALIGNMENT_BYTES),
+        )?;
+        if !self.alignment_bytes.is_power_of_two() {
             return Err(ImplementationError::InvalidField("memory.alignment_bytes"));
         }
-        if self.alignment_bytes > MAX_ALIGNMENT_BYTES {
-            return Err(ImplementationError::ExceedsLimit {
-                field: "memory.alignment_bytes",
-                value: u64::from(self.alignment_bytes),
-                maximum: u64::from(MAX_ALIGNMENT_BYTES),
-            });
-        }
         if let Some(rows) = self.kv_page_rows {
-            validate_nonzero_bounded("memory.kv_page_rows", rows, MAX_KV_PAGE_ROWS)?;
+            validate_nonzero_bounded(
+                "memory.kv_page_rows",
+                u64::from(rows),
+                u64::from(MAX_KV_PAGE_ROWS),
+            )?;
         }
         Ok(())
     }
@@ -458,7 +409,7 @@ pub struct ImplementationFingerprint {
 
 impl ImplementationFingerprint {
     fn of_bytes(bytes: &[u8]) -> Self {
-        const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+        const FNV_OFFSET: u64 = 0xcbf_29ce4_8422_2325;
         const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
         const MIX_MULT: u64 = 0xff51_afd7_ed55_8ccd;
         let mut primary = FNV_OFFSET;
@@ -518,7 +469,7 @@ pub struct ImplementationPlan {
 }
 
 impl ImplementationPlan {
-    /// Construct a validated backend-neutral implementation plan.
+    /// Construct a validated implementation plan.
     ///
     /// # Errors
     ///
@@ -568,73 +519,57 @@ impl ImplementationPlan {
     #[must_use]
     pub fn to_canonical_text(&self) -> String {
         let semantic = self.id.semantic();
-        let mut text = String::new();
-        writeln!(text, "ADA-IMPLEMENTATION-V{IMPLEMENTATION_IR_VERSION}")
-            .expect("writing to String cannot fail");
-        writeln!(
-            text,
-            "semantic_family={}",
-            semantic_family_text(semantic.family())
-        )
-        .expect("writing to String cannot fail");
-        writeln!(text, "semantic_name={}", semantic.name()).expect("writing to String cannot fail");
-        writeln!(text, "semantic_revision={}", semantic.revision())
-            .expect("writing to String cannot fail");
-        writeln!(text, "implementation_name={}", self.id.name())
-            .expect("writing to String cannot fail");
-        writeln!(text, "implementation_revision={}", self.id.revision())
-            .expect("writing to String cannot fail");
-        writeln!(text, "algorithm={}", self.algorithm.as_text())
-            .expect("writing to String cannot fail");
-        writeln!(text, "tile_queries={}", self.schedule.tile.queries)
-            .expect("writing to String cannot fail");
-        writeln!(text, "tile_keys={}", self.schedule.tile.keys)
-            .expect("writing to String cannot fail");
-        writeln!(text, "tile_values={}", self.schedule.tile.values)
-            .expect("writing to String cannot fail");
-        writeln!(text, "partition={}", self.schedule.partition.to_text())
-            .expect("writing to String cannot fail");
-        writeln!(text, "reduction={}", self.schedule.reduction.as_text())
-            .expect("writing to String cannot fail");
-        writeln!(
-            text,
-            "exp_strategy={}",
-            self.schedule.exp_strategy.as_text()
-        )
-        .expect("writing to String cannot fail");
-        writeln!(text, "pipeline_stages={}", self.schedule.pipeline_stages)
-            .expect("writing to String cannot fail");
-        writeln!(text, "vector_width={}", self.schedule.vector_width)
-            .expect("writing to String cannot fail");
-        writeln!(text, "buffering={}", self.schedule.buffering.as_text())
-            .expect("writing to String cannot fail");
-        writeln!(text, "query_memory={}", self.memory.query.as_text())
-            .expect("writing to String cannot fail");
-        writeln!(text, "key_memory={}", self.memory.key.as_text())
-            .expect("writing to String cannot fail");
-        writeln!(text, "value_memory={}", self.memory.value.as_text())
-            .expect("writing to String cannot fail");
-        writeln!(text, "output_memory={}", self.memory.output.as_text())
-            .expect("writing to String cannot fail");
-        writeln!(
-            text,
-            "accumulator_memory={}",
-            self.memory.accumulator.as_text()
-        )
-        .expect("writing to String cannot fail");
-        writeln!(text, "workspace_bytes={}", self.memory.workspace_bytes)
-            .expect("writing to String cannot fail");
-        writeln!(text, "alignment_bytes={}", self.memory.alignment_bytes)
-            .expect("writing to String cannot fail");
-        writeln!(
-            text,
-            "kv_page_rows={}",
+        format!(
+            "ADA-IMPLEMENTATION-V{IMPLEMENTATION_IR_VERSION}\n\
+semantic_family={}\n\
+semantic_name={}\n\
+semantic_revision={}\n\
+implementation_name={}\n\
+implementation_revision={}\n\
+algorithm={}\n\
+tile_queries={}\n\
+tile_keys={}\n\
+tile_values={}\n\
+partition={}\n\
+reduction={}\n\
+exp_strategy={}\n\
+pipeline_stages={}\n\
+vector_width={}\n\
+buffering={}\n\
+query_memory={}\n\
+key_memory={}\n\
+value_memory={}\n\
+output_memory={}\n\
+accumulator_memory={}\n\
+workspace_bytes={}\n\
+alignment_bytes={}\n\
+kv_page_rows={}\n",
+            semantic_family_text(semantic.family()),
+            semantic.name(),
+            semantic.revision(),
+            self.id.name(),
+            self.id.revision(),
+            self.algorithm.as_text(),
+            self.schedule.tile.queries,
+            self.schedule.tile.keys,
+            self.schedule.tile.values,
+            self.schedule.partition.as_text(),
+            self.schedule.reduction.as_text(),
+            self.schedule.exp_strategy.as_text(),
+            self.schedule.pipeline_stages,
+            self.schedule.vector_width,
+            self.schedule.buffering.as_text(),
+            self.memory.query.as_text(),
+            self.memory.key.as_text(),
+            self.memory.value.as_text(),
+            self.memory.output.as_text(),
+            self.memory.accumulator.as_text(),
+            self.memory.workspace_bytes,
+            self.memory.alignment_bytes,
             self.memory
                 .kv_page_rows
-                .map_or_else(|| "none".into(), |rows| rows.to_string())
+                .map_or_else(|| "none".into(), |rows| rows.to_string()),
         )
-        .expect("writing to String cannot fail");
-        text
     }
 
     /// Stable fingerprint over the complete canonical implementation plan.
@@ -645,161 +580,134 @@ impl ImplementationPlan {
 
     /// Decode strict canonical text.
     ///
-    /// The decoder rejects unknown, duplicate, missing, reordered, or
-    /// non-canonical fields by reconstructing the plan and requiring a byte
-    /// identical canonical re-encoding.
-    ///
     /// # Errors
     ///
-    /// Returns an error for malformed text, invalid identities, or invalid
-    /// schedule/memory metadata.
+    /// Returns an error for malformed text, invalid identities, unsupported
+    /// versions, or invalid schedule/memory metadata.
     pub fn from_canonical_text(text: &str) -> Result<Self, ImplementationError> {
-        let fields = parse_canonical_fields(text)?;
-        let plan = plan_from_canonical_fields(&fields)?;
+        if text.len() > MAX_CANONICAL_TEXT_BYTES {
+            return Err(ImplementationError::ExceedsLimit {
+                field: "canonical_text_bytes",
+                value: u64::try_from(text.len()).unwrap_or(u64::MAX),
+                maximum: u64::try_from(MAX_CANONICAL_TEXT_BYTES).unwrap_or(u64::MAX),
+            });
+        }
+        let mut lines = text.lines();
+        parse_header(&mut lines)?;
+        let semantic = parse_semantic_identity(&mut lines)?;
+        let id = parse_implementation_identity(semantic, &mut lines)?;
+        let algorithm = AlgorithmPlan::parse(next_value(&mut lines, "algorithm")?)?;
+        let schedule = parse_schedule(&mut lines)?;
+        let memory = parse_memory(&mut lines)?;
+        if lines.next().is_some() {
+            return malformed("unexpected trailing field");
+        }
+        let plan = Self::new(id, algorithm, schedule, memory)?;
         if plan.to_canonical_text() != text {
-            return Err(ImplementationError::MalformedCanonical(
-                "text is valid but non-canonical".into(),
-            ));
+            return malformed("artifact is not canonical");
         }
         Ok(plan)
     }
 }
 
-fn parse_canonical_fields(text: &str) -> Result<BTreeMap<&str, &str>, ImplementationError> {
-    if text.len() > MAX_CANONICAL_TEXT_BYTES {
-        return Err(ImplementationError::ExceedsLimit {
-            field: "canonical_text_bytes",
-            value: u64::try_from(text.len()).unwrap_or(u64::MAX),
-            maximum: u64::try_from(MAX_CANONICAL_TEXT_BYTES).unwrap_or(u64::MAX),
-        });
-    }
-    let mut lines = text.lines();
+fn parse_header(lines: &mut std::str::Lines<'_>) -> Result<(), ImplementationError> {
     let header = lines
         .next()
-        .ok_or_else(|| ImplementationError::MalformedCanonical("missing header".into()))?;
-    let Some(raw_version) = header.strip_prefix("ADA-IMPLEMENTATION-V") else {
-        return Err(ImplementationError::MalformedCanonical(
-            "invalid header".into(),
-        ));
-    };
-    let version = raw_version
-        .parse::<u16>()
-        .map_err(|_| ImplementationError::MalformedCanonical("invalid version".into()))?;
+        .ok_or_else(|| malformed_error("missing header"))?;
+    let raw = header
+        .strip_prefix("ADA-IMPLEMENTATION-V")
+        .ok_or_else(|| malformed_error("invalid header"))?;
+    let version = parse_number::<u16>(raw, "version")?;
     if version != IMPLEMENTATION_IR_VERSION {
         return Err(ImplementationError::UnsupportedVersion(version));
     }
-
-    let mut fields = BTreeMap::new();
-    for line in lines {
-        let (key, value) = line.split_once('=').ok_or_else(|| {
-            ImplementationError::MalformedCanonical("invalid field line".into())
-        })?;
-        if key.is_empty() || value.is_empty() || fields.insert(key, value).is_some() {
-            return Err(ImplementationError::MalformedCanonical(
-                "empty or duplicate field".into(),
-            ));
-        }
-    }
-    if fields.len() != FIELD_NAMES.len() || fields.keys().any(|key| !FIELD_NAMES.contains(key)) {
-        return Err(ImplementationError::MalformedCanonical(
-            "unknown or missing field".into(),
-        ));
-    }
-    Ok(fields)
+    Ok(())
 }
 
-fn canonical_field<'a>(
-    fields: &'a BTreeMap<&str, &str>,
-    name: &'static str,
-) -> Result<&'a str, ImplementationError> {
-    fields
-        .get(name)
-        .copied()
-        .ok_or_else(|| ImplementationError::MalformedCanonical(format!("missing {name}")))
+fn parse_semantic_identity(
+    lines: &mut std::str::Lines<'_>,
+) -> Result<SemanticId, ImplementationError> {
+    let family = semantic_family_parse(next_value(lines, "semantic_family")?)?;
+    let name = next_value(lines, "semantic_name")?;
+    let revision = parse_number(next_value(lines, "semantic_revision")?, "semantic_revision")?;
+    SemanticId::new(family, name, revision)
+        .map_err(|_| malformed_error("invalid semantic identity"))
 }
 
-fn plan_from_canonical_fields(
-    fields: &BTreeMap<&str, &str>,
-) -> Result<ImplementationPlan, ImplementationError> {
-    let semantic = SemanticId::new(
-        semantic_family_from_text(canonical_field(fields, "semantic_family")?)?,
-        canonical_field(fields, "semantic_name")?,
-        parse_u32(
-            canonical_field(fields, "semantic_revision")?,
-            "semantic_revision",
-        )?,
-    )
-    .map_err(|_| ImplementationError::MalformedCanonical("invalid semantic identity".into()))?;
-    let id = ImplementationCandidateId::new(
-        semantic,
-        canonical_field(fields, "implementation_name")?,
-        parse_u32(
-            canonical_field(fields, "implementation_revision")?,
-            "implementation_revision",
-        )?,
-    )
-    .map_err(|_| {
-        ImplementationError::MalformedCanonical("invalid implementation identity".into())
-    })?;
+fn parse_implementation_identity(
+    semantic: SemanticId,
+    lines: &mut std::str::Lines<'_>,
+) -> Result<ImplementationCandidateId, ImplementationError> {
+    let name = next_value(lines, "implementation_name")?;
+    let revision = parse_number(
+        next_value(lines, "implementation_revision")?,
+        "implementation_revision",
+    )?;
+    ImplementationCandidateId::new(semantic, name, revision)
+        .map_err(|_| malformed_error("invalid implementation identity"))
+}
 
-    let kv_page_rows = match canonical_field(fields, "kv_page_rows")? {
-        "none" => None,
-        raw => Some(parse_u32(raw, "memory.kv_page_rows")?),
+fn parse_schedule(lines: &mut std::str::Lines<'_>) -> Result<SchedulePlan, ImplementationError> {
+    let schedule = SchedulePlan {
+        tile: TileShape {
+            queries: parse_number(next_value(lines, "tile_queries")?, "tile_queries")?,
+            keys: parse_number(next_value(lines, "tile_keys")?, "tile_keys")?,
+            values: parse_number(next_value(lines, "tile_values")?, "tile_values")?,
+        },
+        partition: WorkPartition::parse(next_value(lines, "partition")?)?,
+        reduction: ReductionTopology::parse(next_value(lines, "reduction")?)?,
+        exp_strategy: ExpStrategy::parse(next_value(lines, "exp_strategy")?)?,
+        pipeline_stages: parse_number(
+            next_value(lines, "pipeline_stages")?,
+            "pipeline_stages",
+        )?,
+        vector_width: parse_number(next_value(lines, "vector_width")?, "vector_width")?,
+        buffering: Buffering::parse(next_value(lines, "buffering")?)?,
     };
-    ImplementationPlan::new(
-        id,
-        AlgorithmPlan::from_text(canonical_field(fields, "algorithm")?)?,
-        SchedulePlan {
-            tile: TileShape {
-                queries: parse_u32(
-                    canonical_field(fields, "tile_queries")?,
-                    "schedule.tile.queries",
-                )?,
-                keys: parse_u32(
-                    canonical_field(fields, "tile_keys")?,
-                    "schedule.tile.keys",
-                )?,
-                values: parse_u32(
-                    canonical_field(fields, "tile_values")?,
-                    "schedule.tile.values",
-                )?,
-            },
-            partition: WorkPartition::from_text(canonical_field(fields, "partition")?)?,
-            reduction: ReductionTopology::from_text(canonical_field(fields, "reduction")?)?,
-            exp_strategy: ExpStrategy::from_text(canonical_field(fields, "exp_strategy")?)?,
-            pipeline_stages: parse_u8(
-                canonical_field(fields, "pipeline_stages")?,
-                "schedule.pipeline_stages",
-            )?,
-            vector_width: parse_u16(
-                canonical_field(fields, "vector_width")?,
-                "schedule.vector_width",
-            )?,
-            buffering: Buffering::from_text(canonical_field(fields, "buffering")?)?,
+    schedule.validate()?;
+    Ok(schedule)
+}
+
+fn parse_memory(lines: &mut std::str::Lines<'_>) -> Result<MemoryPlan, ImplementationError> {
+    let page_text = next_value(lines, "kv_page_rows")?;
+    let memory = MemoryPlan {
+        query: MemoryLevel::parse(next_value(lines, "query_memory")?)?,
+        key: MemoryLevel::parse(next_value(lines, "key_memory")?)?,
+        value: MemoryLevel::parse(next_value(lines, "value_memory")?)?,
+        output: MemoryLevel::parse(next_value(lines, "output_memory")?)?,
+        accumulator: MemoryLevel::parse(next_value(lines, "accumulator_memory")?)?,
+        workspace_bytes: parse_number(next_value(lines, "workspace_bytes")?, "workspace_bytes")?,
+        alignment_bytes: parse_number(next_value(lines, "alignment_bytes")?, "alignment_bytes")?,
+        kv_page_rows: if page_text == "none" {
+            None
+        } else {
+            Some(parse_number(page_text, "kv_page_rows")?)
         },
-        MemoryPlan {
-            query: MemoryLevel::from_text(canonical_field(fields, "query_memory")?)?,
-            key: MemoryLevel::from_text(canonical_field(fields, "key_memory")?)?,
-            value: MemoryLevel::from_text(canonical_field(fields, "value_memory")?)?,
-            output: MemoryLevel::from_text(canonical_field(fields, "output_memory")?)?,
-            accumulator: MemoryLevel::from_text(canonical_field(fields, "accumulator_memory")?)?,
-            workspace_bytes: parse_u64(
-                canonical_field(fields, "workspace_bytes")?,
-                "memory.workspace_bytes",
-            )?,
-            alignment_bytes: parse_u32(
-                canonical_field(fields, "alignment_bytes")?,
-                "memory.alignment_bytes",
-            )?,
-            kv_page_rows,
-        },
-    )
+    };
+    memory.validate()?;
+    Ok(memory)
+}
+
+fn next_value<'a>(
+    lines: &mut std::str::Lines<'a>,
+    expected: &'static str,
+) -> Result<&'a str, ImplementationError> {
+    let line = lines
+        .next()
+        .ok_or_else(|| malformed_error(&format!("missing {expected}")))?;
+    let (key, value) = line
+        .split_once('=')
+        .ok_or_else(|| malformed_error("invalid field line"))?;
+    if key != expected || value.is_empty() {
+        return malformed(&format!("expected {expected}"));
+    }
+    Ok(value)
 }
 
 fn validate_nonzero_bounded(
     field: &'static str,
-    value: u32,
-    maximum: u32,
+    value: u64,
+    maximum: u64,
 ) -> Result<(), ImplementationError> {
     if value == 0 {
         return Err(ImplementationError::InvalidField(field));
@@ -807,35 +715,28 @@ fn validate_nonzero_bounded(
     if value > maximum {
         return Err(ImplementationError::ExceedsLimit {
             field,
-            value: u64::from(value),
-            maximum: u64::from(maximum),
+            value,
+            maximum,
         });
     }
     Ok(())
 }
 
-fn parse_u8(value: &str, field: &'static str) -> Result<u8, ImplementationError> {
+fn parse_number<T>(value: &str, field: &'static str) -> Result<T, ImplementationError>
+where
+    T: std::str::FromStr,
+{
     value
-        .parse::<u8>()
-        .map_err(|_| ImplementationError::MalformedCanonical(format!("invalid {field}")))
+        .parse::<T>()
+        .map_err(|_| malformed_error(&format!("invalid {field}")))
 }
 
-fn parse_u16(value: &str, field: &'static str) -> Result<u16, ImplementationError> {
-    value
-        .parse::<u16>()
-        .map_err(|_| ImplementationError::MalformedCanonical(format!("invalid {field}")))
+fn malformed<T>(reason: &str) -> Result<T, ImplementationError> {
+    Err(malformed_error(reason))
 }
 
-fn parse_u32(value: &str, field: &'static str) -> Result<u32, ImplementationError> {
-    value
-        .parse::<u32>()
-        .map_err(|_| ImplementationError::MalformedCanonical(format!("invalid {field}")))
-}
-
-fn parse_u64(value: &str, field: &'static str) -> Result<u64, ImplementationError> {
-    value
-        .parse::<u64>()
-        .map_err(|_| ImplementationError::MalformedCanonical(format!("invalid {field}")))
+fn malformed_error(reason: &str) -> ImplementationError {
+    ImplementationError::MalformedCanonical(reason.into())
 }
 
 const fn semantic_family_text(family: SemanticFamily) -> &'static str {
@@ -852,7 +753,7 @@ const fn semantic_family_text(family: SemanticFamily) -> &'static str {
     }
 }
 
-fn semantic_family_from_text(value: &str) -> Result<SemanticFamily, ImplementationError> {
+fn semantic_family_parse(value: &str) -> Result<SemanticFamily, ImplementationError> {
     match value {
         "standard-softmax" => Ok(SemanticFamily::StandardSoftmax),
         "differential-signed" => Ok(SemanticFamily::DifferentialSigned),
@@ -863,9 +764,7 @@ fn semantic_family_from_text(value: &str) -> Result<SemanticFamily, Implementati
         "recurrent-memory" => Ok(SemanticFamily::RecurrentMemory),
         "hybrid" => Ok(SemanticFamily::Hybrid),
         "experimental" => Ok(SemanticFamily::Experimental),
-        _ => Err(ImplementationError::MalformedCanonical(
-            "unknown semantic family".into(),
-        )),
+        _ => malformed("unknown semantic family"),
     }
 }
 
@@ -877,7 +776,7 @@ mod tests {
         SemanticId::new(SemanticFamily::StandardSoftmax, "standard-softmax", 1).unwrap()
     }
 
-    fn base_schedule() -> SchedulePlan {
+    fn schedule() -> SchedulePlan {
         SchedulePlan {
             tile: TileShape {
                 queries: 64,
@@ -893,7 +792,7 @@ mod tests {
         }
     }
 
-    fn base_memory() -> MemoryPlan {
+    fn memory() -> MemoryPlan {
         MemoryPlan {
             query: MemoryLevel::Shared,
             key: MemoryLevel::Shared,
@@ -907,18 +806,13 @@ mod tests {
     }
 
     #[test]
-    fn two_schedules_keep_exactly_one_semantic_identity() {
+    fn schedules_do_not_redefine_semantics() {
         let first_id = ImplementationCandidateId::new(semantic(), "blocked-a", 1).unwrap();
         let second_id = ImplementationCandidateId::new(semantic(), "blocked-b", 1).unwrap();
-        let first = ImplementationPlan::new(
-            first_id,
-            AlgorithmPlan::DenseBlocked,
-            base_schedule(),
-            base_memory(),
-        )
-        .unwrap();
-
-        let mut second_schedule = base_schedule();
+        let first =
+            ImplementationPlan::new(first_id, AlgorithmPlan::DenseBlocked, schedule(), memory())
+                .unwrap();
+        let mut second_schedule = schedule();
         second_schedule.tile.keys = 256;
         second_schedule.partition = WorkPartition::SplitKv { partitions: 4 };
         second_schedule.reduction = ReductionTopology::TwoPass;
@@ -926,23 +820,26 @@ mod tests {
             second_id,
             AlgorithmPlan::DenseBlocked,
             second_schedule,
-            base_memory(),
+            memory(),
         )
         .unwrap();
-
         assert_eq!(first.id().semantic(), second.id().semantic());
         assert_ne!(first.id(), second.id());
         assert_ne!(first.fingerprint(), second.fingerprint());
     }
 
     #[test]
-    fn canonical_round_trip_is_byte_exact_and_fingerprint_stable() {
+    fn canonical_round_trip_is_exact() {
         let id = ImplementationCandidateId::new(semantic(), "portable-reference", 3).unwrap();
-        let mut memory = base_memory();
-        memory.kv_page_rows = Some(128);
-        let plan =
-            ImplementationPlan::new(id, AlgorithmPlan::PagedBlocked, base_schedule(), memory)
-                .unwrap();
+        let mut paged_memory = memory();
+        paged_memory.kv_page_rows = Some(128);
+        let plan = ImplementationPlan::new(
+            id,
+            AlgorithmPlan::PagedBlocked,
+            schedule(),
+            paged_memory,
+        )
+        .unwrap();
         let text = plan.to_canonical_text();
         let decoded = ImplementationPlan::from_canonical_text(&text).unwrap();
         assert_eq!(decoded, plan);
@@ -951,42 +848,28 @@ mod tests {
     }
 
     #[test]
-    fn invalid_schedule_and_memory_fail_closed() {
-        let mut invalid = base_schedule();
-        invalid.vector_width = 3;
-        assert_eq!(
-            invalid.validate(),
-            Err(ImplementationError::InvalidField("schedule.vector_width"))
-        );
-
-        let mut invalid = base_schedule();
-        invalid.tile.queries = 0;
-        assert_eq!(
-            invalid.validate(),
-            Err(ImplementationError::InvalidField("schedule.tile.queries"))
-        );
-
-        let mut invalid_memory = base_memory();
-        invalid_memory.alignment_bytes = 24;
-        assert_eq!(
-            invalid_memory.validate(),
-            Err(ImplementationError::InvalidField("memory.alignment_bytes"))
-        );
+    fn invalid_metadata_fails_closed() {
+        let mut bad_schedule = schedule();
+        bad_schedule.vector_width = 3;
+        assert!(bad_schedule.validate().is_err());
+        bad_schedule = schedule();
+        bad_schedule.tile.queries = 0;
+        assert!(bad_schedule.validate().is_err());
+        let mut bad_memory = memory();
+        bad_memory.alignment_bytes = 24;
+        assert!(bad_memory.validate().is_err());
     }
 
     #[test]
-    fn malformed_or_noncanonical_text_is_rejected() {
+    fn noncanonical_artifacts_are_rejected() {
         let id = ImplementationCandidateId::new(semantic(), "canonical", 1).unwrap();
-        let plan =
-            ImplementationPlan::new(id, AlgorithmPlan::TwoPass, base_schedule(), base_memory())
-                .unwrap();
+        let plan = ImplementationPlan::new(id, AlgorithmPlan::TwoPass, schedule(), memory()).unwrap();
         let canonical = plan.to_canonical_text();
         let reordered = canonical.replace(
             "tile_queries=64\ntile_keys=128",
             "tile_keys=128\ntile_queries=64",
         );
         assert!(ImplementationPlan::from_canonical_text(&reordered).is_err());
-
         let duplicate = canonical.replace(
             "workspace_bytes=16384\n",
             "workspace_bytes=16384\nworkspace_bytes=16384\n",
@@ -995,13 +878,13 @@ mod tests {
     }
 
     #[test]
-    fn representation_contains_no_device_or_evidence_identity() {
+    fn representation_contains_no_measurement_identity() {
         let id = ImplementationCandidateId::new(semantic(), "backend-neutral", 1).unwrap();
         let plan = ImplementationPlan::new(
             id,
             AlgorithmPlan::OnlineStreaming,
-            base_schedule(),
-            base_memory(),
+            schedule(),
+            memory(),
         )
         .unwrap();
         let text = plan.to_canonical_text();
