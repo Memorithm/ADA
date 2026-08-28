@@ -61,7 +61,10 @@ impl Display for ImplementationError {
                 maximum,
             } => write!(formatter, "{field}={value} exceeds maximum {maximum}"),
             Self::MalformedCanonical(reason) => {
-                write!(formatter, "malformed implementation canonical text: {reason}")
+                write!(
+                    formatter,
+                    "malformed implementation canonical text: {reason}"
+                )
             }
             Self::UnsupportedVersion(version) => {
                 write!(formatter, "unsupported implementation IR version {version}")
@@ -542,8 +545,12 @@ impl ImplementationPlan {
         let mut text = String::new();
         writeln!(text, "ADA-IMPLEMENTATION-V{IMPLEMENTATION_IR_VERSION}")
             .expect("writing to String cannot fail");
-        writeln!(text, "semantic_family={}", semantic_family_text(semantic.family()))
-            .expect("writing to String cannot fail");
+        writeln!(
+            text,
+            "semantic_family={}",
+            semantic_family_text(semantic.family())
+        )
+        .expect("writing to String cannot fail");
         writeln!(text, "semantic_name={}", semantic.name()).expect("writing to String cannot fail");
         writeln!(text, "semantic_revision={}", semantic.revision())
             .expect("writing to String cannot fail");
@@ -563,8 +570,12 @@ impl ImplementationPlan {
             .expect("writing to String cannot fail");
         writeln!(text, "reduction={}", self.schedule.reduction.as_text())
             .expect("writing to String cannot fail");
-        writeln!(text, "exp_strategy={}", self.schedule.exp_strategy.as_text())
-            .expect("writing to String cannot fail");
+        writeln!(
+            text,
+            "exp_strategy={}",
+            self.schedule.exp_strategy.as_text()
+        )
+        .expect("writing to String cannot fail");
         writeln!(text, "pipeline_stages={}", self.schedule.pipeline_stages)
             .expect("writing to String cannot fail");
         writeln!(text, "vector_width={}", self.schedule.vector_width)
@@ -579,8 +590,12 @@ impl ImplementationPlan {
             .expect("writing to String cannot fail");
         writeln!(text, "output_memory={}", self.memory.output.as_text())
             .expect("writing to String cannot fail");
-        writeln!(text, "accumulator_memory={}", self.memory.accumulator.as_text())
-            .expect("writing to String cannot fail");
+        writeln!(
+            text,
+            "accumulator_memory={}",
+            self.memory.accumulator.as_text()
+        )
+        .expect("writing to String cannot fail");
         writeln!(text, "workspace_bytes={}", self.memory.workspace_bytes)
             .expect("writing to String cannot fail");
         writeln!(text, "alignment_bytes={}", self.memory.alignment_bytes)
@@ -638,9 +653,9 @@ impl ImplementationPlan {
 
         let mut fields = BTreeMap::new();
         for line in lines {
-            let (key, value) = line
-                .split_once('=')
-                .ok_or_else(|| ImplementationError::MalformedCanonical("invalid field line".into()))?;
+            let (key, value) = line.split_once('=').ok_or_else(|| {
+                ImplementationError::MalformedCanonical("invalid field line".into())
+            })?;
             if key.is_empty() || value.is_empty() || fields.insert(key, value).is_some() {
                 return Err(ImplementationError::MalformedCanonical(
                     "empty or duplicate field".into(),
@@ -673,8 +688,7 @@ impl ImplementationPlan {
             "alignment_bytes",
             "kv_page_rows",
         ];
-        if fields.len() != FIELD_NAMES.len()
-            || fields.keys().any(|key| !FIELD_NAMES.contains(key))
+        if fields.len() != FIELD_NAMES.len() || fields.keys().any(|key| !FIELD_NAMES.contains(key))
         {
             return Err(ImplementationError::MalformedCanonical(
                 "unknown or missing field".into(),
@@ -887,13 +901,9 @@ mod tests {
         let id = ImplementationCandidateId::new(semantic(), "portable-reference", 3).unwrap();
         let mut memory = base_memory();
         memory.kv_page_rows = Some(128);
-        let plan = ImplementationPlan::new(
-            id,
-            AlgorithmPlan::PagedBlocked,
-            base_schedule(),
-            memory,
-        )
-        .unwrap();
+        let plan =
+            ImplementationPlan::new(id, AlgorithmPlan::PagedBlocked, base_schedule(), memory)
+                .unwrap();
         let text = plan.to_canonical_text();
         let decoded = ImplementationPlan::from_canonical_text(&text).unwrap();
         assert_eq!(decoded, plan);
@@ -928,13 +938,9 @@ mod tests {
     #[test]
     fn malformed_or_noncanonical_text_is_rejected() {
         let id = ImplementationCandidateId::new(semantic(), "canonical", 1).unwrap();
-        let plan = ImplementationPlan::new(
-            id,
-            AlgorithmPlan::TwoPass,
-            base_schedule(),
-            base_memory(),
-        )
-        .unwrap();
+        let plan =
+            ImplementationPlan::new(id, AlgorithmPlan::TwoPass, base_schedule(), base_memory())
+                .unwrap();
         let canonical = plan.to_canonical_text();
         let reordered = canonical.replace(
             "tile_queries=64\ntile_keys=128",
