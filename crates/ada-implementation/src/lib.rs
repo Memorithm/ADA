@@ -31,6 +31,32 @@ pub const MAX_ALIGNMENT_BYTES: u32 = 65_536;
 /// Maximum optional KV page size in rows.
 pub const MAX_KV_PAGE_ROWS: u32 = 1 << 20;
 
+const FIELD_NAMES: [&str; 23] = [
+    "semantic_family",
+    "semantic_name",
+    "semantic_revision",
+    "implementation_name",
+    "implementation_revision",
+    "algorithm",
+    "tile_queries",
+    "tile_keys",
+    "tile_values",
+    "partition",
+    "reduction",
+    "exp_strategy",
+    "pipeline_stages",
+    "vector_width",
+    "buffering",
+    "query_memory",
+    "key_memory",
+    "value_memory",
+    "output_memory",
+    "accumulator_memory",
+    "workspace_bytes",
+    "alignment_bytes",
+    "kv_page_rows",
+];
+
 /// Construction or decoding failure for an implementation plan.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImplementationError {
@@ -628,126 +654,8 @@ impl ImplementationPlan {
     /// Returns an error for malformed text, invalid identities, or invalid
     /// schedule/memory metadata.
     pub fn from_canonical_text(text: &str) -> Result<Self, ImplementationError> {
-        if text.len() > MAX_CANONICAL_TEXT_BYTES {
-            return Err(ImplementationError::ExceedsLimit {
-                field: "canonical_text_bytes",
-                value: u64::try_from(text.len()).unwrap_or(u64::MAX),
-                maximum: u64::try_from(MAX_CANONICAL_TEXT_BYTES).unwrap_or(u64::MAX),
-            });
-        }
-        let mut lines = text.lines();
-        let header = lines
-            .next()
-            .ok_or_else(|| ImplementationError::MalformedCanonical("missing header".into()))?;
-        let Some(raw_version) = header.strip_prefix("ADA-IMPLEMENTATION-V") else {
-            return Err(ImplementationError::MalformedCanonical(
-                "invalid header".into(),
-            ));
-        };
-        let version = raw_version
-            .parse::<u16>()
-            .map_err(|_| ImplementationError::MalformedCanonical("invalid version".into()))?;
-        if version != IMPLEMENTATION_IR_VERSION {
-            return Err(ImplementationError::UnsupportedVersion(version));
-        }
-
-        let mut fields = BTreeMap::new();
-        for line in lines {
-            let (key, value) = line.split_once('=').ok_or_else(|| {
-                ImplementationError::MalformedCanonical("invalid field line".into())
-            })?;
-            if key.is_empty() || value.is_empty() || fields.insert(key, value).is_some() {
-                return Err(ImplementationError::MalformedCanonical(
-                    "empty or duplicate field".into(),
-                ));
-            }
-        }
-
-        const FIELD_NAMES: [&str; 23] = [
-            "semantic_family",
-            "semantic_name",
-            "semantic_revision",
-            "implementation_name",
-            "implementation_revision",
-            "algorithm",
-            "tile_queries",
-            "tile_keys",
-            "tile_values",
-            "partition",
-            "reduction",
-            "exp_strategy",
-            "pipeline_stages",
-            "vector_width",
-            "buffering",
-            "query_memory",
-            "key_memory",
-            "value_memory",
-            "output_memory",
-            "accumulator_memory",
-            "workspace_bytes",
-            "alignment_bytes",
-            "kv_page_rows",
-        ];
-        if fields.len() != FIELD_NAMES.len() || fields.keys().any(|key| !FIELD_NAMES.contains(key))
-        {
-            return Err(ImplementationError::MalformedCanonical(
-                "unknown or missing field".into(),
-            ));
-        }
-
-        let get = |name: &'static str| -> Result<&str, ImplementationError> {
-            fields
-                .get(name)
-                .copied()
-                .ok_or_else(|| ImplementationError::MalformedCanonical(format!("missing {name}")))
-        };
-
-        let semantic = SemanticId::new(
-            semantic_family_from_text(get("semantic_family")?)?,
-            get("semantic_name")?,
-            parse_u32(get("semantic_revision")?, "semantic_revision")?,
-        )
-        .map_err(|_| ImplementationError::MalformedCanonical("invalid semantic identity".into()))?;
-        let id = ImplementationCandidateId::new(
-            semantic,
-            get("implementation_name")?,
-            parse_u32(get("implementation_revision")?, "implementation_revision")?,
-        )
-        .map_err(|_| {
-            ImplementationError::MalformedCanonical("invalid implementation identity".into())
-        })?;
-
-        let kv_page_rows = match get("kv_page_rows")? {
-            "none" => None,
-            raw => Some(parse_u32(raw, "memory.kv_page_rows")?),
-        };
-        let plan = Self::new(
-            id,
-            AlgorithmPlan::from_text(get("algorithm")?)?,
-            SchedulePlan {
-                tile: TileShape {
-                    queries: parse_u32(get("tile_queries")?, "schedule.tile.queries")?,
-                    keys: parse_u32(get("tile_keys")?, "schedule.tile.keys")?,
-                    values: parse_u32(get("tile_values")?, "schedule.tile.values")?,
-                },
-                partition: WorkPartition::from_text(get("partition")?)?,
-                reduction: ReductionTopology::from_text(get("reduction")?)?,
-                exp_strategy: ExpStrategy::from_text(get("exp_strategy")?)?,
-                pipeline_stages: parse_u8(get("pipeline_stages")?, "schedule.pipeline_stages")?,
-                vector_width: parse_u16(get("vector_width")?, "schedule.vector_width")?,
-                buffering: Buffering::from_text(get("buffering")?)?,
-            },
-            MemoryPlan {
-                query: MemoryLevel::from_text(get("query_memory")?)?,
-                key: MemoryLevel::from_text(get("key_memory")?)?,
-                value: MemoryLevel::from_text(get("value_memory")?)?,
-                output: MemoryLevel::from_text(get("output_memory")?)?,
-                accumulator: MemoryLevel::from_text(get("accumulator_memory")?)?,
-                workspace_bytes: parse_u64(get("workspace_bytes")?, "memory.workspace_bytes")?,
-                alignment_bytes: parse_u32(get("alignment_bytes")?, "memory.alignment_bytes")?,
-                kv_page_rows,
-            },
-        )?;
+        let fields = parse_canonical_fields(text)?;
+        let plan = plan_from_canonical_fields(&fields)?;
         if plan.to_canonical_text() != text {
             return Err(ImplementationError::MalformedCanonical(
                 "text is valid but non-canonical".into(),
@@ -755,6 +663,137 @@ impl ImplementationPlan {
         }
         Ok(plan)
     }
+}
+
+fn parse_canonical_fields(text: &str) -> Result<BTreeMap<&str, &str>, ImplementationError> {
+    if text.len() > MAX_CANONICAL_TEXT_BYTES {
+        return Err(ImplementationError::ExceedsLimit {
+            field: "canonical_text_bytes",
+            value: u64::try_from(text.len()).unwrap_or(u64::MAX),
+            maximum: u64::try_from(MAX_CANONICAL_TEXT_BYTES).unwrap_or(u64::MAX),
+        });
+    }
+    let mut lines = text.lines();
+    let header = lines
+        .next()
+        .ok_or_else(|| ImplementationError::MalformedCanonical("missing header".into()))?;
+    let Some(raw_version) = header.strip_prefix("ADA-IMPLEMENTATION-V") else {
+        return Err(ImplementationError::MalformedCanonical(
+            "invalid header".into(),
+        ));
+    };
+    let version = raw_version
+        .parse::<u16>()
+        .map_err(|_| ImplementationError::MalformedCanonical("invalid version".into()))?;
+    if version != IMPLEMENTATION_IR_VERSION {
+        return Err(ImplementationError::UnsupportedVersion(version));
+    }
+
+    let mut fields = BTreeMap::new();
+    for line in lines {
+        let (key, value) = line.split_once('=').ok_or_else(|| {
+            ImplementationError::MalformedCanonical("invalid field line".into())
+        })?;
+        if key.is_empty() || value.is_empty() || fields.insert(key, value).is_some() {
+            return Err(ImplementationError::MalformedCanonical(
+                "empty or duplicate field".into(),
+            ));
+        }
+    }
+    if fields.len() != FIELD_NAMES.len() || fields.keys().any(|key| !FIELD_NAMES.contains(key)) {
+        return Err(ImplementationError::MalformedCanonical(
+            "unknown or missing field".into(),
+        ));
+    }
+    Ok(fields)
+}
+
+fn canonical_field<'a>(
+    fields: &'a BTreeMap<&str, &str>,
+    name: &'static str,
+) -> Result<&'a str, ImplementationError> {
+    fields
+        .get(name)
+        .copied()
+        .ok_or_else(|| ImplementationError::MalformedCanonical(format!("missing {name}")))
+}
+
+fn plan_from_canonical_fields(
+    fields: &BTreeMap<&str, &str>,
+) -> Result<ImplementationPlan, ImplementationError> {
+    let semantic = SemanticId::new(
+        semantic_family_from_text(canonical_field(fields, "semantic_family")?)?,
+        canonical_field(fields, "semantic_name")?,
+        parse_u32(
+            canonical_field(fields, "semantic_revision")?,
+            "semantic_revision",
+        )?,
+    )
+    .map_err(|_| ImplementationError::MalformedCanonical("invalid semantic identity".into()))?;
+    let id = ImplementationCandidateId::new(
+        semantic,
+        canonical_field(fields, "implementation_name")?,
+        parse_u32(
+            canonical_field(fields, "implementation_revision")?,
+            "implementation_revision",
+        )?,
+    )
+    .map_err(|_| {
+        ImplementationError::MalformedCanonical("invalid implementation identity".into())
+    })?;
+
+    let kv_page_rows = match canonical_field(fields, "kv_page_rows")? {
+        "none" => None,
+        raw => Some(parse_u32(raw, "memory.kv_page_rows")?),
+    };
+    ImplementationPlan::new(
+        id,
+        AlgorithmPlan::from_text(canonical_field(fields, "algorithm")?)?,
+        SchedulePlan {
+            tile: TileShape {
+                queries: parse_u32(
+                    canonical_field(fields, "tile_queries")?,
+                    "schedule.tile.queries",
+                )?,
+                keys: parse_u32(
+                    canonical_field(fields, "tile_keys")?,
+                    "schedule.tile.keys",
+                )?,
+                values: parse_u32(
+                    canonical_field(fields, "tile_values")?,
+                    "schedule.tile.values",
+                )?,
+            },
+            partition: WorkPartition::from_text(canonical_field(fields, "partition")?)?,
+            reduction: ReductionTopology::from_text(canonical_field(fields, "reduction")?)?,
+            exp_strategy: ExpStrategy::from_text(canonical_field(fields, "exp_strategy")?)?,
+            pipeline_stages: parse_u8(
+                canonical_field(fields, "pipeline_stages")?,
+                "schedule.pipeline_stages",
+            )?,
+            vector_width: parse_u16(
+                canonical_field(fields, "vector_width")?,
+                "schedule.vector_width",
+            )?,
+            buffering: Buffering::from_text(canonical_field(fields, "buffering")?)?,
+        },
+        MemoryPlan {
+            query: MemoryLevel::from_text(canonical_field(fields, "query_memory")?)?,
+            key: MemoryLevel::from_text(canonical_field(fields, "key_memory")?)?,
+            value: MemoryLevel::from_text(canonical_field(fields, "value_memory")?)?,
+            output: MemoryLevel::from_text(canonical_field(fields, "output_memory")?)?,
+            accumulator: MemoryLevel::from_text(canonical_field(fields, "accumulator_memory")?)?,
+            workspace_bytes: parse_u64(
+                canonical_field(fields, "workspace_bytes")?,
+                "memory.workspace_bytes",
+            )?,
+            alignment_bytes: parse_u32(
+                canonical_field(fields, "alignment_bytes")?,
+                "memory.alignment_bytes",
+            )?,
+            kv_page_rows,
+        },
+    )
 }
 
 fn validate_nonzero_bounded(
