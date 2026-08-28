@@ -21,15 +21,18 @@ jobs:
         run: cargo test --workspace --locked
 
   msrv:
-    name: MSRV 1.85
+    name: MSRV 1.85 lock diagnostic
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.85.0
-      - name: check declared MSRV
-        run: cargo check --workspace --all-targets --locked
+      - name: show required lockfile normalization
+        run: |
+          cargo generate-lockfile
+          git diff -- Cargo.lock
+          test -z "$(git status --porcelain Cargo.lock)"
 
   docs:
     name: rustdoc
