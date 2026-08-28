@@ -140,6 +140,16 @@ name = "ada-core"
 version = "0.1.0"
 
 [[package]]
+name = "ada-cost-model"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-implementation",
+ "ada-objective",
+ "ada-workload",
+]
+
+[[package]]
 name = "ada-implementation"
 version = "0.1.0"
 dependencies = [

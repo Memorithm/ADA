@@ -26,6 +26,7 @@ members = [
     "crates/ada-cegis",
     "crates/ada-objective",
     "crates/ada-implementation",
+    "crates/ada-cost-model",
     "crates/ada-qualification",
 ]
 
