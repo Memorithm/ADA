@@ -20,6 +20,14 @@ impl ExperimentIndex {
         Self::default()
     }
 
+    /// Insert a complete experiment under its deterministic fingerprint.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError::IndexFull`] at the configured capacity,
+    /// [`ExperimentError::DuplicateExperiment`] for an identical existing
+    /// record, or [`ExperimentError::FingerprintCollision`] if different
+    /// canonical records map to the same fingerprint.
     pub fn insert(
         &mut self,
         record: ExperimentRecord,
@@ -123,6 +131,13 @@ impl ExperimentIndex {
         text
     }
 
+    /// Decode and fully reconstruct a canonical experiment index.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError`] for malformed/non-canonical text, unsupported
+    /// versions, excessive entry counts, invalid nested experiment records,
+    /// duplicate records, or fingerprint collisions.
     pub fn from_canonical_text(text: &str) -> Result<Self, ExperimentError> {
         if text.len() > MAX_INDEX_BYTES || text.contains('\r') || !text.ends_with('\n') {
             return malformed("index exceeds limit, contains CR, or lacks final newline");
