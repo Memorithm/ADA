@@ -27,6 +27,8 @@ use ada_qualification::{
 use ada_semantic::SemanticProgram;
 use ada_workload::WorkloadContract;
 
+use crate::policy::validate_qualification_case_workload;
+
 /// Canonical A11-E4 graduation artifact version.
 pub const FLAT_GRADUATION_BUNDLE_VERSION: u16 = 1;
 /// Canonical artifact header.
