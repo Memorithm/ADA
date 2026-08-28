@@ -57,13 +57,20 @@ impl Display for GradientError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Semantic(error) => write!(formatter, "semantic gradient error: {error}"),
-            Self::Unsupported(feature) => write!(formatter, "gradient domain does not support {feature}"),
-            Self::InvalidConfig(field) => write!(formatter, "invalid gradient-check configuration: {field}"),
+            Self::Unsupported(feature) => {
+                write!(formatter, "gradient domain does not support {feature}")
+            }
+            Self::InvalidConfig(field) => {
+                write!(formatter, "invalid gradient-check configuration: {field}")
+            }
             Self::ShapeMismatch {
                 field,
                 expected,
                 actual,
-            } => write!(formatter, "{field} has {actual} elements; expected {expected}"),
+            } => write!(
+                formatter,
+                "{field} has {actual} elements; expected {expected}"
+            ),
             Self::NonFinite(stage) => write!(formatter, "non-finite value during {stage}"),
             Self::ParameterBudgetExceeded { requested, maximum } => write!(
                 formatter,
@@ -260,16 +267,16 @@ pub fn backward(
 
     for query_index in 0..query_count {
         let selected = &forward.selected_keys()[query_index];
-        let cotangent_row = &output_cotangent
-            [query_index * value_dimension..(query_index + 1) * value_dimension];
+        let cotangent_row =
+            &output_cotangent[query_index * value_dimension..(query_index + 1) * value_dimension];
         let query_row = &transformed_queries
             [query_index * query_dimension..(query_index + 1) * query_dimension];
 
         let mut value_sensitivities = Vec::with_capacity(selected.len());
         for &key_index in selected {
             let weight = forward.weights()[query_index * key_count + key_index];
-            let value_row = &input_spec.values
-                [key_index * value_dimension..(key_index + 1) * value_dimension];
+            let value_row =
+                &input_spec.values[key_index * value_dimension..(key_index + 1) * value_dimension];
             let value_gradient_row = &mut value_gradients
                 [key_index * value_dimension..(key_index + 1) * value_dimension];
             let mut sensitivity = 0.0_f64;
@@ -296,12 +303,12 @@ pub fn backward(
         )?;
 
         for (&key_index, &score_gradient) in selected.iter().zip(&score_gradients) {
-            let key_row = &transformed_keys
-                [key_index * query_dimension..(key_index + 1) * query_dimension];
+            let key_row =
+                &transformed_keys[key_index * query_dimension..(key_index + 1) * query_dimension];
             let query_gradient_row = &mut query_gradients
                 [query_index * query_dimension..(query_index + 1) * query_dimension];
-            let key_gradient_row = &mut key_gradients
-                [key_index * query_dimension..(key_index + 1) * query_dimension];
+            let key_gradient_row =
+                &mut key_gradients[key_index * query_dimension..(key_index + 1) * query_dimension];
             let scaled_gradient = score_gradient * affinity_scale;
             for dimension in 0..query_dimension {
                 query_gradient_row[dimension] += scaled_gradient * key_row[dimension];
@@ -598,8 +605,7 @@ fn selected_scores(
     selected: &[usize],
 ) -> Result<Vec<f64>, GradientError> {
     let dimension = input_spec.q_dimension;
-    let query_row =
-        &transformed_queries[query_index * dimension..(query_index + 1) * dimension];
+    let query_row = &transformed_queries[query_index * dimension..(query_index + 1) * dimension];
     let affinity_scale = match program.affinity() {
         AffinityRule::ScaledDotProduct { scale } => scale,
     };
@@ -848,7 +854,9 @@ impl CheckAccumulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ada_core::{MaskContract, SemanticDescriptor, SemanticFamily, SemanticId, StateContract, WeightContract};
+    use ada_core::{
+        MaskContract, SemanticDescriptor, SemanticFamily, SemanticId, StateContract, WeightContract,
+    };
     use ada_semantic::{MaskRule, OutputRule, SemanticProgramSpec, ValueMixRule};
     use ada_workload::{
         AttentionGeometry, AttentionTopology, GeometrySpec, HeadGrouping, MaskKind, MaskSpec,
@@ -901,8 +909,13 @@ mod tests {
     }
 
     fn softmax(selection: SelectionRule) -> SemanticProgram {
-        SemanticProgram::standard_softmax(id("gradient-softmax"), MaskRule::Unmasked, selection, 0.7)
-            .unwrap()
+        SemanticProgram::standard_softmax(
+            id("gradient-softmax"),
+            MaskRule::Unmasked,
+            selection,
+            0.7,
+        )
+        .unwrap()
     }
 
     #[test]
@@ -971,9 +984,12 @@ mod tests {
         let mask_values = vec![true, false, true, true, true, false];
         let report = finite_difference_check(
             &program,
-            &workload(MaskSpec::new(MaskKind::External {
-                identity: mask_identity,
-            }).unwrap()),
+            &workload(
+                MaskSpec::new(MaskKind::External {
+                    identity: mask_identity,
+                })
+                .unwrap(),
+            ),
             &input(Some(mask_values)),
             &[0.4, 0.1, -0.2, 0.6],
             GradientCheckConfig::default(),
