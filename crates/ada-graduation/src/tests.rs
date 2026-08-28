@@ -1,9 +1,7 @@
 use super::*;
 use ada_a10_evidence_schema::SemanticEvidenceSpec;
 use ada_cegis::{CegisConfig, CegisEngine};
-use ada_core::{
-    DiagnosticEvidenceKind, ImplementationCandidateId, SemanticFamily, SemanticId,
-};
+use ada_core::{DiagnosticEvidenceKind, ImplementationCandidateId, SemanticFamily, SemanticId};
 use ada_implementation::{
     AlgorithmPlan, Buffering, ExpStrategy, MemoryLevel, MemoryPlan, ReductionTopology,
     SchedulePlan, TileShape, WorkPartition,
@@ -125,12 +123,9 @@ fn qualified(
     kinds: &[DiagnosticEvidenceKind],
 ) -> EvidenceBoundQualification {
     let survivor = &result.survivors()[0];
-    let oracle = BoundedOracleQualification::from_cegis_result(
-        result,
-        survivor.fingerprint(),
-        &workload(),
-    )
-    .unwrap();
+    let oracle =
+        BoundedOracleQualification::from_cegis_result(result, survivor.fingerprint(), &workload())
+            .unwrap();
     let semantic = survivor.candidate().descriptor().id().clone();
     let workload_fingerprint = oracle.workload_fingerprint();
     let records = kinds
@@ -184,8 +179,7 @@ fn objective_input(measured: MeasuredCost) -> GraduationObjectives {
     GraduationObjectives {
         measured,
         quality: vec![
-            QualityMetric::new("task_accuracy", Some(0.75), ObjectiveDirection::Maximize)
-                .unwrap(),
+            QualityMetric::new("task_accuracy", Some(0.75), ObjectiveDirection::Maximize).unwrap(),
         ],
     }
 }
@@ -240,7 +234,10 @@ fn continue_research_bundle_round_trips_with_exact_oracle_and_a12_cost() {
     let decoded = FlatGraduationBundle::from_canonical_text(&text).unwrap();
     assert_eq!(decoded, bundle);
     assert_eq!(decoded.to_canonical_text(), text);
-    assert_eq!(decoded.candidate_key().unwrap(), bundle.candidate_key().unwrap());
+    assert_eq!(
+        decoded.candidate_key().unwrap(),
+        bundle.candidate_key().unwrap()
+    );
 }
 
 #[test]
@@ -321,11 +318,7 @@ fn decoder_recomputes_a12_cost_and_rejects_tampered_objectives() {
     .unwrap();
     let mut estimated = bundle.objectives.estimated();
     estimated.workspace_bytes = Some(1);
-    bundle.objectives = bundle
-        .objectives
-        .clone()
-        .with_estimated(estimated)
-        .unwrap();
+    bundle.objectives = bundle.objectives.clone().with_estimated(estimated).unwrap();
     let text = bundle.to_canonical_text();
     assert!(matches!(
         FlatGraduationBundle::from_canonical_text(&text),
