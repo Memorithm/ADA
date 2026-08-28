@@ -86,6 +86,14 @@ pub struct ProducerProvenance {
 }
 
 impl ProducerProvenance {
+    /// Construct validated producer provenance for one preserved experiment artifact.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError`] when the repository is not an `owner/name`
+    /// identity, the Git revision is not exact lowercase 40-hex, the artifact
+    /// identity is empty/ambiguous, or the artifact SHA-256 is not lowercase
+    /// 64-hex.
     pub fn new(
         repository: impl Into<String>,
         git_revision: impl Into<String>,
@@ -159,6 +167,12 @@ pub(crate) enum EvidenceKind {
 }
 
 impl EvidenceBinding {
+    /// Convert one validated core diagnostic reference into canonical experiment evidence.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError`] when repository or artifact/revision fields
+    /// violate the stricter experiment interchange identifier contract.
     pub fn from_reference(reference: &DiagnosticEvidenceRef) -> Result<Self, ExperimentError> {
         let value = Self {
             kind: EvidenceKind::from_diagnostic(reference.kind()),
@@ -279,6 +293,13 @@ pub struct ExperimentRecord {
 }
 
 impl ExperimentRecord {
+    /// Construct a fully bound experiment record and enforce evidence/objective invariants.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError`] for invalid workload/objective/provenance,
+    /// semantic/implementation mismatch, excessive or duplicate evidence, or
+    /// measured/quality objectives lacking their required provenance kinds.
     pub fn new(mut spec: ExperimentSpec) -> Result<Self, ExperimentError> {
         spec.workload
             .validate()
