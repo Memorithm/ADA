@@ -4,17 +4,80 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   rust:
+    name: build/test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: '1.85'
           components: rustfmt, clippy
+      - name: locked workspace build
+        run: cargo build --workspace --locked
       - name: fmt
         run: cargo fmt --all -- --check
       - name: clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: test
-        run: cargo test --workspace
+        run: cargo test --workspace --locked
+
+  miri:
+    name: miri
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - name: setup miri
+        run: cargo miri setup
+      - name: miri workspace tests
+        run: cargo miri test --workspace
+
+  fuzz-smoke:
+    name: fuzz-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: smoke every fuzz target
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t targets < <(cargo fuzz list)
+          if [ "${#targets[@]}" -eq 0 ]; then
+            echo "No fuzz targets discovered" >&2
+            exit 1
+          fi
+          for target in "${targets[@]}"; do
+            echo "::group::fuzz ${target}"
+            cargo fuzz run "${target}" -- -max_total_time=30 -timeout=10
+            echo "::endgroup::"
+          done
+
+  supply-chain:
+    name: supply-chain
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: install supply-chain tooling
+        run: |
+          cargo install cargo-audit --locked
+          cargo install cargo-deny --locked
+      - name: cargo audit
+        run: cargo audit
+      - name: initialize default cargo-deny policy
+        run: cargo deny init
+      - name: cargo deny advisories and sources
+        run: cargo deny check advisories sources
