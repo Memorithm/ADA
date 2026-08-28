@@ -1,0 +1,18 @@
+[package]
+name = "ada-qualification"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+ada-a10-evidence-schema = { path = "../ada-a10-evidence-schema" }
+ada-cegis = { path = "../ada-cegis" }
+ada-core = { path = "../ada-core" }
+ada-search = { path = "../ada-search" }
+ada-semantic = { path = "../ada-semantic" }
+ada-workload = { path = "../ada-workload" }
+
+[lints]
+workspace = true
