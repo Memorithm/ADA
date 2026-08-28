@@ -95,13 +95,9 @@ fn provenance() -> ProducerProvenance {
 }
 
 fn evidence(kind: DiagnosticEvidenceKind, artifact: &str) -> EvidenceBinding {
-    let reference = DiagnosticEvidenceRef::new(
-        kind,
-        "Memorithm/ADA",
-        artifact,
-        "git:0123456789abcdef",
-    )
-    .unwrap();
+    let reference =
+        DiagnosticEvidenceRef::new(kind, "Memorithm/ADA", artifact, "git:0123456789abcdef")
+            .unwrap();
     EvidenceBinding::from_reference(&reference).unwrap()
 }
 
@@ -167,8 +163,7 @@ fn measured_cost_fails_closed_without_hardware_evidence() {
 #[test]
 fn observed_quality_requires_behavioral_provenance() {
     let (semantic, workload, implementation) = components();
-    let quality =
-        QualityMetric::new("accuracy", Some(0.9), ObjectiveDirection::Maximize).unwrap();
+    let quality = QualityMetric::new("accuracy", Some(0.9), ObjectiveDirection::Maximize).unwrap();
     let objective = ObjectiveVector::new(CorrectnessStatus::Provisional)
         .with_quality(vec![quality])
         .unwrap();
