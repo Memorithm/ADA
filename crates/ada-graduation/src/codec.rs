@@ -1,7 +1,7 @@
 use super::*;
 use crate::policy::{
-    check_count_limit, strictly_sorted_fixtures, validate_bundle_policy,
-    validate_cost_objectives, validate_qualification_case_workload,
+    check_count_limit, strictly_sorted_fixtures, validate_bundle_policy, validate_cost_objectives,
+    validate_qualification_case_workload,
 };
 
 impl FlatGraduationBundle {
@@ -20,7 +20,11 @@ impl FlatGraduationBundle {
             "workload",
             hex_encode(&self.workload.to_canonical_text()),
         );
-        append_field(&mut text, "oracle_fixture_count", self.oracle_fixtures.len());
+        append_field(
+            &mut text,
+            "oracle_fixture_count",
+            self.oracle_fixtures.len(),
+        );
         for (index, fixture) in self.oracle_fixtures.iter().enumerate() {
             append_field(
                 &mut text,
@@ -238,9 +242,10 @@ impl FlatGraduationBundle {
         let mut evidence = Vec::with_capacity(evidence_count);
         for index in 0..evidence_count {
             let record_text = hex_decode(next_value(&mut lines, &format!("evidence_{index}"))?)?;
-            let record = SemanticEvidenceRecord::from_canonical_text(&record_text).map_err(|error| {
-                GraduationError::MalformedCanonical(format!("invalid E2 record: {error:?}"))
-            })?;
+            let record =
+                SemanticEvidenceRecord::from_canonical_text(&record_text).map_err(|error| {
+                    GraduationError::MalformedCanonical(format!("invalid E2 record: {error:?}"))
+                })?;
             evidence.push(record);
         }
         let verdict = parse_verdict(next_value(&mut lines, "verdict")?)?;
@@ -329,21 +334,21 @@ fn next_value<'a>(
 }
 
 fn parse_u64(value: &str, field: &str) -> Result<u64, GraduationError> {
-    value.parse::<u64>().map_err(|_| {
-        GraduationError::MalformedCanonical(format!("invalid integer field {field}"))
-    })
+    value
+        .parse::<u64>()
+        .map_err(|_| GraduationError::MalformedCanonical(format!("invalid integer field {field}")))
 }
 
 fn parse_u16(value: &str, field: &str) -> Result<u16, GraduationError> {
-    value.parse::<u16>().map_err(|_| {
-        GraduationError::MalformedCanonical(format!("invalid integer field {field}"))
-    })
+    value
+        .parse::<u16>()
+        .map_err(|_| GraduationError::MalformedCanonical(format!("invalid integer field {field}")))
 }
 
 fn parse_usize(value: &str, field: &str) -> Result<usize, GraduationError> {
-    value.parse::<usize>().map_err(|_| {
-        GraduationError::MalformedCanonical(format!("invalid integer field {field}"))
-    })
+    value
+        .parse::<usize>()
+        .map_err(|_| GraduationError::MalformedCanonical(format!("invalid integer field {field}")))
 }
 
 fn parse_bool(value: &str) -> Result<bool, GraduationError> {
@@ -399,8 +404,8 @@ fn parse_fixture_fingerprint(value: &str) -> Result<OracleFixtureFingerprint, Gr
 }
 
 fn parse_hex_u64(value: Option<&str>, field: &str) -> Result<u64, GraduationError> {
-    let value = value
-        .ok_or_else(|| GraduationError::MalformedCanonical(format!("missing {field}")))?;
+    let value =
+        value.ok_or_else(|| GraduationError::MalformedCanonical(format!("missing {field}")))?;
     if value.len() != 16
         || !value
             .bytes()
