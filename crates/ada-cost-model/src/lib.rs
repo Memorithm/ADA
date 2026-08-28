@@ -695,9 +695,6 @@ mod tests {
             },
             CostAssumptions::default(),
         );
-        assert!(matches!(
-            result,
-            Err(CostModelError::ArithmeticOverflow(_))
-        ));
+        assert!(matches!(result, Err(CostModelError::ArithmeticOverflow(_))));
     }
 }
