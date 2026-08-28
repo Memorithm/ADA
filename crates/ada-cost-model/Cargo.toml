@@ -10,5 +10,8 @@ ada-implementation = { path = "../ada-implementation" }
 ada-objective = { path = "../ada-objective" }
 ada-workload = { path = "../ada-workload" }
 
+[dev-dependencies]
+ada-core = { path = "../ada-core" }
+
 [lints]
 workspace = true
