@@ -30,9 +30,13 @@ pub enum CostModelError {
 impl Display for CostModelError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unsupported(feature) => write!(formatter, "cost model does not support {feature}"),
+            Self::Unsupported(feature) => {
+                write!(formatter, "cost model does not support {feature}")
+            }
             Self::InvalidAssumption(field) => write!(formatter, "invalid cost assumption: {field}"),
-            Self::ArithmeticOverflow(field) => write!(formatter, "cost accounting overflow: {field}"),
+            Self::ArithmeticOverflow(field) => {
+                write!(formatter, "cost accounting overflow: {field}")
+            }
         }
     }
 }
@@ -58,14 +62,14 @@ impl OperationProfile {
     /// Conventional dense scaled-dot-product/softmax accounting profile.
     ///
     /// This helper counts a length-`d` dot product as `d` multiplies plus
-    /// `d-1` additions and adds one scale multiply. It charges one
-    /// transcendental and two value-mixing FLOPs per value element. The caller
-    /// must still decide whether this convention is appropriate to the
-    /// semantic being studied.
+    /// `d-1` additions and adds one scale multiply, for `2d` score FLOPs. It
+    /// charges one transcendental and two value-mixing FLOPs per value element.
+    /// The caller must still decide whether this convention is appropriate to
+    /// the semantic being studied.
     ///
     /// # Errors
     ///
-    /// Returns an error when `qk_dimension` is zero or the exact expression
+    /// Returns an error when `qk_dimension` is zero or conversion/multiplication
     /// overflows `u64`.
     pub fn scaled_dot_softmax(qk_dimension: usize) -> Result<Self, CostModelError> {
         if qk_dimension == 0 {
@@ -73,11 +77,7 @@ impl OperationProfile {
         }
         let dimension = u64::try_from(qk_dimension)
             .map_err(|_| CostModelError::ArithmeticOverflow("qk_dimension"))?;
-        let score_flops_per_pair = checked_add(
-            checked_mul(dimension, 2, "score_flops_per_pair")?,
-            0,
-            "score_flops_per_pair",
-        )?;
+        let score_flops_per_pair = checked_mul(dimension, 2, "score_flops_per_pair")?;
         Ok(Self {
             score_flops_per_pair,
             transcendentals_per_pair: 1,
@@ -210,7 +210,7 @@ impl EstimatedCostReport {
     ///
     /// # Errors
     ///
-    /// Returns an error if bit-to-byte ceiling conversion overflows.
+    /// Returns an error if total payload-bit accounting overflows.
     pub fn to_objective_estimate(self) -> Result<EstimatedCost, CostModelError> {
         let total_bits = checked_add(
             self.logical_payload_read_bits,
@@ -218,12 +218,9 @@ impl EstimatedCostReport {
             "payload_bits",
         )?;
         Ok(EstimatedCost {
-            bytes_moved: Some(bits_to_bytes_ceil(total_bits)?),
+            bytes_moved: Some(bits_to_bytes_ceil(total_bits)),
             workspace_bytes: Some(self.workspace_bytes),
-            kv_cache_bytes: self
-                .logical_kv_cache_payload_bits
-                .map(bits_to_bytes_ceil)
-                .transpose()?,
+            kv_cache_bytes: self.logical_kv_cache_payload_bits.map(bits_to_bytes_ceil),
             index_construction: None,
             communication_bytes: None,
             reduction_operations: Some(self.reduction_operations),
@@ -289,8 +286,8 @@ pub fn estimate_cost(
                 .ok_or(CostModelError::ArithmeticOverflow("kv_length"))?,
             "kv_length",
         )?;
-        let query_tiles = div_ceil(query_length, q_tile);
-        let kv_tiles = div_ceil(kv_length, kv_tile);
+        let query_tiles = query_length.div_ceil(q_tile);
+        let kv_tiles = kv_length.div_ceil(kv_tile);
 
         let base_pairs = product(&[query_length, query_heads, kv_length], "score_pairs")?;
         totals.score_pairs = checked_add(
@@ -310,11 +307,8 @@ pub fn estimate_cost(
             &[query_length, query_heads, value_dimension],
             "output_elements",
         )?;
-        totals.output_elements = checked_add(
-            totals.output_elements,
-            output_elements,
-            "output_elements",
-        )?;
+        totals.output_elements =
+            checked_add(totals.output_elements, output_elements, "output_elements")?;
 
         let q_elements = product(&[query_length, query_heads, qk_dimension], "query_elements")?;
         let q_reloads = if assumptions.reload_query_per_kv_tile {
@@ -429,16 +423,24 @@ fn validate_supported_workload(workload: &WorkloadContract) -> Result<(), CostMo
         .map_err(|_| CostModelError::Unsupported("invalid workload contract"))?;
     match workload.mask().kind() {
         MaskKind::None | MaskKind::Bidirectional => {}
-        MaskKind::Causal => return Err(CostModelError::Unsupported("causal visibility accounting")),
+        MaskKind::Causal => {
+            return Err(CostModelError::Unsupported("causal visibility accounting"));
+        }
         MaskKind::External { .. } => {
-            return Err(CostModelError::Unsupported("external mask visibility accounting"));
+            return Err(CostModelError::Unsupported(
+                "external mask visibility accounting",
+            ));
         }
     }
     if !matches!(workload.inputs(), InputRepresentation::ExplicitQkv) {
-        return Err(CostModelError::Unsupported("non-Q/K/V input representation"));
+        return Err(CostModelError::Unsupported(
+            "non-Q/K/V input representation",
+        ));
     }
     if !matches!(workload.kv_representation(), KvRepresentation::Full) {
-        return Err(CostModelError::Unsupported("latent/compressed KV representation"));
+        return Err(CostModelError::Unsupported(
+            "latent/compressed KV representation",
+        ));
     }
     if !matches!(workload.state(), StateSpec::Stateless) {
         return Err(CostModelError::Unsupported("recurrent state traffic"));
@@ -473,13 +475,8 @@ const fn precision_bits(precision: ScalarPrecision) -> u64 {
     }
 }
 
-fn bits_to_bytes_ceil(bits: u64) -> Result<u64, CostModelError> {
-    let biased = checked_add(bits, 7, "bit_to_byte_rounding")?;
-    Ok(biased / 8)
-}
-
-fn div_ceil(value: u64, divisor: u64) -> u64 {
-    value / divisor + u64::from(value % divisor != 0)
+const fn bits_to_bytes_ceil(bits: u64) -> u64 {
+    bits.div_ceil(8)
 }
 
 fn to_u64(value: usize, field: &'static str) -> Result<u64, CostModelError> {
@@ -630,7 +627,10 @@ mod tests {
         assert_eq!(report.reduction_operations(), report.output_elements() * 3);
         let objective = report.to_objective_estimate().unwrap();
         assert_eq!(objective.workspace_bytes, Some(4_096));
-        assert_eq!(objective.reduction_operations, Some(report.output_elements() * 3));
+        assert_eq!(
+            objective.reduction_operations,
+            Some(report.output_elements() * 3)
+        );
         assert!(objective.bytes_moved.is_some());
         assert_eq!(objective.communication_bytes, None);
     }
@@ -640,7 +640,8 @@ mod tests {
         let contract = workload(2, 2);
         let plan = implementation(WorkPartition::QueryTiles);
         let profile = OperationProfile::scaled_dot_softmax(8).unwrap();
-        let resident = estimate_cost(&contract, &plan, profile, CostAssumptions::default()).unwrap();
+        let resident =
+            estimate_cost(&contract, &plan, profile, CostAssumptions::default()).unwrap();
         let reloaded = estimate_cost(
             &contract,
             &plan,
@@ -694,6 +695,9 @@ mod tests {
             },
             CostAssumptions::default(),
         );
-        assert!(matches!(result, Err(CostModelError::ArithmeticOverflow(_))));
+        assert!(matches!(
+            result,
+            Err(CostModelError::ArithmeticOverflow(_))
+        ));
     }
 }
