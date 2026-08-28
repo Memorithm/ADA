@@ -1,4 +1,10 @@
-use super::*;
+use super::{
+    CostAssumptions, Display, EvidenceWorkloadFingerprint, FLAT_GRADUATION_BUNDLE_HEADER,
+    FLAT_GRADUATION_BUNDLE_VERSION, FlatGraduationBundle, GraduationError, ImplementationPlan,
+    MAX_GRADUATION_BUNDLE_BYTES, MAX_GRADUATION_EVIDENCE, MAX_GRADUATION_FIXTURES,
+    ObjectiveVector, OperationProfile, OracleFixtureArtifact, OracleFixtureFingerprint,
+    QualificationVerdict, SemanticEvidenceRecord, SemanticProgram, WorkloadContract, estimate_cost,
+};
 use crate::policy::{
     check_count_limit, strictly_sorted_fixtures, validate_bundle_policy, validate_cost_objectives,
     validate_qualification_case_workload,
@@ -114,6 +120,7 @@ impl FlatGraduationBundle {
     ///
     /// Rejects malformed/non-canonical text, invalid nested artifacts, cost
     /// mismatches, evidence mismatches, or policy violations.
+    #[allow(clippy::too_many_lines)]
     pub fn from_canonical_text(text: &str) -> Result<Self, GraduationError> {
         if text.is_empty() || text.len() > MAX_GRADUATION_BUNDLE_BYTES || text.contains('\r') {
             return Err(GraduationError::MalformedCanonical(
