@@ -269,9 +269,9 @@ pub struct FlatGraduationBundle {
 /// until ADA gains a separately provenance-bound numerical evidence record.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraduationObjectives {
-    /// Physical measurements. These require HardwareCost E2 provenance.
+    /// Physical measurements. These require `HardwareCost` E2 provenance.
     pub measured: MeasuredCost,
-    /// Task/model quality metrics. Observed values require TaskBehavior E2 evidence.
+    /// Task/model quality metrics. Observed values require `TaskBehavior` E2 evidence.
     pub quality: Vec<QualityMetric>,
 }
 
