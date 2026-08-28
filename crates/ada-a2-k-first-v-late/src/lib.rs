@@ -493,6 +493,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        miri,
+        ignore = "Miri soft-float differs from native by one ULP in this bit-exact parity assertion"
+    )]
     fn priority_k_first_v_late_matches_dense_for_sparse_entmax() {
         let keys = vec![
             10.0, 0.0, 9.5, 0.0, -10.0, 4.0, -11.0, -4.0, -20.0, 7.0, -21.0, -7.0, -30.0, 9.0,
