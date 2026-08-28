@@ -1,0 +1,22 @@
+name: research-tier
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 0"
+
+concurrency:
+  group: research-tier-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-regression:
+    name: release workspace regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: release tests
+        run: cargo test --workspace --release --locked
+      - name: all-target all-feature check
+        run: cargo check --workspace --all-targets --all-features --locked
