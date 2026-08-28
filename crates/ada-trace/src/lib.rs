@@ -239,10 +239,10 @@ impl TraceRecord {
             );
             match event.kind {
                 TraceEventKind::StageStart => {
-                    append(&mut text, &format!("{prefix}_kind"), "stage-start")
+                    append(&mut text, &format!("{prefix}_kind"), "stage-start");
                 }
                 TraceEventKind::StageEnd => {
-                    append(&mut text, &format!("{prefix}_kind"), "stage-end")
+                    append(&mut text, &format!("{prefix}_kind"), "stage-end");
                 }
                 TraceEventKind::Counter(value) => {
                     append(&mut text, &format!("{prefix}_kind"), "counter");
