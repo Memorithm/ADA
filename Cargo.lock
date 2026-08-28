@@ -40,6 +40,7 @@ version = "0.1.0"
 dependencies = [
  "ada-a4-entmax-bnb",
  "ada-a4-qk-box",
+ "ada-a5-content-aware-bounds",
  "ada-a5-hierarchical-bounds",
  "ada-a5-real-qk-trace",
 ]
@@ -146,6 +147,22 @@ dependencies = [
  "ada-core",
  "ada-implementation",
  "ada-objective",
+ "ada-workload",
+]
+
+[[package]]
+name = "ada-graduation"
+version = "0.1.0"
+dependencies = [
+ "ada-a10-evidence-schema",
+ "ada-cegis",
+ "ada-core",
+ "ada-cost-model",
+ "ada-implementation",
+ "ada-objective",
+ "ada-qualification",
+ "ada-search",
+ "ada-semantic",
  "ada-workload",
 ]
 
