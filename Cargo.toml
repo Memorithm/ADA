@@ -29,6 +29,7 @@ members = [
     "crates/ada-cost-model",
     "crates/ada-qualification",
     "crates/ada-graduation",
+    "crates/ada-replay",
 ]
 
 [workspace.package]
