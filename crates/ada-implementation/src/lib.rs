@@ -409,7 +409,7 @@ pub struct ImplementationFingerprint {
 
 impl ImplementationFingerprint {
     fn of_bytes(bytes: &[u8]) -> Self {
-        const FNV_OFFSET: u64 = 0xcbf_29ce4_8422_2325;
+        const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
         const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
         const MIX_MULT: u64 = 0xff51_afd7_ed55_8ccd;
         let mut primary = FNV_OFFSET;
@@ -657,10 +657,7 @@ fn parse_schedule(lines: &mut std::str::Lines<'_>) -> Result<SchedulePlan, Imple
         partition: WorkPartition::parse(next_value(lines, "partition")?)?,
         reduction: ReductionTopology::parse(next_value(lines, "reduction")?)?,
         exp_strategy: ExpStrategy::parse(next_value(lines, "exp_strategy")?)?,
-        pipeline_stages: parse_number(
-            next_value(lines, "pipeline_stages")?,
-            "pipeline_stages",
-        )?,
+        pipeline_stages: parse_number(next_value(lines, "pipeline_stages")?, "pipeline_stages")?,
         vector_width: parse_number(next_value(lines, "vector_width")?, "vector_width")?,
         buffering: Buffering::parse(next_value(lines, "buffering")?)?,
     };
@@ -669,20 +666,28 @@ fn parse_schedule(lines: &mut std::str::Lines<'_>) -> Result<SchedulePlan, Imple
 }
 
 fn parse_memory(lines: &mut std::str::Lines<'_>) -> Result<MemoryPlan, ImplementationError> {
+    let query = MemoryLevel::parse(next_value(lines, "query_memory")?)?;
+    let key = MemoryLevel::parse(next_value(lines, "key_memory")?)?;
+    let value = MemoryLevel::parse(next_value(lines, "value_memory")?)?;
+    let output = MemoryLevel::parse(next_value(lines, "output_memory")?)?;
+    let accumulator = MemoryLevel::parse(next_value(lines, "accumulator_memory")?)?;
+    let workspace_bytes = parse_number(next_value(lines, "workspace_bytes")?, "workspace_bytes")?;
+    let alignment_bytes = parse_number(next_value(lines, "alignment_bytes")?, "alignment_bytes")?;
     let page_text = next_value(lines, "kv_page_rows")?;
+    let kv_page_rows = if page_text == "none" {
+        None
+    } else {
+        Some(parse_number(page_text, "kv_page_rows")?)
+    };
     let memory = MemoryPlan {
-        query: MemoryLevel::parse(next_value(lines, "query_memory")?)?,
-        key: MemoryLevel::parse(next_value(lines, "key_memory")?)?,
-        value: MemoryLevel::parse(next_value(lines, "value_memory")?)?,
-        output: MemoryLevel::parse(next_value(lines, "output_memory")?)?,
-        accumulator: MemoryLevel::parse(next_value(lines, "accumulator_memory")?)?,
-        workspace_bytes: parse_number(next_value(lines, "workspace_bytes")?, "workspace_bytes")?,
-        alignment_bytes: parse_number(next_value(lines, "alignment_bytes")?, "alignment_bytes")?,
-        kv_page_rows: if page_text == "none" {
-            None
-        } else {
-            Some(parse_number(page_text, "kv_page_rows")?)
-        },
+        query,
+        key,
+        value,
+        output,
+        accumulator,
+        workspace_bytes,
+        alignment_bytes,
+        kv_page_rows,
     };
     memory.validate()?;
     Ok(memory)
@@ -833,13 +838,9 @@ mod tests {
         let id = ImplementationCandidateId::new(semantic(), "portable-reference", 3).unwrap();
         let mut paged_memory = memory();
         paged_memory.kv_page_rows = Some(128);
-        let plan = ImplementationPlan::new(
-            id,
-            AlgorithmPlan::PagedBlocked,
-            schedule(),
-            paged_memory,
-        )
-        .unwrap();
+        let plan =
+            ImplementationPlan::new(id, AlgorithmPlan::PagedBlocked, schedule(), paged_memory)
+                .unwrap();
         let text = plan.to_canonical_text();
         let decoded = ImplementationPlan::from_canonical_text(&text).unwrap();
         assert_eq!(decoded, plan);
@@ -863,7 +864,8 @@ mod tests {
     #[test]
     fn noncanonical_artifacts_are_rejected() {
         let id = ImplementationCandidateId::new(semantic(), "canonical", 1).unwrap();
-        let plan = ImplementationPlan::new(id, AlgorithmPlan::TwoPass, schedule(), memory()).unwrap();
+        let plan =
+            ImplementationPlan::new(id, AlgorithmPlan::TwoPass, schedule(), memory()).unwrap();
         let canonical = plan.to_canonical_text();
         let reordered = canonical.replace(
             "tile_queries=64\ntile_keys=128",
@@ -880,13 +882,9 @@ mod tests {
     #[test]
     fn representation_contains_no_measurement_identity() {
         let id = ImplementationCandidateId::new(semantic(), "backend-neutral", 1).unwrap();
-        let plan = ImplementationPlan::new(
-            id,
-            AlgorithmPlan::OnlineStreaming,
-            schedule(),
-            memory(),
-        )
-        .unwrap();
+        let plan =
+            ImplementationPlan::new(id, AlgorithmPlan::OnlineStreaming, schedule(), memory())
+                .unwrap();
         let text = plan.to_canonical_text();
         assert!(!text.contains("device"));
         assert!(!text.contains("latency"));
