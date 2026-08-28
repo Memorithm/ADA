@@ -173,6 +173,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-qualification"
+version = "0.1.0"
+dependencies = [
+ "ada-a10-evidence-schema",
+ "ada-cegis",
+ "ada-core",
+ "ada-search",
+ "ada-semantic",
+ "ada-workload",
+]
+
+[[package]]
 name = "ada-runner"
 version = "0.1.0"
 dependencies = [
