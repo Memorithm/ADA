@@ -1,0 +1,16 @@
+[package]
+name = "ada-experiment"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ada-core = { path = "../ada-core" }
+ada-implementation = { path = "../ada-implementation" }
+ada-objective = { path = "../ada-objective" }
+ada-semantic = { path = "../ada-semantic" }
+ada-workload = { path = "../ada-workload" }
+
+[lints]
+workspace = true
