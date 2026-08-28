@@ -94,9 +94,9 @@ pub(super) fn validate_bundle_policy(
     verdict: QualificationVerdict,
 ) -> Result<(), GraduationError> {
     objectives.validate()?;
-    semantic
-        .validate_for_workload(workload)
-        .map_err(|error| GraduationError::MalformedCanonical(format!("semantic/workload: {error}")))?;
+    semantic.validate_for_workload(workload).map_err(|error| {
+        GraduationError::MalformedCanonical(format!("semantic/workload: {error}"))
+    })?;
     let workload_fingerprint = EvidenceWorkloadFingerprint::from_workload(workload);
     let mut canonical = BTreeSet::new();
     for record in evidence {
@@ -134,7 +134,10 @@ pub(super) fn validate_bundle_policy(
     if objectives.correctness() != CorrectnessStatus::Provisional {
         return Err(GraduationError::InvalidCorrectnessStatus);
     }
-    if matches!(verdict, QualificationVerdict::Adopt | QualificationVerdict::Adapt) {
+    if matches!(
+        verdict,
+        QualificationVerdict::Adopt | QualificationVerdict::Adapt
+    ) {
         return Err(GraduationError::VerdictRequiresQualifiedCorrectness);
     }
 
