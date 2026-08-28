@@ -107,10 +107,8 @@ impl ExperimentRecord {
         }
         let mut evidence = Vec::with_capacity(evidence_count);
         for index in 0..evidence_count {
-            let kind = EvidenceKind::parse(next_value(
-                &mut lines,
-                &format!("evidence_{index}_kind"),
-            )?)?;
+            let kind =
+                EvidenceKind::parse(next_value(&mut lines, &format!("evidence_{index}_kind"))?)?;
             let repository = hex_decode(next_value(
                 &mut lines,
                 &format!("evidence_{index}_repository"),
@@ -200,7 +198,7 @@ pub(crate) fn hex_encode(value: &str) -> String {
 }
 
 pub(crate) fn hex_decode(value: &str) -> Result<String, ExperimentError> {
-    if !value.len().is_multiple_of(2) {
+    if value.len() % 2 != 0 {
         return malformed("odd-length hex field");
     }
     let mut bytes = Vec::with_capacity(value.len() / 2);
