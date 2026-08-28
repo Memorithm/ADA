@@ -72,8 +72,9 @@ impl Display for ReplayError {
             Self::FixtureFingerprintMismatch => {
                 formatter.write_str("replay fixture does not reproduce retained CEGIS identity")
             }
-            Self::NonReplayableFixture => formatter
-                .write_str("qualification input is opaque and not ADA-REFERENCE-INPUT-V1"),
+            Self::NonReplayableFixture => {
+                formatter.write_str("qualification input is opaque and not ADA-REFERENCE-INPUT-V1")
+            }
             Self::OracleReplayMismatch {
                 fixture_id,
                 max_abs_error_bits,
@@ -164,8 +165,10 @@ impl ReplayReferenceInput {
         let query_count = parse_usize(next_value(&mut lines, "query_count")?, "query_count")?;
         let key_count = parse_usize(next_value(&mut lines, "key_count")?, "key_count")?;
         let q_dimension = parse_usize(next_value(&mut lines, "q_dimension")?, "q_dimension")?;
-        let value_dimension =
-            parse_usize(next_value(&mut lines, "value_dimension")?, "value_dimension")?;
+        let value_dimension = parse_usize(
+            next_value(&mut lines, "value_dimension")?,
+            "value_dimension",
+        )?;
         let query_len = checked_product(query_count, q_dimension, "queries")?;
         let key_len = checked_product(key_count, q_dimension, "keys")?;
         let value_len = checked_product(key_count, value_dimension, "values")?;
@@ -646,9 +649,9 @@ fn next_value<'a>(
     lines: &mut std::str::Lines<'a>,
     expected_key: &str,
 ) -> Result<&'a str, ReplayError> {
-    let line = lines.next().ok_or_else(|| {
-        ReplayError::MalformedCanonical(format!("missing field {expected_key}"))
-    })?;
+    let line = lines
+        .next()
+        .ok_or_else(|| ReplayError::MalformedCanonical(format!("missing field {expected_key}")))?;
     let (key, value) = line.split_once('=').ok_or_else(|| {
         ReplayError::MalformedCanonical(format!("field {expected_key} lacks '='"))
     })?;
@@ -661,15 +664,15 @@ fn next_value<'a>(
 }
 
 fn parse_u16(value: &str, field: &str) -> Result<u16, ReplayError> {
-    value.parse::<u16>().map_err(|_| {
-        ReplayError::MalformedCanonical(format!("invalid integer field {field}"))
-    })
+    value
+        .parse::<u16>()
+        .map_err(|_| ReplayError::MalformedCanonical(format!("invalid integer field {field}")))
 }
 
 fn parse_usize(value: &str, field: &str) -> Result<usize, ReplayError> {
-    value.parse::<usize>().map_err(|_| {
-        ReplayError::MalformedCanonical(format!("invalid integer field {field}"))
-    })
+    value
+        .parse::<usize>()
+        .map_err(|_| ReplayError::MalformedCanonical(format!("invalid integer field {field}")))
 }
 
 fn hex_decode(value: &str) -> Result<String, ReplayError> {
