@@ -12,8 +12,8 @@ mod model;
 
 pub use index::{EXPERIMENT_INDEX_HEADER, EXPERIMENT_INDEX_VERSION, ExperimentIndex};
 pub use model::{
-    EXPERIMENT_HEADER, EXPERIMENT_VERSION, EvidenceBinding, ExperimentError,
-    ExperimentFingerprint, ExperimentRecord, ExperimentSpec, ProducerProvenance,
+    EXPERIMENT_HEADER, EXPERIMENT_VERSION, EvidenceBinding, ExperimentError, ExperimentFingerprint,
+    ExperimentRecord, ExperimentSpec, ProducerProvenance,
 };
 
 #[cfg(test)]
