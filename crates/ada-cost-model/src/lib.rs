@@ -452,7 +452,7 @@ fn payload_bits_for_batch(
         "input_read_bits",
     )?;
     let write = checked_mul(output_elements, dimensions.output_bits, "output_write_bits")?;
-    let kv_elements = product(
+    let kv_cache_elements = product(
         &[
             kv_length,
             dimensions.kv_heads,
@@ -464,7 +464,11 @@ fn payload_bits_for_batch(
         ],
         "kv_cache_elements",
     )?;
-    let kv_cache = checked_mul(kv_elements, dimensions.storage_bits, "kv_cache_bits")?;
+    let kv_cache = checked_mul(
+        kv_cache_elements,
+        dimensions.storage_bits,
+        "kv_cache_bits",
+    )?;
     Ok(PayloadBits {
         read,
         write,
