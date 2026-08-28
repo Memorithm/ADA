@@ -248,13 +248,14 @@ pub fn prove_equivalent_for_workload(
         return Ok(EquivalenceResult::NotProven);
     }
 
+    let normalized_canonical_text = execution_structure_text(left_normalized.program());
     Ok(EquivalenceResult::Proven(EquivalenceWitness {
         domain,
         left_semantic: left.descriptor().id().clone(),
         right_semantic: right.descriptor().id().clone(),
         left_rules: left_normalized.applied_rules,
         right_rules: right_normalized.applied_rules,
-        normalized_canonical_text: execution_structure_text(left_normalized.program()),
+        normalized_canonical_text,
     }))
 }
 
@@ -298,9 +299,6 @@ fn same_execution_structure(left: &SemanticProgram, right: &SemanticProgram) -> 
 }
 
 fn execution_structure_text(program: &SemanticProgram) -> String {
-    // The semantic codec contains identity fields. Keep a deterministic proof
-    // summary that records executable components only, so distinct SemanticIds
-    // can be proven workload-equivalent without being merged.
     format!(
         "input={:?}\naffinity={:?}\nmask={:?}\nselection={:?}\nweight={:?}\nvalue_mix={:?}\noutput={:?}\nmask_contract={:?}\nstate_contract={:?}\nweight_contract={:?}\n",
         program.input_transform(),
