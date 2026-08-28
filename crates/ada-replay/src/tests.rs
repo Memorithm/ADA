@@ -6,7 +6,9 @@ use ada_a10_evidence_schema::{
     EvidenceWorkloadFingerprint, SemanticEvidenceRecord, SemanticEvidenceSpec,
 };
 use ada_cegis::{CegisConfig, CegisEngine};
-use ada_core::{DiagnosticEvidenceKind, ImplementationCandidateId, QualificationVerdict, SemanticId};
+use ada_core::{
+    DiagnosticEvidenceKind, ImplementationCandidateId, QualificationVerdict, SemanticId,
+};
 use ada_cost_model::{CostAssumptions, OperationProfile};
 use ada_graduation::{FlatGraduationBundle, GraduationObjectives};
 use ada_implementation::{
@@ -157,12 +159,9 @@ fn qualified(
     result: &ada_cegis::CegisResult<SemanticProgram, SemanticWorkloadCase>,
 ) -> EvidenceBoundQualification {
     let survivor = &result.survivors()[0];
-    let oracle = BoundedOracleQualification::from_cegis_result(
-        result,
-        survivor.fingerprint(),
-        &workload(),
-    )
-    .unwrap();
+    let oracle =
+        BoundedOracleQualification::from_cegis_result(result, survivor.fingerprint(), &workload())
+            .unwrap();
     let record = evidence(
         survivor.candidate().descriptor().id().clone(),
         oracle.workload_fingerprint(),
@@ -221,7 +220,8 @@ fn graduation(
         GraduationObjectives {
             measured: MeasuredCost::default(),
             quality: vec![
-                QualityMetric::new("fixture_pass", Some(1.0), ObjectiveDirection::Maximize).unwrap(),
+                QualityMetric::new("fixture_pass", Some(1.0), ObjectiveDirection::Maximize)
+                    .unwrap(),
             ],
         },
         QualificationVerdict::ContinueResearch,
@@ -247,7 +247,10 @@ fn exact_reference_input_round_trips_bits_and_mask() {
     assert_eq!(decoded.to_canonical_text(), text);
     assert_eq!(decoded.queries()[0].to_bits(), (-0.0_f64).to_bits());
     assert_eq!(decoded.queries()[1].to_bits(), 1);
-    assert_eq!(decoded.external_mask(), Some([true, false, false, true].as_slice()));
+    assert_eq!(
+        decoded.external_mask(),
+        Some([true, false, false, true].as_slice())
+    );
 }
 
 #[test]
