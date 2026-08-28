@@ -52,16 +52,26 @@ pub enum BackwardError {
 impl Display for BackwardError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::UnsupportedSemantic(reason) => write!(formatter, "unsupported backward semantic: {reason}"),
+            Self::UnsupportedSemantic(reason) => {
+                write!(formatter, "unsupported backward semantic: {reason}")
+            }
             Self::ShapeMismatch {
                 field,
                 expected,
                 actual,
-            } => write!(formatter, "{field} has {actual} elements; expected {expected}"),
+            } => write!(
+                formatter,
+                "{field} has {actual} elements; expected {expected}"
+            ),
             Self::NonFinite(field) => write!(formatter, "non-finite backward value: {field}"),
-            Self::ArithmeticOverflow(field) => write!(formatter, "backward shape overflow: {field}"),
+            Self::ArithmeticOverflow(field) => {
+                write!(formatter, "backward shape overflow: {field}")
+            }
             Self::InvalidFiniteDifferenceConfig(field) => {
-                write!(formatter, "invalid finite-difference configuration: {field}")
+                write!(
+                    formatter,
+                    "invalid finite-difference configuration: {field}"
+                )
             }
             Self::FiniteDifferenceBudgetExceeded { variables, maximum } => write!(
                 formatter,
@@ -213,7 +223,9 @@ impl FiniteDifferenceConfig {
             ));
         }
         if self.max_variables == 0 || self.max_variables > MAX_FINITE_DIFFERENCE_VARIABLES {
-            return Err(BackwardError::InvalidFiniteDifferenceConfig("max_variables"));
+            return Err(BackwardError::InvalidFiniteDifferenceConfig(
+                "max_variables",
+            ));
         }
         Ok(())
     }
@@ -347,7 +359,8 @@ pub fn check_finite_difference(
         });
     }
     let analytical = backward(program, input)?;
-    let numeric_queries = numerical_gradient(program, input, GradientTensor::Query, config.epsilon)?;
+    let numeric_queries =
+        numerical_gradient(program, input, GradientTensor::Query, config.epsilon)?;
     let numeric_keys = numerical_gradient(program, input, GradientTensor::Key, config.epsilon)?;
     let numeric_values = numerical_gradient(program, input, GradientTensor::Value, config.epsilon)?;
 
@@ -396,12 +409,15 @@ fn validate_program(program: &SemanticProgram) -> Result<f64, BackwardError> {
     if program.weight() != WeightRule::Softmax {
         return Err(BackwardError::UnsupportedSemantic("weighting"));
     }
-    if program.value_mix() != ValueMixRule::WeightedSum || program.output() != OutputRule::Identity {
+    if program.value_mix() != ValueMixRule::WeightedSum || program.output() != OutputRule::Identity
+    {
         return Err(BackwardError::UnsupportedSemantic("value/output rule"));
     }
     match program.affinity() {
         AffinityRule::ScaledDotProduct { scale } if scale.is_finite() && scale > 0.0 => Ok(scale),
-        AffinityRule::ScaledDotProduct { .. } => Err(BackwardError::UnsupportedSemantic("affinity scale")),
+        AffinityRule::ScaledDotProduct { .. } => {
+            Err(BackwardError::UnsupportedSemantic("affinity scale"))
+        }
     }
 }
 
@@ -499,8 +515,8 @@ fn check_len(field: &'static str, expected: usize, actual: usize) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ada_semantic::SemanticProgram;
     use ada_core::{SemanticFamily, SemanticId};
+    use ada_semantic::SemanticProgram;
 
     fn program() -> SemanticProgram {
         SemanticProgram::standard_softmax(
@@ -527,8 +543,9 @@ mod tests {
 
     #[test]
     fn analytical_backward_matches_central_finite_difference() {
-        let report = check_finite_difference(&program(), &case(), FiniteDifferenceConfig::default())
-            .unwrap();
+        let report =
+            check_finite_difference(&program(), &case(), FiniteDifferenceConfig::default())
+                .unwrap();
         assert!(report.passed, "{report:?}");
         assert_eq!(report.variables_checked, 16);
     }
@@ -538,12 +555,14 @@ mod tests {
         let mut input = case();
         input.output_gradient.fill(0.0);
         let gradients = backward(&program(), &input).unwrap();
-        assert!(gradients
-            .queries
-            .iter()
-            .chain(&gradients.keys)
-            .chain(&gradients.values)
-            .all(|value| *value == 0.0));
+        assert!(
+            gradients
+                .queries
+                .iter()
+                .chain(&gradients.keys)
+                .chain(&gradients.values)
+                .all(|value| *value == 0.0)
+        );
     }
 
     #[test]
@@ -584,6 +603,9 @@ mod tests {
     fn non_finite_upstream_gradient_fails_closed() {
         let mut input = case();
         input.output_gradient[0] = f64::NAN;
-        assert_eq!(backward(&program(), &input), Err(BackwardError::NonFinite("input")));
+        assert_eq!(
+            backward(&program(), &input),
+            Err(BackwardError::NonFinite("input"))
+        );
     }
 }
