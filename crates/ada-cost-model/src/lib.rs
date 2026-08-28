@@ -356,11 +356,8 @@ fn accumulate_batch(
         "score_pairs",
     )?;
 
-    let base_value_elements = checked_mul(
-        base_pairs,
-        dimensions.value_dimension,
-        "value_elements",
-    )?;
+    let base_value_elements =
+        checked_mul(base_pairs, dimensions.value_dimension, "value_elements")?;
     totals.value_elements = checked_add(
         totals.value_elements,
         checked_mul(
@@ -420,11 +417,7 @@ fn payload_bits_for_batch(
     )?;
 
     let k_elements = product(
-        &[
-            kv_length,
-            dimensions.kv_head_reads,
-            dimensions.qk_dimension,
-        ],
+        &[kv_length, dimensions.kv_head_reads, dimensions.qk_dimension],
         "key_elements",
     )?;
     let k_read_bits = product(
@@ -510,8 +503,8 @@ fn finish_report(
         operations.transcendentals_per_pair,
         "transcendentals",
     )?;
-    let logical_kv_cache_payload_bits = (!matches!(workload.kv_cache(), KvCacheSpec::None))
-        .then_some(totals.kv_payload_bits);
+    let logical_kv_cache_payload_bits =
+        (!matches!(workload.kv_cache(), KvCacheSpec::None)).then_some(totals.kv_payload_bits);
 
     Ok(EstimatedCostReport {
         score_pairs: totals.score_pairs,
