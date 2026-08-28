@@ -1,7 +1,5 @@
 use crate::codec::{append_field, hex_decode, hex_encode, next_value, parse_u16, parse_usize};
-use crate::model::{
-    ExperimentError, ExperimentFingerprint, ExperimentRecord, malformed,
-};
+use crate::model::{ExperimentError, ExperimentFingerprint, ExperimentRecord, malformed};
 use ada_core::{ImplementationCandidateId, SemanticId};
 use ada_workload::WorkloadFingerprint;
 use std::collections::BTreeMap;
