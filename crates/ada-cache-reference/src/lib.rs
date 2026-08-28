@@ -10,7 +10,9 @@
 
 #![forbid(unsafe_code)]
 
-use ada_semantic::{AffinityRule, InputTransform, MaskRule, SelectionRule, SemanticProgram, WeightRule};
+use ada_semantic::{
+    AffinityRule, InputTransform, MaskRule, SelectionRule, SemanticProgram, WeightRule,
+};
 use ada_workload::{
     AttentionTopology, HeadGrouping, InputRepresentation, KvCacheSpec, KvIndexing,
     KvRepresentation, MaskKind, MatrixLayout, PositionInfo, ScalarPrecision, StateSpec,
@@ -55,17 +57,28 @@ pub enum CacheReferenceError {
 impl Display for CacheReferenceError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unsupported(reason) => write!(formatter, "unsupported cached reference: {reason}"),
+            Self::Unsupported(reason) => {
+                write!(formatter, "unsupported cached reference: {reason}")
+            }
             Self::ShapeMismatch {
                 field,
                 expected,
                 actual,
             } => write!(formatter, "{field} has {actual} items; expected {expected}"),
-            Self::InvalidField(field) => write!(formatter, "invalid cached reference field: {field}"),
-            Self::ExceedsLimit(field) => write!(formatter, "cached reference limit exceeded: {field}"),
-            Self::NonFinite(stage) => write!(formatter, "non-finite cached reference value at {stage}"),
+            Self::InvalidField(field) => {
+                write!(formatter, "invalid cached reference field: {field}")
+            }
+            Self::ExceedsLimit(field) => {
+                write!(formatter, "cached reference limit exceeded: {field}")
+            }
+            Self::NonFinite(stage) => {
+                write!(formatter, "non-finite cached reference value at {stage}")
+            }
             Self::EmptySelection { query, head } => {
-                write!(formatter, "query {query}, head {head} has no visible selected KV rows")
+                write!(
+                    formatter,
+                    "query {query}, head {head} has no visible selected KV rows"
+                )
             }
         }
     }
@@ -190,7 +203,14 @@ pub fn evaluate_cached(
         for query_head in 0..context.query_heads {
             let kv_head = mapped_kv_head(workload.geometry().head_grouping(), query_head)?;
             let scores = score_row(program, input, &context, query, query_head, kv_head)?;
-            let selected = select_logical_keys(program, workload, input, &context, query, query_head, &scores)?;
+            let selected = select_logical_keys(
+                program,
+                input,
+                &context,
+                query,
+                query_head,
+                &scores,
+            )?;
             let selected_scores = selected.iter().map(|&key| scores[key]).collect::<Vec<_>>();
             let selected_weights = weights_for(program.weight(), &selected_scores)?;
             let row_index = query * context.query_heads + query_head;
@@ -199,8 +219,8 @@ pub fn evaluate_cached(
             for (&logical_key, &weight) in selected.iter().zip(&selected_weights) {
                 weights[weight_start + logical_key] = weight;
                 let physical = context.physical_row(input, logical_key);
-                let value_start = ((kv_head * context.physical_capacity + physical)
-                    * context.value_dimension);
+                let value_start =
+                    (kv_head * context.physical_capacity + physical) * context.value_dimension;
                 for dimension in 0..context.value_dimension {
                     output[output_start + dimension] +=
                         weight * input.physical_values[value_start + dimension];
@@ -259,7 +279,9 @@ fn validate_domain(
         .map_err(|_| CacheReferenceError::Unsupported("invalid workload contract"))?;
     let geometry = workload.geometry();
     if geometry.sequence_lengths().batch_count() != 1 {
-        return Err(CacheReferenceError::Unsupported("reference cache executor is single-example"));
+        return Err(CacheReferenceError::Unsupported(
+            "reference cache executor is single-example",
+        ));
     }
     if !matches!(
         geometry.topology(),
@@ -267,8 +289,13 @@ fn validate_domain(
     ) {
         return Err(CacheReferenceError::Unsupported("historical topology"));
     }
-    if !matches!(workload.mode(), WorkloadMode::Decode | WorkloadMode::ChunkedDecode) {
-        return Err(CacheReferenceError::Unsupported("workload mode is not decode/chunked-decode"));
+    if !matches!(
+        workload.mode(),
+        WorkloadMode::Decode | WorkloadMode::ChunkedDecode
+    ) {
+        return Err(CacheReferenceError::Unsupported(
+            "workload mode is not decode/chunked-decode",
+        ));
     }
     if !matches!(workload.inputs(), InputRepresentation::ExplicitQkv)
         || !matches!(workload.kv_representation(), KvRepresentation::Full)
@@ -281,7 +308,9 @@ fn validate_domain(
     if !matches!(workload.positions(), PositionInfo::None)
         || !matches!(workload.score_bias(), ada_workload::ScoreBiasSpec::None)
     {
-        return Err(CacheReferenceError::Unsupported("position or score-bias rules are not executable here"));
+        return Err(CacheReferenceError::Unsupported(
+            "position or score-bias rules are not executable here",
+        ));
     }
     let precision = workload.precision();
     if [
@@ -293,14 +322,23 @@ fn validate_domain(
     .into_iter()
     .any(|value| value != ScalarPrecision::F64)
     {
-        return Err(CacheReferenceError::Unsupported("cached reference is explicitly f64"));
+        return Err(CacheReferenceError::Unsupported(
+            "cached reference is explicitly f64",
+        ));
     }
     let layout = workload.layout();
-    if [layout.query(), layout.key(), layout.value(), layout.output()]
-        .into_iter()
-        .any(|value| value != MatrixLayout::RowMajor)
+    if [
+        layout.query(),
+        layout.key(),
+        layout.value(),
+        layout.output(),
+    ]
+    .into_iter()
+    .any(|value| value != MatrixLayout::RowMajor)
     {
-        return Err(CacheReferenceError::Unsupported("cached reference requires row-major tensors"));
+        return Err(CacheReferenceError::Unsupported(
+            "cached reference requires row-major tensors",
+        ));
     }
     validate_mask_binding(program, workload)?;
 
@@ -320,10 +358,16 @@ fn validate_domain(
     let value_dimension = geometry.value_dimension();
 
     let (physical_capacity, paged) = match workload.kv_cache() {
-        KvCacheSpec::None => return Err(CacheReferenceError::Unsupported("decode requires a KV cache")),
+        KvCacheSpec::None => {
+            return Err(CacheReferenceError::Unsupported(
+                "decode requires a KV cache",
+            ));
+        }
         KvCacheSpec::Contiguous => {
             if !matches!(workload.kv_indexing(), KvIndexing::Identity) {
-                return Err(CacheReferenceError::InvalidField("contiguous cache indexing"));
+                return Err(CacheReferenceError::InvalidField(
+                    "contiguous cache indexing",
+                ));
             }
             if !input.logical_to_physical.is_empty() {
                 return Err(CacheReferenceError::InvalidField(
@@ -337,8 +381,13 @@ fn validate_domain(
             physical_pages,
             ..
         } => {
-            if !matches!(workload.kv_indexing(), KvIndexing::LogicalToPhysical { .. }) {
-                return Err(CacheReferenceError::InvalidField("paged cache indexing"));
+            if !matches!(
+                workload.kv_indexing(),
+                KvIndexing::LogicalToPhysical { .. }
+            ) {
+                return Err(CacheReferenceError::InvalidField(
+                    "paged cache indexing",
+                ));
             }
             let capacity = bounded_product(*page_size, *physical_pages, "paged cache capacity")?;
             if input.logical_to_physical.len() != kv_length {
@@ -351,10 +400,14 @@ fn validate_domain(
             let mut seen = vec![false; capacity];
             for &physical in &input.logical_to_physical {
                 if physical >= capacity {
-                    return Err(CacheReferenceError::InvalidField("logical_to_physical range"));
+                    return Err(CacheReferenceError::InvalidField(
+                        "logical_to_physical range",
+                    ));
                 }
                 if seen[physical] {
-                    return Err(CacheReferenceError::InvalidField("logical_to_physical alias"));
+                    return Err(CacheReferenceError::InvalidField(
+                        "logical_to_physical alias",
+                    ));
                 }
                 seen[physical] = true;
             }
@@ -379,17 +432,33 @@ fn validate_domain(
     )?;
     check_len("queries", expected_queries, input.queries.len())?;
     check_len("physical_keys", expected_keys, input.physical_keys.len())?;
-    check_len("physical_values", expected_values, input.physical_values.len())?;
+    check_len(
+        "physical_values",
+        expected_values,
+        input.physical_values.len(),
+    )?;
     check_len("query_positions", query_count, input.query_positions.len())?;
-    if input.queries.iter().chain(&input.physical_keys).chain(&input.physical_values).any(|value| !value.is_finite()) {
+    if input
+        .queries
+        .iter()
+        .chain(&input.physical_keys)
+        .chain(&input.physical_values)
+        .any(|value| !value.is_finite())
+    {
         return Err(CacheReferenceError::NonFinite("input"));
     }
     for window in input.query_positions.windows(2) {
         if window[0] >= window[1] {
-            return Err(CacheReferenceError::InvalidField("query_positions must be strictly increasing"));
+            return Err(CacheReferenceError::InvalidField(
+                "query_positions must be strictly increasing",
+            ));
         }
     }
-    if input.query_positions.iter().any(|&position| position >= kv_length) {
+    if input
+        .query_positions
+        .iter()
+        .any(|&position| position >= kv_length)
+    {
         return Err(CacheReferenceError::InvalidField("query_positions range"));
     }
     if matches!(workload.mode(), WorkloadMode::Decode)
@@ -402,7 +471,9 @@ fn validate_domain(
     if let MaskRule::External { .. } = program.mask() {
         let expected = bounded_product(query_count, kv_length, "external visibility")?;
         let Some(mask) = &input.external_visibility else {
-            return Err(CacheReferenceError::InvalidField("missing external_visibility"));
+            return Err(CacheReferenceError::InvalidField(
+                "missing external_visibility",
+            ));
         };
         check_len("external_visibility", expected, mask.len())?;
     } else if input.external_visibility.is_some() {
@@ -450,11 +521,17 @@ fn validate_mask_binding(
     if matches {
         Ok(())
     } else {
-        Err(CacheReferenceError::InvalidField("semantic/workload mask binding"))
+        Err(CacheReferenceError::InvalidField(
+            "semantic/workload mask binding",
+        ))
     }
 }
 
-fn bounded_product(left: usize, right: usize, field: &'static str) -> Result<usize, CacheReferenceError> {
+fn bounded_product(
+    left: usize,
+    right: usize,
+    field: &'static str,
+) -> Result<usize, CacheReferenceError> {
     let value = left
         .checked_mul(right)
         .ok_or(CacheReferenceError::ExceedsLimit(field))?;
@@ -464,7 +541,11 @@ fn bounded_product(left: usize, right: usize, field: &'static str) -> Result<usi
     Ok(value)
 }
 
-fn check_len(field: &'static str, expected: usize, actual: usize) -> Result<(), CacheReferenceError> {
+fn check_len(
+    field: &'static str,
+    expected: usize,
+    actual: usize,
+) -> Result<(), CacheReferenceError> {
     if expected == actual {
         Ok(())
     } else {
@@ -476,7 +557,10 @@ fn check_len(field: &'static str, expected: usize, actual: usize) -> Result<(), 
     }
 }
 
-fn mapped_kv_head(grouping: HeadGrouping, query_head: usize) -> Result<usize, CacheReferenceError> {
+fn mapped_kv_head(
+    grouping: HeadGrouping,
+    query_head: usize,
+) -> Result<usize, CacheReferenceError> {
     match grouping {
         HeadGrouping::MultiHead => Ok(query_head),
         HeadGrouping::MultiQuery => Ok(0),
@@ -500,7 +584,7 @@ fn score_row(
     if kv_head >= context.kv_heads {
         return Err(CacheReferenceError::InvalidField("mapped KV head"));
     }
-    let query_start = ((query * context.query_heads + query_head) * context.qk_dimension);
+    let query_start = (query * context.query_heads + query_head) * context.qk_dimension;
     let query_row = &input.queries[query_start..query_start + context.qk_dimension];
     let mut scores = Vec::with_capacity(context.kv_length);
     let scale = match program.affinity() {
@@ -508,7 +592,8 @@ fn score_row(
     };
     for logical_key in 0..context.kv_length {
         let physical = context.physical_row(input, logical_key);
-        let key_start = ((kv_head * context.physical_capacity + physical) * context.qk_dimension);
+        let key_start =
+            (kv_head * context.physical_capacity + physical) * context.qk_dimension;
         let key_row = &input.physical_keys[key_start..key_start + context.qk_dimension];
         let dot = dot_with_transform(program.input_transform(), query_row, key_row)?;
         let score = dot * scale;
@@ -526,7 +611,11 @@ fn dot_with_transform(
     key: &[f64],
 ) -> Result<f64, CacheReferenceError> {
     match transform {
-        InputTransform::Identity => Ok(query.iter().zip(key).map(|(&left, &right)| left * right).sum()),
+        InputTransform::Identity => Ok(query
+            .iter()
+            .zip(key)
+            .map(|(&left, &right)| left * right)
+            .sum()),
         InputTransform::CenterRows => {
             let dimension = u32::try_from(query.len())
                 .map_err(|_| CacheReferenceError::ExceedsLimit("qk dimension"))?;
@@ -549,7 +638,6 @@ fn dot_with_transform(
 
 fn select_logical_keys(
     program: &SemanticProgram,
-    _workload: &WorkloadContract,
     input: &CacheReferenceInput,
     context: &Context,
     query: usize,
@@ -568,7 +656,9 @@ fn select_logical_keys(
                 .is_some_and(|mask| mask[query * context.kv_length + logical_key]),
         };
         let selection_visible = match program.selection() {
-            SelectionRule::Window { radius } => query_position.abs_diff(logical_key) <= radius,
+            SelectionRule::Window { radius } => {
+                query_position.abs_diff(logical_key) <= radius
+            }
             SelectionRule::All | SelectionRule::TopK { .. } => true,
         };
         if mask_visible && selection_visible {
@@ -583,7 +673,9 @@ fn select_logical_keys(
     }
     if let SelectionRule::TopK { k } = program.selection() {
         if k > visible.len() {
-            return Err(CacheReferenceError::InvalidField("TopK exceeds visible logical keys"));
+            return Err(CacheReferenceError::InvalidField(
+                "TopK exceeds visible logical keys",
+            ));
         }
         visible.sort_by(|&left, &right| {
             scores[right]
@@ -613,7 +705,9 @@ fn weights_for(rule: WeightRule, scores: &[f64]) -> Result<Vec<f64>, CacheRefere
             if weights.iter().all(|value| value.is_finite()) {
                 Ok(weights)
             } else {
-                Err(CacheReferenceError::NonFinite("signed-difference weights"))
+                Err(CacheReferenceError::NonFinite(
+                    "signed-difference weights",
+                ))
             }
         }
     }
@@ -626,7 +720,9 @@ fn stable_softmax(scores: &[f64], scale: f64) -> Result<Vec<f64>, CacheReference
         .max_by(f64::total_cmp)
         .ok_or(CacheReferenceError::InvalidField("empty score row"))?;
     if !maximum.is_finite() || !scale.is_finite() || scale <= 0.0 {
-        return Err(CacheReferenceError::NonFinite("softmax scale/maximum"));
+        return Err(CacheReferenceError::NonFinite(
+            "softmax scale/maximum",
+        ));
     }
     let scaled_maximum = maximum * scale;
     let mut weights = Vec::with_capacity(scores.len());
@@ -653,8 +749,8 @@ mod tests {
     use super::*;
     use ada_core::{SemanticFamily, SemanticId};
     use ada_workload::{
-        AttentionGeometry, GeometrySpec, HeadGrouping, MaskSpec, PrecisionPolicy, SequenceLengths,
-        TensorLayout, WorkloadOptions,
+        AttentionGeometry, GeometrySpec, HeadGrouping, MaskSpec, PrecisionPolicy,
+        SequenceLengths, TensorLayout, WorkloadOptions,
     };
 
     fn semantic(name: &str, mask: MaskRule, selection: SelectionRule) -> SemanticProgram {
@@ -667,7 +763,8 @@ mod tests {
         .unwrap()
     }
 
-    fn workload(
+    #[derive(Debug)]
+    struct WorkloadSpec {
         mode: WorkloadMode,
         query_count: usize,
         kv_length: usize,
@@ -676,12 +773,20 @@ mod tests {
         mask: MaskSpec,
         cache: KvCacheSpec,
         indexing: KvIndexing,
-    ) -> WorkloadContract {
-        let grouping = HeadGrouping::from_head_counts(query_heads, kv_heads).unwrap();
+    }
+
+    fn workload(spec: WorkloadSpec) -> WorkloadContract {
+        let grouping =
+            HeadGrouping::from_head_counts(spec.query_heads, spec.kv_heads).unwrap();
         let geometry = AttentionGeometry::new(GeometrySpec {
-            sequence_lengths: SequenceLengths::uniform(1, query_count, kv_length).unwrap(),
-            query_heads,
-            kv_heads,
+            sequence_lengths: SequenceLengths::uniform(
+                1,
+                spec.query_count,
+                spec.kv_length,
+            )
+            .unwrap(),
+            query_heads: spec.query_heads,
+            kv_heads: spec.kv_heads,
             qk_dimension: Some(1),
             value_dimension: 1,
             topology: AttentionTopology::SelfAttention,
@@ -691,8 +796,8 @@ mod tests {
         WorkloadContract::new(
             geometry,
             WorkloadOptions {
-                mode,
-                mask,
+                mode: spec.mode,
+                mask: spec.mask,
                 precision: PrecisionPolicy::new(
                     ScalarPrecision::F64,
                     ScalarPrecision::F64,
@@ -700,8 +805,8 @@ mod tests {
                     ScalarPrecision::F64,
                 ),
                 layout: TensorLayout::row_major(),
-                kv_cache: cache,
-                kv_indexing: indexing,
+                kv_cache: spec.cache,
+                kv_indexing: spec.indexing,
                 ..WorkloadOptions::default()
             },
         )
@@ -710,16 +815,16 @@ mod tests {
 
     #[test]
     fn mqa_decode_shares_one_kv_head_across_query_heads() {
-        let workload = workload(
-            WorkloadMode::Decode,
-            1,
-            3,
-            2,
-            1,
-            MaskSpec::none(),
-            KvCacheSpec::Contiguous,
-            KvIndexing::Identity,
-        );
+        let workload = workload(WorkloadSpec {
+            mode: WorkloadMode::Decode,
+            query_count: 1,
+            kv_length: 3,
+            query_heads: 2,
+            kv_heads: 1,
+            mask: MaskSpec::none(),
+            cache: KvCacheSpec::Contiguous,
+            indexing: KvIndexing::Identity,
+        });
         let output = evaluate_cached(
             &semantic("mqa", MaskRule::Unmasked, SelectionRule::All),
             &workload,
@@ -734,21 +839,24 @@ mod tests {
         )
         .unwrap();
         assert_eq!(output.output(), &[6.0, 6.0]);
-        assert_eq!(output.selected_keys(), &[vec![0, 1, 2], vec![0, 1, 2]]);
+        assert_eq!(
+            output.selected_keys(),
+            &[vec![0, 1, 2], vec![0, 1, 2]]
+        );
     }
 
     #[test]
     fn gqa_maps_query_head_groups_to_distinct_kv_heads() {
-        let workload = workload(
-            WorkloadMode::Decode,
-            1,
-            2,
-            4,
-            2,
-            MaskSpec::none(),
-            KvCacheSpec::Contiguous,
-            KvIndexing::Identity,
-        );
+        let workload = workload(WorkloadSpec {
+            mode: WorkloadMode::Decode,
+            query_count: 1,
+            kv_length: 2,
+            query_heads: 4,
+            kv_heads: 2,
+            mask: MaskSpec::none(),
+            cache: KvCacheSpec::Contiguous,
+            indexing: KvIndexing::Identity,
+        });
         let output = evaluate_cached(
             &semantic("gqa", MaskRule::Unmasked, SelectionRule::All),
             &workload,
@@ -767,22 +875,22 @@ mod tests {
 
     #[test]
     fn paged_mapping_preserves_logical_attention_order() {
-        let workload = workload(
-            WorkloadMode::Decode,
-            1,
-            3,
-            1,
-            1,
-            MaskSpec::none(),
-            KvCacheSpec::Paged {
+        let workload = workload(WorkloadSpec {
+            mode: WorkloadMode::Decode,
+            query_count: 1,
+            kv_length: 3,
+            query_heads: 1,
+            kv_heads: 1,
+            mask: MaskSpec::none(),
+            cache: KvCacheSpec::Paged {
                 page_size: 2,
                 physical_pages: 2,
                 block_table_identity: "table".into(),
             },
-            KvIndexing::LogicalToPhysical {
+            indexing: KvIndexing::LogicalToPhysical {
                 identity: "logical-map".into(),
             },
-        );
+        });
         let output = evaluate_cached(
             &semantic("paged", MaskRule::Unmasked, SelectionRule::All),
             &workload,
@@ -802,16 +910,16 @@ mod tests {
 
     #[test]
     fn causal_chunked_decode_uses_absolute_query_positions() {
-        let workload = workload(
-            WorkloadMode::ChunkedDecode,
-            2,
-            4,
-            1,
-            1,
-            MaskSpec::new(MaskKind::Causal).unwrap(),
-            KvCacheSpec::Contiguous,
-            KvIndexing::Identity,
-        );
+        let workload = workload(WorkloadSpec {
+            mode: WorkloadMode::ChunkedDecode,
+            query_count: 2,
+            kv_length: 4,
+            query_heads: 1,
+            kv_heads: 1,
+            mask: MaskSpec::new(MaskKind::Causal).unwrap(),
+            cache: KvCacheSpec::Contiguous,
+            indexing: KvIndexing::Identity,
+        });
         let output = evaluate_cached(
             &semantic("causal-chunk", MaskRule::Causal, SelectionRule::All),
             &workload,
@@ -826,27 +934,30 @@ mod tests {
         )
         .unwrap();
         assert_eq!(output.output(), &[3.0, 4.0]);
-        assert_eq!(output.selected_keys(), &[vec![0, 1, 2], vec![0, 1, 2, 3]]);
+        assert_eq!(
+            output.selected_keys(),
+            &[vec![0, 1, 2], vec![0, 1, 2, 3]]
+        );
     }
 
     #[test]
     fn paged_mapping_rejects_physical_aliases() {
-        let workload = workload(
-            WorkloadMode::Decode,
-            1,
-            2,
-            1,
-            1,
-            MaskSpec::none(),
-            KvCacheSpec::Paged {
+        let workload = workload(WorkloadSpec {
+            mode: WorkloadMode::Decode,
+            query_count: 1,
+            kv_length: 2,
+            query_heads: 1,
+            kv_heads: 1,
+            mask: MaskSpec::none(),
+            cache: KvCacheSpec::Paged {
                 page_size: 2,
                 physical_pages: 1,
                 block_table_identity: "table".into(),
             },
-            KvIndexing::LogicalToPhysical {
+            indexing: KvIndexing::LogicalToPhysical {
                 identity: "logical-map".into(),
             },
-        );
+        });
         let result = evaluate_cached(
             &semantic("alias", MaskRule::Unmasked, SelectionRule::All),
             &workload,
@@ -861,22 +972,24 @@ mod tests {
         );
         assert_eq!(
             result,
-            Err(CacheReferenceError::InvalidField("logical_to_physical alias"))
+            Err(CacheReferenceError::InvalidField(
+                "logical_to_physical alias"
+            ))
         );
     }
 
     #[test]
     fn topk_fails_closed_when_causal_visibility_is_too_small() {
-        let workload = workload(
-            WorkloadMode::ChunkedDecode,
-            1,
-            3,
-            1,
-            1,
-            MaskSpec::new(MaskKind::Causal).unwrap(),
-            KvCacheSpec::Contiguous,
-            KvIndexing::Identity,
-        );
+        let workload = workload(WorkloadSpec {
+            mode: WorkloadMode::ChunkedDecode,
+            query_count: 1,
+            kv_length: 3,
+            query_heads: 1,
+            kv_heads: 1,
+            mask: MaskSpec::new(MaskKind::Causal).unwrap(),
+            cache: KvCacheSpec::Contiguous,
+            indexing: KvIndexing::Identity,
+        });
         let result = evaluate_cached(
             &semantic("topk", MaskRule::Causal, SelectionRule::TopK { k: 2 }),
             &workload,
