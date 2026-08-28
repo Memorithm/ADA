@@ -263,11 +263,42 @@ impl Context {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct LogicalGeometry {
+    query_count: usize,
+    query_heads: usize,
+    kv_heads: usize,
+    kv_length: usize,
+    qk_dimension: usize,
+    value_dimension: usize,
+}
+
 fn validate_domain(
     program: &SemanticProgram,
     workload: &WorkloadContract,
     input: &CacheReferenceInput,
 ) -> Result<Context, CacheReferenceError> {
+    validate_workload_domain(program, workload)?;
+    let logical = logical_geometry(workload)?;
+    let (physical_capacity, paged) = validate_cache_layout(workload, input, logical.kv_length)?;
+    let context = Context {
+        query_count: logical.query_count,
+        query_heads: logical.query_heads,
+        kv_heads: logical.kv_heads,
+        kv_length: logical.kv_length,
+        physical_capacity,
+        qk_dimension: logical.qk_dimension,
+        value_dimension: logical.value_dimension,
+        paged,
+    };
+    validate_reference_input(program, workload, input, &context)?;
+    Ok(context)
+}
+
+fn validate_workload_domain(
+    program: &SemanticProgram,
+    workload: &WorkloadContract,
+) -> Result<(), CacheReferenceError> {
     workload
         .validate()
         .map_err(|_| CacheReferenceError::Unsupported("invalid workload contract"))?;
@@ -306,6 +337,11 @@ fn validate_domain(
             "position or score-bias rules are not executable here",
         ));
     }
+    validate_precision_and_layout(workload)?;
+    validate_mask_binding(program, workload)
+}
+
+fn validate_precision_and_layout(workload: &WorkloadContract) -> Result<(), CacheReferenceError> {
     let precision = workload.precision();
     if [
         precision.input(),
@@ -334,29 +370,38 @@ fn validate_domain(
             "cached reference requires row-major tensors",
         ));
     }
-    validate_mask_binding(program, workload)?;
+    Ok(())
+}
 
-    let query_count = geometry
-        .sequence_lengths()
-        .query_length_for(0)
-        .ok_or(CacheReferenceError::InvalidField("query length"))?;
-    let kv_length = geometry
-        .sequence_lengths()
-        .kv_length_for(0)
-        .ok_or(CacheReferenceError::InvalidField("KV length"))?;
-    let qk_dimension = geometry
-        .qk_dimension()
-        .ok_or(CacheReferenceError::Unsupported("missing Q/K dimension"))?;
-    let query_heads = geometry.query_heads();
-    let kv_heads = geometry.kv_heads();
-    let value_dimension = geometry.value_dimension();
+fn logical_geometry(workload: &WorkloadContract) -> Result<LogicalGeometry, CacheReferenceError> {
+    let geometry = workload.geometry();
+    Ok(LogicalGeometry {
+        query_count: geometry
+            .sequence_lengths()
+            .query_length_for(0)
+            .ok_or(CacheReferenceError::InvalidField("query length"))?,
+        query_heads: geometry.query_heads(),
+        kv_heads: geometry.kv_heads(),
+        kv_length: geometry
+            .sequence_lengths()
+            .kv_length_for(0)
+            .ok_or(CacheReferenceError::InvalidField("KV length"))?,
+        qk_dimension: geometry
+            .qk_dimension()
+            .ok_or(CacheReferenceError::Unsupported("missing Q/K dimension"))?,
+        value_dimension: geometry.value_dimension(),
+    })
+}
 
-    let (physical_capacity, paged) = match workload.kv_cache() {
-        KvCacheSpec::None => {
-            return Err(CacheReferenceError::Unsupported(
-                "decode requires a KV cache",
-            ));
-        }
+fn validate_cache_layout(
+    workload: &WorkloadContract,
+    input: &CacheReferenceInput,
+    kv_length: usize,
+) -> Result<(usize, bool), CacheReferenceError> {
+    match workload.kv_cache() {
+        KvCacheSpec::None => Err(CacheReferenceError::Unsupported(
+            "decode requires a KV cache",
+        )),
         KvCacheSpec::Contiguous => {
             if !matches!(workload.kv_indexing(), KvIndexing::Identity) {
                 return Err(CacheReferenceError::InvalidField(
@@ -368,55 +413,93 @@ fn validate_domain(
                     "contiguous cache must not supply logical_to_physical",
                 ));
             }
-            (kv_length, false)
+            Ok((kv_length, false))
         }
         KvCacheSpec::Paged {
             page_size,
             physical_pages,
             ..
-        } => {
-            if !matches!(workload.kv_indexing(), KvIndexing::LogicalToPhysical { .. }) {
-                return Err(CacheReferenceError::InvalidField("paged cache indexing"));
-            }
-            let capacity = bounded_product(*page_size, *physical_pages, "paged cache capacity")?;
-            if input.logical_to_physical.len() != kv_length {
-                return Err(CacheReferenceError::ShapeMismatch {
-                    field: "logical_to_physical",
-                    expected: kv_length,
-                    actual: input.logical_to_physical.len(),
-                });
-            }
-            let mut seen = vec![false; capacity];
-            for &physical in &input.logical_to_physical {
-                if physical >= capacity {
-                    return Err(CacheReferenceError::InvalidField(
-                        "logical_to_physical range",
-                    ));
-                }
-                if seen[physical] {
-                    return Err(CacheReferenceError::InvalidField(
-                        "logical_to_physical alias",
-                    ));
-                }
-                seen[physical] = true;
-            }
-            (capacity, true)
-        }
-    };
+        } => validate_paged_layout(workload, input, kv_length, *page_size, *physical_pages),
+    }
+}
 
+fn validate_paged_layout(
+    workload: &WorkloadContract,
+    input: &CacheReferenceInput,
+    kv_length: usize,
+    page_size: usize,
+    physical_pages: usize,
+) -> Result<(usize, bool), CacheReferenceError> {
+    if !matches!(workload.kv_indexing(), KvIndexing::LogicalToPhysical { .. }) {
+        return Err(CacheReferenceError::InvalidField("paged cache indexing"));
+    }
+    let capacity = bounded_product(page_size, physical_pages, "paged cache capacity")?;
+    check_len(
+        "logical_to_physical",
+        kv_length,
+        input.logical_to_physical.len(),
+    )?;
+    let mut seen = vec![false; capacity];
+    for &physical in &input.logical_to_physical {
+        if physical >= capacity {
+            return Err(CacheReferenceError::InvalidField(
+                "logical_to_physical range",
+            ));
+        }
+        if seen[physical] {
+            return Err(CacheReferenceError::InvalidField(
+                "logical_to_physical alias",
+            ));
+        }
+        seen[physical] = true;
+    }
+    Ok((capacity, true))
+}
+
+fn validate_reference_input(
+    program: &SemanticProgram,
+    workload: &WorkloadContract,
+    input: &CacheReferenceInput,
+    context: &Context,
+) -> Result<(), CacheReferenceError> {
+    validate_tensor_shapes(input, context)?;
+    validate_query_positions(workload, input, context.kv_length)?;
+    validate_external_visibility(program, input, context.query_count, context.kv_length)?;
+    let score_rows = bounded_product(context.query_count, context.query_heads, "score rows")?;
+    let score_count = score_rows
+        .checked_mul(context.kv_length)
+        .ok_or(CacheReferenceError::ExceedsLimit("score count"))?;
+    if score_count > MAX_CACHE_REFERENCE_SCORES {
+        return Err(CacheReferenceError::ExceedsLimit("score count"));
+    }
+    Ok(())
+}
+
+fn validate_tensor_shapes(
+    input: &CacheReferenceInput,
+    context: &Context,
+) -> Result<(), CacheReferenceError> {
     let expected_queries = bounded_product(
-        bounded_product(query_count, query_heads, "query rows")?,
-        qk_dimension,
+        bounded_product(context.query_count, context.query_heads, "query rows")?,
+        context.qk_dimension,
         "queries",
     )?;
     let expected_keys = bounded_product(
-        bounded_product(kv_heads, physical_capacity, "physical key rows")?,
-        qk_dimension,
+        bounded_product(
+            context.kv_heads,
+            context.physical_capacity,
+            "physical key rows",
+        )?,
+        context.qk_dimension,
         "physical_keys",
     )?;
     let expected_values = bounded_product(
-        bounded_product(kv_heads, physical_capacity, "physical value rows")?,
-        value_dimension,
+        bounded_product(
+            context.kv_heads,
+            context.physical_capacity,
+            "physical value rows",
+        )?,
+        context.value_dimension,
         "physical_values",
     )?;
     check_len("queries", expected_queries, input.queries.len())?;
@@ -426,7 +509,11 @@ fn validate_domain(
         expected_values,
         input.physical_values.len(),
     )?;
-    check_len("query_positions", query_count, input.query_positions.len())?;
+    check_len(
+        "query_positions",
+        context.query_count,
+        input.query_positions.len(),
+    )?;
     if input
         .queries
         .iter()
@@ -436,6 +523,14 @@ fn validate_domain(
     {
         return Err(CacheReferenceError::NonFinite("input"));
     }
+    Ok(())
+}
+
+fn validate_query_positions(
+    workload: &WorkloadContract,
+    input: &CacheReferenceInput,
+    kv_length: usize,
+) -> Result<(), CacheReferenceError> {
     for window in input.query_positions.windows(2) {
         if window[0] >= window[1] {
             return Err(CacheReferenceError::InvalidField(
@@ -457,6 +552,15 @@ fn validate_domain(
             "decode query position must be the final logical KV row",
         ));
     }
+    Ok(())
+}
+
+fn validate_external_visibility(
+    program: &SemanticProgram,
+    input: &CacheReferenceInput,
+    query_count: usize,
+    kv_length: usize,
+) -> Result<(), CacheReferenceError> {
     if let MaskRule::External { .. } = program.mask() {
         let expected = bounded_product(query_count, kv_length, "external visibility")?;
         let Some(mask) = &input.external_visibility else {
@@ -470,24 +574,7 @@ fn validate_domain(
             "external_visibility supplied for non-external semantic",
         ));
     }
-    let score_rows = bounded_product(query_count, query_heads, "score rows")?;
-    let score_count = score_rows
-        .checked_mul(kv_length)
-        .ok_or(CacheReferenceError::ExceedsLimit("score count"))?;
-    if score_count > MAX_CACHE_REFERENCE_SCORES {
-        return Err(CacheReferenceError::ExceedsLimit("score count"));
-    }
-
-    Ok(Context {
-        query_count,
-        query_heads,
-        kv_heads,
-        kv_length,
-        physical_capacity,
-        qk_dimension,
-        value_dimension,
-        paged,
-    })
+    Ok(())
 }
 
 fn validate_mask_binding(
