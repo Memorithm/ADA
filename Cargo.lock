@@ -140,6 +140,13 @@ name = "ada-core"
 version = "0.1.0"
 
 [[package]]
+name = "ada-implementation"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+]
+
+[[package]]
 name = "ada-ir"
 version = "0.1.0"
 
