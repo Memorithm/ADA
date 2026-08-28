@@ -143,6 +143,9 @@ impl ReplayReferenceInput {
     /// invalid masks, shape violations, non-finite values, trailing fields, and
     /// non-canonical representations.
     pub fn from_canonical_text(text: &str) -> Result<Self, ReplayError> {
+        if !text.starts_with(REFERENCE_INPUT_HEADER) {
+            return Err(ReplayError::NonReplayableFixture);
+        }
         if text.is_empty()
             || text.len() > MAX_INPUT_CANONICAL_TEXT_BYTES
             || text.contains('\r')
@@ -154,7 +157,9 @@ impl ReplayReferenceInput {
         }
         let mut lines = text.lines();
         if lines.next() != Some(REFERENCE_INPUT_HEADER) {
-            return Err(ReplayError::NonReplayableFixture);
+            return Err(ReplayError::MalformedCanonical(
+                "reference-input header is not canonical".into(),
+            ));
         }
         let version = parse_u16(next_value(&mut lines, "version")?, "version")?;
         if version != REFERENCE_INPUT_VERSION {
