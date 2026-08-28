@@ -275,7 +275,7 @@ impl FlatGraduationBundle {
         Ok(bundle)
     }
 
-    fn validate_internal(&self) -> Result<(), GraduationError> {
+    pub(super) fn validate_internal(&self) -> Result<(), GraduationError> {
         if self.implementation.id().semantic() != self.semantic.descriptor().id() {
             return Err(GraduationError::SemanticImplementationMismatch);
         }
