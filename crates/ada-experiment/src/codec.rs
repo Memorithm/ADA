@@ -81,6 +81,14 @@ impl ExperimentRecord {
         text
     }
 
+    /// Decode and fully revalidate one canonical `ADA-EXPERIMENT-V2` artifact.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError`] for malformed/non-canonical text, unsupported
+    /// versions, invalid nested semantic/workload/implementation/objective
+    /// artifacts, inconsistent semantic/implementation identity, invalid
+    /// provenance, or missing evidence required by measured objectives.
     pub fn from_canonical_text(text: &str) -> Result<Self, ExperimentError> {
         if text.len() > MAX_EXPERIMENT_BYTES || text.contains('\r') || !text.ends_with('\n') {
             return malformed("artifact exceeds limit, contains CR, or lacks final newline");
