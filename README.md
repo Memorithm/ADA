@@ -39,6 +39,10 @@ The first bench is intentionally CPU/reference-only. GPU kernels and FLAT integr
 - `crates/ada-objective` — typed multi-objective vectors and a deterministic
   Pareto archive that keeps correctness, numerical, logical, estimated,
   measured, and task-quality dimensions separate.
+- `crates/ada-implementation` — backend-neutral implementation, schedule, and
+  memory IR. It binds concrete implementation identities to existing semantic
+  identities while keeping tiles, partitioning, reductions, buffering, memory
+  placement, and paging metadata outside semantic identity.
 - `docs/ADA_SPEC.md` — architecture and research invariants.
 - `docs/RESEARCH_PROTOCOL.md` — evidence and promotion rules.
 - `docs/ALGORITHM_REGISTRY.md` — ADA-A1…A10 mission registry.
