@@ -203,14 +203,8 @@ pub fn evaluate_cached(
         for query_head in 0..context.query_heads {
             let kv_head = mapped_kv_head(workload.geometry().head_grouping(), query_head)?;
             let scores = score_row(program, input, &context, query, query_head, kv_head)?;
-            let selected = select_logical_keys(
-                program,
-                input,
-                &context,
-                query,
-                query_head,
-                &scores,
-            )?;
+            let selected =
+                select_logical_keys(program, input, &context, query, query_head, &scores)?;
             let selected_scores = selected.iter().map(|&key| scores[key]).collect::<Vec<_>>();
             let selected_weights = weights_for(program.weight(), &selected_scores)?;
             let row_index = query * context.query_heads + query_head;
@@ -381,13 +375,8 @@ fn validate_domain(
             physical_pages,
             ..
         } => {
-            if !matches!(
-                workload.kv_indexing(),
-                KvIndexing::LogicalToPhysical { .. }
-            ) {
-                return Err(CacheReferenceError::InvalidField(
-                    "paged cache indexing",
-                ));
+            if !matches!(workload.kv_indexing(), KvIndexing::LogicalToPhysical { .. }) {
+                return Err(CacheReferenceError::InvalidField("paged cache indexing"));
             }
             let capacity = bounded_product(*page_size, *physical_pages, "paged cache capacity")?;
             if input.logical_to_physical.len() != kv_length {
@@ -557,10 +546,7 @@ fn check_len(
     }
 }
 
-fn mapped_kv_head(
-    grouping: HeadGrouping,
-    query_head: usize,
-) -> Result<usize, CacheReferenceError> {
+fn mapped_kv_head(grouping: HeadGrouping, query_head: usize) -> Result<usize, CacheReferenceError> {
     match grouping {
         HeadGrouping::MultiHead => Ok(query_head),
         HeadGrouping::MultiQuery => Ok(0),
@@ -592,8 +578,7 @@ fn score_row(
     };
     for logical_key in 0..context.kv_length {
         let physical = context.physical_row(input, logical_key);
-        let key_start =
-            (kv_head * context.physical_capacity + physical) * context.qk_dimension;
+        let key_start = (kv_head * context.physical_capacity + physical) * context.qk_dimension;
         let key_row = &input.physical_keys[key_start..key_start + context.qk_dimension];
         let dot = dot_with_transform(program.input_transform(), query_row, key_row)?;
         let score = dot * scale;
@@ -656,9 +641,7 @@ fn select_logical_keys(
                 .is_some_and(|mask| mask[query * context.kv_length + logical_key]),
         };
         let selection_visible = match program.selection() {
-            SelectionRule::Window { radius } => {
-                query_position.abs_diff(logical_key) <= radius
-            }
+            SelectionRule::Window { radius } => query_position.abs_diff(logical_key) <= radius,
             SelectionRule::All | SelectionRule::TopK { .. } => true,
         };
         if mask_visible && selection_visible {
@@ -705,9 +688,7 @@ fn weights_for(rule: WeightRule, scores: &[f64]) -> Result<Vec<f64>, CacheRefere
             if weights.iter().all(|value| value.is_finite()) {
                 Ok(weights)
             } else {
-                Err(CacheReferenceError::NonFinite(
-                    "signed-difference weights",
-                ))
+                Err(CacheReferenceError::NonFinite("signed-difference weights"))
             }
         }
     }
@@ -720,9 +701,7 @@ fn stable_softmax(scores: &[f64], scale: f64) -> Result<Vec<f64>, CacheReference
         .max_by(f64::total_cmp)
         .ok_or(CacheReferenceError::InvalidField("empty score row"))?;
     if !maximum.is_finite() || !scale.is_finite() || scale <= 0.0 {
-        return Err(CacheReferenceError::NonFinite(
-            "softmax scale/maximum",
-        ));
+        return Err(CacheReferenceError::NonFinite("softmax scale/maximum"));
     }
     let scaled_maximum = maximum * scale;
     let mut weights = Vec::with_capacity(scores.len());
@@ -749,8 +728,8 @@ mod tests {
     use super::*;
     use ada_core::{SemanticFamily, SemanticId};
     use ada_workload::{
-        AttentionGeometry, GeometrySpec, HeadGrouping, MaskSpec, PrecisionPolicy,
-        SequenceLengths, TensorLayout, WorkloadOptions,
+        AttentionGeometry, GeometrySpec, HeadGrouping, MaskSpec, PrecisionPolicy, SequenceLengths,
+        TensorLayout, WorkloadOptions,
     };
 
     fn semantic(name: &str, mask: MaskRule, selection: SelectionRule) -> SemanticProgram {
@@ -776,15 +755,10 @@ mod tests {
     }
 
     fn workload(spec: WorkloadSpec) -> WorkloadContract {
-        let grouping =
-            HeadGrouping::from_head_counts(spec.query_heads, spec.kv_heads).unwrap();
+        let grouping = HeadGrouping::from_head_counts(spec.query_heads, spec.kv_heads).unwrap();
         let geometry = AttentionGeometry::new(GeometrySpec {
-            sequence_lengths: SequenceLengths::uniform(
-                1,
-                spec.query_count,
-                spec.kv_length,
-            )
-            .unwrap(),
+            sequence_lengths: SequenceLengths::uniform(1, spec.query_count, spec.kv_length)
+                .unwrap(),
             query_heads: spec.query_heads,
             kv_heads: spec.kv_heads,
             qk_dimension: Some(1),
@@ -839,10 +813,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(output.output(), &[6.0, 6.0]);
-        assert_eq!(
-            output.selected_keys(),
-            &[vec![0, 1, 2], vec![0, 1, 2]]
-        );
+        assert_eq!(output.selected_keys(), &[vec![0, 1, 2], vec![0, 1, 2]]);
     }
 
     #[test]
@@ -934,10 +905,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(output.output(), &[3.0, 4.0]);
-        assert_eq!(
-            output.selected_keys(),
-            &[vec![0, 1, 2], vec![0, 1, 2, 3]]
-        );
+        assert_eq!(output.selected_keys(), &[vec![0, 1, 2], vec![0, 1, 2, 3]]);
     }
 
     #[test]
