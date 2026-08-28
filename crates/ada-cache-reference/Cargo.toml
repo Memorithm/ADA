@@ -1,0 +1,16 @@
+[package]
+name = "ada-cache-reference"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ada-semantic = { path = "../ada-semantic" }
+ada-workload = { path = "../ada-workload" }
+
+[dev-dependencies]
+ada-core = { path = "../ada-core" }
+
+[lints]
+workspace = true
