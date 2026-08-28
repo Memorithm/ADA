@@ -12,5 +12,13 @@ ada-qualification = { path = "../ada-qualification" }
 ada-semantic = { path = "../ada-semantic" }
 ada-workload = { path = "../ada-workload" }
 
+[dev-dependencies]
+ada-a10-evidence-schema = { path = "../ada-a10-evidence-schema" }
+ada-core = { path = "../ada-core" }
+ada-cost-model = { path = "../ada-cost-model" }
+ada-implementation = { path = "../ada-implementation" }
+ada-objective = { path = "../ada-objective" }
+ada-search = { path = "../ada-search" }
+
 [lints]
 workspace = true
