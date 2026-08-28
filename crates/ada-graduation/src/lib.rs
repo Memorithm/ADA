@@ -79,12 +79,10 @@ pub enum GraduationError {
 impl Display for GraduationError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::SemanticImplementationMismatch => formatter.write_str(
-                "implementation semantic identity does not match qualified semantic",
-            ),
-            Self::OracleFixtureMismatch => formatter.write_str(
-                "CEGIS active fixtures do not reproduce the qualification fixture set",
-            ),
+            Self::SemanticImplementationMismatch => formatter
+                .write_str("implementation semantic identity does not match qualified semantic"),
+            Self::OracleFixtureMismatch => formatter
+                .write_str("CEGIS active fixtures do not reproduce the qualification fixture set"),
             Self::OracleWorkloadMismatch => {
                 formatter.write_str("oracle fixture workload does not match qualification")
             }
@@ -98,18 +96,17 @@ impl Display for GraduationError {
             Self::InvalidCorrectnessStatus => formatter.write_str(
                 "E4a requires provisional correctness from bounded oracle qualification",
             ),
-            Self::VerdictRequiresQualifiedCorrectness => formatter.write_str(
-                "ADOPT/ADAPT require a stronger qualified-correctness protocol",
-            ),
+            Self::VerdictRequiresQualifiedCorrectness => {
+                formatter.write_str("ADOPT/ADAPT require a stronger qualified-correctness protocol")
+            }
             Self::MissingTaskEvidence => {
                 formatter.write_str("observed quality requires TaskBehavior evidence")
             }
-            Self::MissingHardwareEvidence => formatter.write_str(
-                "measured physical cost requires HardwareCost evidence",
-            ),
-            Self::EvidenceBindingMismatch => formatter.write_str(
-                "evidence semantic/workload binding does not match graduation bundle",
-            ),
+            Self::MissingHardwareEvidence => {
+                formatter.write_str("measured physical cost requires HardwareCost evidence")
+            }
+            Self::EvidenceBindingMismatch => formatter
+                .write_str("evidence semantic/workload binding does not match graduation bundle"),
             Self::DuplicateEvidence => {
                 formatter.write_str("duplicate canonical semantic evidence artifact")
             }
