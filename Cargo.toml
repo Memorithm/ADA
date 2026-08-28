@@ -31,6 +31,7 @@ members = [
     "crates/ada-graduation",
     "crates/ada-replay",
     "crates/ada-equivalence",
+    "crates/ada-experiment",
 ]
 
 [workspace.package]
