@@ -8,5 +8,8 @@ license.workspace = true
 [dependencies]
 ada-semantic = { path = "../ada-semantic" }
 
+[dev-dependencies]
+ada-core = { path = "../ada-core" }
+
 [lints]
 workspace = true
