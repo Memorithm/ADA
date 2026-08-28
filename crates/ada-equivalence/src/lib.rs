@@ -22,9 +22,7 @@
 #![forbid(unsafe_code)]
 
 use ada_core::SemanticId;
-use ada_semantic::{
-    SemanticIrError, SemanticProgram, SemanticProgramSpec, SelectionRule,
-};
+use ada_semantic::{SelectionRule, SemanticIrError, SemanticProgram, SemanticProgramSpec};
 use ada_workload::WorkloadContract;
 use std::fmt::{Display, Formatter};
 
@@ -370,13 +368,9 @@ mod tests {
         let left = softmax("topk-all-equivalent", SelectionRule::TopK { k: 4 }, 1.0);
         let right = softmax("explicit-all", SelectionRule::All, 1.0);
 
-        let result = prove_equivalent_for_workload(
-            &left,
-            &right,
-            &workload,
-            ArithmeticDomain::IeeeF64,
-        )
-        .unwrap();
+        let result =
+            prove_equivalent_for_workload(&left, &right, &workload, ArithmeticDomain::IeeeF64)
+                .unwrap();
         let EquivalenceResult::Proven(witness) = result else {
             panic!("expected proof");
         };
@@ -392,10 +386,7 @@ mod tests {
         let windowed = softmax("wide-window", SelectionRule::Window { radius: 4 }, 1.0);
         let all = softmax("all-visible", SelectionRule::All, 1.0);
 
-        for domain in [
-            ArithmeticDomain::RealArithmetic,
-            ArithmeticDomain::IeeeF64,
-        ] {
+        for domain in [ArithmeticDomain::RealArithmetic, ArithmeticDomain::IeeeF64] {
             let result = prove_equivalent_for_workload(&windowed, &all, &workload, domain).unwrap();
             let EquivalenceResult::Proven(witness) = result else {
                 panic!("expected proof");
@@ -411,13 +402,9 @@ mod tests {
         let topk = softmax("topk-two", SelectionRule::TopK { k: 2 }, 1.0);
         let all = softmax("all-four", SelectionRule::All, 1.0);
 
-        let result = prove_equivalent_for_workload(
-            &topk,
-            &all,
-            &workload,
-            ArithmeticDomain::IeeeF64,
-        )
-        .unwrap();
+        let result =
+            prove_equivalent_for_workload(&topk, &all, &workload, ArithmeticDomain::IeeeF64)
+                .unwrap();
         assert_eq!(result, EquivalenceResult::NotProven);
     }
 
@@ -443,24 +430,16 @@ mod tests {
         let long = workload(2, 5);
         let candidate = softmax("topk-three", SelectionRule::TopK { k: 3 }, 1.0);
 
-        let short_normalized = normalize_for_workload(
-            &candidate,
-            &short,
-            ArithmeticDomain::IeeeF64,
-        )
-        .unwrap();
+        let short_normalized =
+            normalize_for_workload(&candidate, &short, ArithmeticDomain::IeeeF64).unwrap();
         assert_eq!(short_normalized.program().selection(), SelectionRule::All);
         assert_eq!(
             short_normalized.applied_rules(),
             &[RewriteRule::ExhaustiveTopK]
         );
 
-        let long_normalized = normalize_for_workload(
-            &candidate,
-            &long,
-            ArithmeticDomain::IeeeF64,
-        )
-        .unwrap();
+        let long_normalized =
+            normalize_for_workload(&candidate, &long, ArithmeticDomain::IeeeF64).unwrap();
         assert_eq!(
             long_normalized.program().selection(),
             SelectionRule::TopK { k: 3 }
