@@ -493,7 +493,7 @@ impl BoundedOracleQualification {
                 return Err(QualificationError::DuplicateEvidence);
             }
             diagnostic_references.push(record.diagnostic_reference().map_err(|error| {
-                QualificationError::InvalidEvidenceReference(error.to_string())
+                QualificationError::InvalidEvidenceReference(format!("{error:?}"))
             })?);
         }
         Ok(EvidenceBoundQualification {
