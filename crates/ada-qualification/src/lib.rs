@@ -1,7 +1,7 @@
 //! Workload-bound qualification bridge for ADA semantic research.
 //!
 //! `ada-cegis` already owns deterministic candidate falsification and retained
-//! counterexamples.  This crate does not implement a second CEGIS engine.  It
+//! counterexamples. This crate does not implement a second CEGIS engine. It
 //! binds that existing machinery to an explicit [`WorkloadContract`] and then
 //! permits versioned A10/E2 evidence to be attached only to a survivor for the
 //! same semantic identity and workload fingerprint.
@@ -15,7 +15,7 @@ use std::fmt::{Display, Formatter, Write as _};
 use ada_a10_evidence_schema::{EvidenceWorkloadFingerprint, SemanticEvidenceRecord};
 use ada_cegis::{
     AdversarialGenerator, CegisResult, DifferentialOracle, Fixture, FixtureFingerprint,
-    OracleOutcome, MAX_FIXTURE_TEXT_BYTES,
+    MAX_FIXTURE_TEXT_BYTES, OracleOutcome,
 };
 use ada_core::DiagnosticEvidenceRef;
 use ada_search::{SearchCandidate, SearchFingerprint};
@@ -50,7 +50,7 @@ pub enum QualificationError {
     /// The requested workload was never evaluated in the CEGIS active corpus.
     WorkloadNotEvaluated,
     /// A survivor no longer validates against the workload it supposedly
-    /// survived.  This is treated as an integration failure, not as evidence.
+    /// survived. This is treated as an integration failure, not as evidence.
     SurvivorWorkloadMismatch(String),
     /// At least one E2 artifact refers to another semantic identity.
     EvidenceSemanticMismatch,
@@ -73,8 +73,12 @@ impl Display for QualificationError {
             Self::UnsupportedWorkload(reason) => {
                 write!(formatter, "unsupported qualification workload: {reason}")
             }
-            Self::InvalidFixture(reason) => write!(formatter, "invalid qualification fixture: {reason}"),
-            Self::CandidateNotFound => formatter.write_str("candidate is absent from the CEGIS result"),
+            Self::InvalidFixture(reason) => {
+                write!(formatter, "invalid qualification fixture: {reason}")
+            }
+            Self::CandidateNotFound => {
+                formatter.write_str("candidate is absent from the CEGIS result")
+            }
             Self::CandidateFalsified => {
                 formatter.write_str("candidate has a retained CEGIS counterexample")
             }
@@ -104,7 +108,7 @@ impl std::error::Error for QualificationError {}
 /// One deterministic reference case bound to an explicit workload contract.
 ///
 /// The caller supplies canonical input text separately from the typed
-/// [`ReferenceInput`].  This follows the CEGIS rule that opaque typed inputs are
+/// [`ReferenceInput`]. This follows the CEGIS rule that opaque typed inputs are
 /// never serialized implicitly.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SemanticWorkloadCase {
@@ -119,7 +123,7 @@ pub struct SemanticWorkloadCase {
 impl SemanticWorkloadCase {
     /// Construct one bounded workload/oracle case.
     ///
-    /// The expected output is caller-owned oracle truth.  The candidate
+    /// The expected output is caller-owned oracle truth. The candidate
     /// evaluator never generates it.
     ///
     /// # Errors
@@ -155,31 +159,7 @@ impl SemanticWorkloadCase {
             return Err(QualificationError::InvalidCase("expected_output_finite"));
         }
 
-        let geometry = workload.geometry();
-        let sequence = geometry.sequence_lengths();
-        if sequence.batch_count() != 1 || geometry.query_heads() != 1 || geometry.kv_heads() != 1 {
-            return Err(QualificationError::InvalidCase(
-                "qualification reference is single-batch and single-head",
-            ));
-        }
-        if input.query_count() != sequence.query_length_for(0).unwrap_or(0)
-            || input.key_count() != sequence.kv_length_for(0).unwrap_or(0)
-        {
-            return Err(QualificationError::InvalidCase("sequence_geometry"));
-        }
-        if Some(input.q_dimension()) != geometry.qk_dimension() {
-            return Err(QualificationError::InvalidCase("qk_dimension"));
-        }
-        if input.value_dimension() != geometry.value_dimension() {
-            return Err(QualificationError::InvalidCase("value_dimension"));
-        }
-        let expected_len = input
-            .query_count()
-            .checked_mul(input.value_dimension())
-            .ok_or(QualificationError::InvalidCase("expected_output_shape"))?;
-        if expected_output.len() != expected_len {
-            return Err(QualificationError::InvalidCase("expected_output_shape"));
-        }
+        validate_case_geometry(&workload, &input, expected_output.len())?;
 
         let case = Self {
             workload_fingerprint: EvidenceWorkloadFingerprint::from_workload(&workload),
@@ -278,6 +258,39 @@ impl SemanticWorkloadCase {
     }
 }
 
+fn validate_case_geometry(
+    workload: &WorkloadContract,
+    input: &ReferenceInput,
+    expected_output_len: usize,
+) -> Result<(), QualificationError> {
+    let geometry = workload.geometry();
+    let sequence = geometry.sequence_lengths();
+    if sequence.batch_count() != 1 || geometry.query_heads() != 1 || geometry.kv_heads() != 1 {
+        return Err(QualificationError::InvalidCase(
+            "qualification reference is single-batch and single-head",
+        ));
+    }
+    if input.query_count() != sequence.query_length_for(0).unwrap_or(0)
+        || input.key_count() != sequence.kv_length_for(0).unwrap_or(0)
+    {
+        return Err(QualificationError::InvalidCase("sequence_geometry"));
+    }
+    if Some(input.q_dimension()) != geometry.qk_dimension() {
+        return Err(QualificationError::InvalidCase("qk_dimension"));
+    }
+    if input.value_dimension() != geometry.value_dimension() {
+        return Err(QualificationError::InvalidCase("value_dimension"));
+    }
+    let expected_len = input
+        .query_count()
+        .checked_mul(input.value_dimension())
+        .ok_or(QualificationError::InvalidCase("expected_output_shape"))?;
+    if expected_output_len != expected_len {
+        return Err(QualificationError::InvalidCase("expected_output_shape"));
+    }
+    Ok(())
+}
+
 /// Differential oracle adapter that makes workload validation part of each
 /// CEGIS decision.
 #[derive(Debug, Clone, Copy, Default)]
@@ -354,7 +367,7 @@ impl<C, I> AdversarialGenerator<C, I> for NoAdversarialGenerator {
 
 /// A CEGIS survivor proven to have been evaluated on one explicit workload.
 ///
-/// "Qualified" here is bounded by the completed CEGIS corpus.  It is not a
+/// "Qualified" here is bounded by the completed CEGIS corpus. It is not a
 /// proof of semantic usefulness, novelty, model quality, or FLAT readiness.
 #[derive(Debug, Clone)]
 pub struct BoundedOracleQualification {
@@ -370,10 +383,11 @@ impl BoundedOracleQualification {
     ///
     /// # Errors
     ///
-    /// Returns `CandidateFalsified` for a retained rejection, `CandidateNotFound`
-    /// for an unrelated fingerprint, `WorkloadNotEvaluated` when the requested
-    /// workload never appeared in the corpus, or an integration error when the
-    /// survivor no longer validates against that workload.
+    /// Returns `CandidateFalsified` for a retained rejection,
+    /// `CandidateNotFound` for an unrelated fingerprint,
+    /// `WorkloadNotEvaluated` when the requested workload never appeared in the
+    /// corpus, or an integration error when the survivor no longer validates
+    /// against that workload.
     pub fn from_cegis_result(
         result: &CegisResult<SemanticProgram, SemanticWorkloadCase>,
         candidate_fingerprint: SearchFingerprint,
@@ -464,6 +478,7 @@ impl BoundedOracleQualification {
         if evidence.is_empty() {
             return Err(QualificationError::MissingEvidence);
         }
+        evidence.sort_by_key(SemanticEvidenceRecord::to_canonical_text);
         let semantic = self.candidate.candidate().descriptor().id();
         let mut canonical_records = BTreeSet::new();
         let mut diagnostic_references = Vec::with_capacity(evidence.len());
@@ -481,10 +496,6 @@ impl BoundedOracleQualification {
                 QualificationError::InvalidEvidenceReference(error.to_string())
             })?);
         }
-        evidence.sort_by_key(SemanticEvidenceRecord::to_canonical_text);
-        diagnostic_references.sort_by(|left, right| {
-            evidence_reference_key(left).cmp(&evidence_reference_key(right))
-        });
         Ok(EvidenceBoundQualification {
             oracle: self,
             evidence,
@@ -515,21 +526,11 @@ impl EvidenceBoundQualification {
     }
 
     /// Lightweight core evidence references suitable for later graduation
-    /// records.  These references do not alter semantic identity.
+    /// records. These references do not alter semantic identity.
     #[must_use]
     pub fn diagnostic_references(&self) -> &[DiagnosticEvidenceRef] {
         &self.diagnostic_references
     }
-}
-
-fn evidence_reference_key(reference: &DiagnosticEvidenceRef) -> String {
-    format!(
-        "{:?}|{}|{}|{}",
-        reference.kind(),
-        reference.repository(),
-        reference.artifact(),
-        reference.revision_binding()
-    )
 }
 
 fn hex_encode(value: &str) -> String {
@@ -549,11 +550,9 @@ mod tests {
     use ada_cegis::{CegisConfig, CegisEngine};
     use ada_core::{DiagnosticEvidenceKind, SemanticFamily, SemanticId};
     use ada_search::{
-        SearchBudget, SearchEngine, SemanticSearchConfig, SemanticSearchSpace, MAX_PROGRAM_COST,
+        MAX_PROGRAM_COST, SearchBudget, SearchEngine, SemanticSearchConfig, SemanticSearchSpace,
     };
-    use ada_semantic::{
-        InputTransform, MaskRule, ReferenceInputSpec, SelectionRule, WeightRule,
-    };
+    use ada_semantic::{InputTransform, MaskRule, ReferenceInputSpec, SelectionRule, WeightRule};
     use ada_workload::{
         AttentionGeometry, AttentionTopology, GeometrySpec, HeadGrouping, MaskKind, MaskSpec,
         PrecisionPolicy, ScalarPrecision, SequenceLengths, WorkloadOptions,
@@ -657,11 +656,9 @@ mod tests {
     }
 
     fn evidence_for(
-        qualification: &BoundedOracleQualification,
         semantic: SemanticId,
         workload_fingerprint: EvidenceWorkloadFingerprint,
     ) -> SemanticEvidenceRecord {
-        let _ = qualification;
         SemanticEvidenceRecord::new(SemanticEvidenceSpec {
             semantic,
             workload: workload_fingerprint,
@@ -685,7 +682,10 @@ mod tests {
         assert_eq!(result.rejected().len(), 1);
         assert_eq!(result.stats().oracle_falsified(), 1);
         assert_eq!(result.search_stats().oracle_falsified(), 1);
-        assert_eq!(result.survivors()[0].candidate().weight(), WeightRule::Softmax);
+        assert_eq!(
+            result.survivors()[0].candidate().weight(),
+            WeightRule::Softmax
+        );
         assert!(matches!(
             result.rejected()[0].candidate().candidate().weight(),
             WeightRule::SignedDifference { .. }
@@ -732,12 +732,11 @@ mod tests {
             .descriptor()
             .id()
             .clone();
-        let evidence = evidence_for(
-            &qualification,
-            semantic,
-            qualification.workload_fingerprint(),
-        );
-        let bound = qualification.clone().attach_evidence(vec![evidence]).unwrap();
+        let evidence = evidence_for(semantic, qualification.workload_fingerprint());
+        let bound = qualification
+            .clone()
+            .attach_evidence(vec![evidence])
+            .unwrap();
         assert_eq!(bound.evidence().len(), 1);
         assert_eq!(bound.diagnostic_references().len(), 1);
         assert_eq!(
@@ -745,10 +744,9 @@ mod tests {
             qualification.candidate().candidate().descriptor().id()
         );
 
-        let wrong_semantic = SemanticId::new(SemanticFamily::Experimental, "wrong-semantic", 1)
-            .unwrap();
+        let wrong_semantic =
+            SemanticId::new(SemanticFamily::Experimental, "wrong-semantic", 1).unwrap();
         let wrong_semantic_evidence = evidence_for(
-            &qualification,
             wrong_semantic,
             qualification.workload_fingerprint(),
         );
@@ -761,7 +759,6 @@ mod tests {
         );
 
         let wrong_workload_evidence = evidence_for(
-            &qualification,
             qualification
                 .candidate()
                 .candidate()
@@ -805,7 +802,13 @@ mod tests {
         )
         .unwrap();
         assert_ne!(base.to_canonical_text(), changed_input.to_canonical_text());
-        assert_ne!(base.to_canonical_text(), changed_workload.to_canonical_text());
-        assert!(base.to_canonical_text().contains("expected_bits=4008000000000000"));
+        assert_ne!(
+            base.to_canonical_text(),
+            changed_workload.to_canonical_text()
+        );
+        assert!(
+            base.to_canonical_text()
+                .contains("expected_bits=4008000000000000")
+        );
     }
 }
