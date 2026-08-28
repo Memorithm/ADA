@@ -46,7 +46,9 @@ impl Display for TraceError {
             Self::NonFiniteScalar => formatter.write_str("trace scalar must be finite"),
             Self::TooManyEvents => formatter.write_str("trace event capacity exceeded"),
             Self::InvalidSequence => formatter.write_str("trace event sequence is not contiguous"),
-            Self::UnsupportedVersion(version) => write!(formatter, "unsupported trace version {version}"),
+            Self::UnsupportedVersion(version) => {
+                write!(formatter, "unsupported trace version {version}")
+            }
             Self::MalformedCanonical(reason) => write!(formatter, "malformed trace: {reason}"),
         }
     }
@@ -230,10 +232,18 @@ impl TraceRecord {
         append(&mut text, "event_count", &self.events.len().to_string());
         for event in &self.events {
             let prefix = format!("event_{}", event.sequence);
-            append(&mut text, &format!("{prefix}_label"), &hex_encode(&event.label));
+            append(
+                &mut text,
+                &format!("{prefix}_label"),
+                &hex_encode(&event.label),
+            );
             match event.kind {
-                TraceEventKind::StageStart => append(&mut text, &format!("{prefix}_kind"), "stage-start"),
-                TraceEventKind::StageEnd => append(&mut text, &format!("{prefix}_kind"), "stage-end"),
+                TraceEventKind::StageStart => {
+                    append(&mut text, &format!("{prefix}_kind"), "stage-start")
+                }
+                TraceEventKind::StageEnd => {
+                    append(&mut text, &format!("{prefix}_kind"), "stage-end")
+                }
                 TraceEventKind::Counter(value) => {
                     append(&mut text, &format!("{prefix}_kind"), "counter");
                     append(&mut text, &format!("{prefix}_value"), &value.to_string());
@@ -339,9 +349,21 @@ fn validate_label(label: &str) -> Result<(), TraceError> {
 }
 
 fn append_fingerprint(text: &mut String, prefix: &str, fingerprint: TraceFingerprint) {
-    append(text, &format!("{prefix}_primary"), &format!("{:016x}", fingerprint.primary()));
-    append(text, &format!("{prefix}_secondary"), &format!("{:016x}", fingerprint.secondary()));
-    append(text, &format!("{prefix}_length"), &format!("{:016x}", fingerprint.length()));
+    append(
+        text,
+        &format!("{prefix}_primary"),
+        &format!("{:016x}", fingerprint.primary()),
+    );
+    append(
+        text,
+        &format!("{prefix}_secondary"),
+        &format!("{:016x}", fingerprint.secondary()),
+    );
+    append(
+        text,
+        &format!("{prefix}_length"),
+        &format!("{:016x}", fingerprint.length()),
+    );
 }
 
 fn parse_fingerprint(
@@ -362,11 +384,10 @@ fn append(text: &mut String, key: &str, value: &str) {
     text.push('\n');
 }
 
-fn next_value<'a>(
-    lines: &mut std::str::Lines<'a>,
-    expected: &str,
-) -> Result<&'a str, TraceError> {
-    let line = lines.next().ok_or_else(|| malformed_error("missing field"))?;
+fn next_value<'a>(lines: &mut std::str::Lines<'a>, expected: &str) -> Result<&'a str, TraceError> {
+    let line = lines
+        .next()
+        .ok_or_else(|| malformed_error("missing field"))?;
     let (key, value) = line
         .split_once('=')
         .ok_or_else(|| malformed_error("field lacks '='"))?;
@@ -389,7 +410,11 @@ fn parse_usize(value: &str) -> Result<usize, TraceError> {
 }
 
 fn parse_hex_u64(value: &str) -> Result<u64, TraceError> {
-    if value.len() != 16 || !value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()) {
+    if value.len() != 16
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    {
         return malformed("invalid canonical u64 hex");
     }
     u64::from_str_radix(value, 16).map_err(|_| malformed_error("invalid u64 hex"))
@@ -450,7 +475,8 @@ mod tests {
     };
 
     fn artifacts() -> (SemanticProgram, WorkloadContract, ImplementationPlan) {
-        let semantic_id = SemanticId::new(SemanticFamily::StandardSoftmax, "trace-test", 1).unwrap();
+        let semantic_id =
+            SemanticId::new(SemanticFamily::StandardSoftmax, "trace-test", 1).unwrap();
         let semantic = SemanticProgram::standard_softmax(
             semantic_id.clone(),
             MaskRule::Unmasked,
@@ -582,9 +608,11 @@ mod tests {
         trailing.push_str("extra=1\n");
         assert!(TraceRecord::from_canonical_text(&trailing).is_err());
 
-        let uppercase = trace
-            .to_canonical_text()
-            .replacen("semantic_primary=0000000000000001", "semantic_primary=000000000000000A", 1);
+        let uppercase = trace.to_canonical_text().replacen(
+            "semantic_primary=0000000000000001",
+            "semantic_primary=000000000000000A",
+            1,
+        );
         assert!(TraceRecord::from_canonical_text(&uppercase).is_err());
     }
 }
