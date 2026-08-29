@@ -1434,10 +1434,12 @@ mod tests {
         let expected_first = (10.0 * 1.0_f64.exp() + 20.0 + 30.0 * 1.0_f64.exp()) / denominator;
         let expected_second = (10.0 + 20.0 * 1.0_f64.exp() + 30.0 * 1.0_f64.exp()) / denominator;
         // The reference uses max-shifted exponentials; the direct expression
-        // uses an unshifted denominator. Both are f64 paths, so their final
-        // rounding may differ by a few ulps.
-        assert!((output.output()[0] - expected_first).abs() < 1.0e-14);
-        assert!((output.output()[1] - expected_second).abs() < 1.0e-14);
+        // uses an unshifted denominator. Both are f64 paths, but Miri's
+        // soft-float exp implementation can accumulate more rounding error
+        // than native libm while remaining well within f64 reference accuracy.
+        let direct_softmax_tolerance = 1.0e-13;
+        assert!((output.output()[0] - expected_first).abs() < direct_softmax_tolerance);
+        assert!((output.output()[1] - expected_second).abs() < direct_softmax_tolerance);
         for row in output.weights().chunks_exact(3) {
             assert!((row.iter().sum::<f64>() - 1.0).abs() < 1.0e-15);
         }
