@@ -33,17 +33,13 @@ impl DeltaRuleSpec {
     ) -> Result<Self, AdvancedReferenceError> {
         let state_identity = state_identity.into();
         if state_identity.is_empty() || state_identity.chars().any(char::is_whitespace) {
-            return Err(AdvancedReferenceError::InvalidField(
-                "delta state identity",
-            ));
+            return Err(AdvancedReferenceError::InvalidField("delta state identity"));
         }
         if !decay.is_finite() || !(0.0..=1.0).contains(&decay) {
             return Err(AdvancedReferenceError::InvalidField("delta decay"));
         }
         if !learning_rate.is_finite() || learning_rate < 0.0 {
-            return Err(AdvancedReferenceError::InvalidField(
-                "delta learning rate",
-            ));
+            return Err(AdvancedReferenceError::InvalidField("delta learning rate"));
         }
         Ok(Self {
             semantic,
@@ -120,21 +116,14 @@ pub fn evaluate_delta_rule(
         )?,
     )?;
     let mut state = input.initial_state.clone();
-    let mut output = vec![
-        0.0;
-        checked_product(
-            geometry.tokens,
-            geometry.value_dimension,
-            "delta output"
-        )?
-    ];
+    let mut output =
+        vec![0.0; checked_product(geometry.tokens, geometry.value_dimension, "delta output")?];
     for token in 0..geometry.tokens {
-        let key = &input.keys
-            [token * geometry.qk_dimension..(token + 1) * geometry.qk_dimension];
-        let query = &input.queries
-            [token * geometry.qk_dimension..(token + 1) * geometry.qk_dimension];
-        let value = &input.values
-            [token * geometry.value_dimension..(token + 1) * geometry.value_dimension];
+        let key = &input.keys[token * geometry.qk_dimension..(token + 1) * geometry.qk_dimension];
+        let query =
+            &input.queries[token * geometry.qk_dimension..(token + 1) * geometry.qk_dimension];
+        let value =
+            &input.values[token * geometry.value_dimension..(token + 1) * geometry.value_dimension];
         for value_index in 0..geometry.value_dimension {
             for key_index in 0..geometry.qk_dimension {
                 let index = value_index * geometry.qk_dimension + key_index;
@@ -238,30 +227,21 @@ pub fn evaluate_linear_attention(
     let columns = geometry
         .value_dimension
         .checked_add(1)
-        .ok_or(AdvancedReferenceError::ExceedsLimit(
-            "linear state columns",
-        ))?;
+        .ok_or(AdvancedReferenceError::ExceedsLimit("linear state columns"))?;
     validate_stream_input(
         input,
         geometry,
         checked_product(geometry.qk_dimension, columns, "linear state")?,
     )?;
     let mut state = input.initial_state.clone();
-    let mut output = vec![
-        0.0;
-        checked_product(
-            geometry.tokens,
-            geometry.value_dimension,
-            "linear output"
-        )?
-    ];
+    let mut output =
+        vec![0.0; checked_product(geometry.tokens, geometry.value_dimension, "linear output")?];
     for token in 0..geometry.tokens {
-        let key = &input.keys
-            [token * geometry.qk_dimension..(token + 1) * geometry.qk_dimension];
-        let query = &input.queries
-            [token * geometry.qk_dimension..(token + 1) * geometry.qk_dimension];
-        let value = &input.values
-            [token * geometry.value_dimension..(token + 1) * geometry.value_dimension];
+        let key = &input.keys[token * geometry.qk_dimension..(token + 1) * geometry.qk_dimension];
+        let query =
+            &input.queries[token * geometry.qk_dimension..(token + 1) * geometry.qk_dimension];
+        let value =
+            &input.values[token * geometry.value_dimension..(token + 1) * geometry.value_dimension];
         let key_features = key.iter().copied().map(phi).collect::<Vec<_>>();
         let query_features = query.iter().copied().map(phi).collect::<Vec<_>>();
         ensure_finite(&key_features, "linear key features")?;
@@ -269,8 +249,7 @@ pub fn evaluate_linear_attention(
         for dimension in 0..geometry.qk_dimension {
             let state_start = dimension * columns;
             for value_index in 0..geometry.value_dimension {
-                state[state_start + value_index] +=
-                    key_features[dimension] * value[value_index];
+                state[state_start + value_index] += key_features[dimension] * value[value_index];
             }
             state[state_start + geometry.value_dimension] += key_features[dimension];
         }
@@ -336,18 +315,13 @@ fn validate_recurrent_workload(
             "recurrent qk dimension",
         ))?;
     let value_dimension = geometry.value_dimension();
-    let query_tokens = geometry
-        .sequence_lengths()
-        .query_length_for(0)
-        .ok_or(AdvancedReferenceError::InvalidField(
-            "recurrent query length",
-        ))?;
+    let query_tokens = geometry.sequence_lengths().query_length_for(0).ok_or(
+        AdvancedReferenceError::InvalidField("recurrent query length"),
+    )?;
     let kv_tokens = geometry
         .sequence_lengths()
         .kv_length_for(0)
-        .ok_or(AdvancedReferenceError::InvalidField(
-            "recurrent kv length",
-        ))?;
+        .ok_or(AdvancedReferenceError::InvalidField("recurrent kv length"))?;
     if query_tokens != kv_tokens {
         return Err(AdvancedReferenceError::InvalidField(
             "recurrent stream requires equal query/KV token counts",
@@ -477,20 +451,12 @@ fn validate_stream_input(
 ) -> Result<(), AdvancedReferenceError> {
     check_len(
         "recurrent queries",
-        checked_product(
-            geometry.tokens,
-            geometry.qk_dimension,
-            "recurrent queries",
-        )?,
+        checked_product(geometry.tokens, geometry.qk_dimension, "recurrent queries")?,
         input.queries.len(),
     )?;
     check_len(
         "recurrent keys",
-        checked_product(
-            geometry.tokens,
-            geometry.qk_dimension,
-            "recurrent keys",
-        )?,
+        checked_product(geometry.tokens, geometry.qk_dimension, "recurrent keys")?,
         input.keys.len(),
     )?;
     check_len(

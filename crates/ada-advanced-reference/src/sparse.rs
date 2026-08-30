@@ -127,14 +127,8 @@ pub fn evaluate_sparse(
     input: &SparseInput,
 ) -> Result<SparseOutput, AdvancedReferenceError> {
     validate_input(spec, input)?;
-    let mut output = vec![
-        0.0;
-        checked_product(
-            input.query_count,
-            input.value_dimension,
-            "sparse output"
-        )?
-    ];
+    let mut output =
+        vec![0.0; checked_product(input.query_count, input.value_dimension, "sparse output")?];
     let mut selected_keys = Vec::with_capacity(input.query_count);
     for query in 0..input.query_count {
         let scores = score_row(spec, input, query)?;
@@ -323,21 +317,15 @@ mod tests {
         )
         .unwrap();
         let result = evaluate_sparse(&spec, &input()).unwrap();
-        assert_eq!(
-            result.selected_keys(),
-            &[vec![0, 1, 2], vec![0, 1, 2]]
-        );
+        assert_eq!(result.selected_keys(), &[vec![0, 1, 2], vec![0, 1, 2]]);
         assert!((result.output()[1] - 20.0).abs() < 1.0e-12);
     }
 
     #[test]
     fn dynamic_topk_uses_deterministic_key_tie_break() {
-        let spec = SparseAttentionSpec::new(
-            id("dynamic"),
-            1.0,
-            SparseSelection::DynamicTopK { k: 1 },
-        )
-        .unwrap();
+        let spec =
+            SparseAttentionSpec::new(id("dynamic"), 1.0, SparseSelection::DynamicTopK { k: 1 })
+                .unwrap();
         let result = evaluate_sparse(&spec, &input()).unwrap();
         assert_eq!(result.selected_keys()[0], vec![1]);
         assert_eq!(result.output()[0], 20.0);

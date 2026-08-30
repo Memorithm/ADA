@@ -65,9 +65,7 @@ pub fn ring_softmax_reduce(
     value_dimension: usize,
 ) -> Result<RingSoftmaxOutput, AdvancedReferenceError> {
     if value_dimension == 0 {
-        return Err(AdvancedReferenceError::InvalidField(
-            "ring value dimension",
-        ));
+        return Err(AdvancedReferenceError::InvalidField("ring value dimension"));
     }
     let mut global: Option<OnlineState> = None;
     for shard in shards {
@@ -81,11 +79,7 @@ pub fn ring_softmax_reduce(
         }
         check_len(
             "ring shard values",
-            checked_product(
-                shard.scores.len(),
-                value_dimension,
-                "ring shard values",
-            )?,
+            checked_product(shard.scores.len(), value_dimension, "ring shard values")?,
             shard.values.len(),
         )?;
         ensure_finite(&shard.scores, "ring scores")?;
@@ -100,9 +94,7 @@ pub fn ring_softmax_reduce(
         "empty global ring key set",
     ))?;
     if !global.normalizer.is_finite() || global.normalizer <= 0.0 {
-        return Err(AdvancedReferenceError::NonFinite(
-            "ring global normalizer",
-        ));
+        return Err(AdvancedReferenceError::NonFinite("ring global normalizer"));
     }
     let output = global
         .numerator

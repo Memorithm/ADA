@@ -228,7 +228,10 @@ fn validate_latent_domain(workload: &WorkloadContract) -> Result<(), AdvancedRef
         || !matches!(workload.state(), StateSpec::Stateless)
         || !matches!(workload.positions(), PositionInfo::None)
         || !matches!(workload.score_bias(), ScoreBiasSpec::None)
-        || !matches!(workload.mask().kind(), MaskKind::None | MaskKind::Bidirectional)
+        || !matches!(
+            workload.mask().kind(),
+            MaskKind::None | MaskKind::Bidirectional
+        )
     {
         return Err(AdvancedReferenceError::Unsupported(
             "latent v1 requires stateless unmasked prefill without cache/position/bias",
@@ -286,11 +289,7 @@ fn validate_latent_shapes(
     )?;
     check_len(
         "latent keys",
-        checked_product(
-            geometry.kv_count,
-            geometry.latent_dimension,
-            "latent keys",
-        )?,
+        checked_product(geometry.kv_count, geometry.latent_dimension, "latent keys")?,
         input.latent_keys.len(),
     )?;
     check_len(
@@ -354,8 +353,8 @@ fn reconstruct(
 mod tests {
     use ada_core::{SemanticFamily, SemanticId};
     use ada_workload::{
-        AttentionGeometry, AttentionTopology, GeometrySpec, LatentKvSpec,
-        LatentPositionHandling, PrecisionPolicy, SequenceLengths, TensorLayout, WorkloadOptions,
+        AttentionGeometry, AttentionTopology, GeometrySpec, LatentKvSpec, LatentPositionHandling,
+        PrecisionPolicy, SequenceLengths, TensorLayout, WorkloadOptions,
     };
 
     use super::*;
