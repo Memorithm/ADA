@@ -67,10 +67,10 @@ impl ExecutablePrecision {
     }
 
     fn validate(&self) -> Result<(), PrecisionReferenceError> {
-        if let Self::I8Symmetric { scale } = self
-            && (!scale.is_finite() || *scale <= 0.0)
-        {
-            return Err(PrecisionReferenceError::InvalidScale);
+        if let Self::I8Symmetric { scale } = self {
+            if !scale.is_finite() || *scale <= 0.0 {
+                return Err(PrecisionReferenceError::InvalidScale);
+            }
         }
         Ok(())
     }
@@ -123,7 +123,9 @@ impl Display for PrecisionReferenceError {
                 "precision policy mismatch at {stage:?}: declared {declared:?}, executable {executable:?}"
             ),
             Self::InvalidScale => formatter.write_str("I8 scale must be positive and finite"),
-            Self::NonFiniteInput => formatter.write_str("precision reference requires finite input"),
+            Self::NonFiniteInput => {
+                formatter.write_str("precision reference requires finite input")
+            }
             Self::Overflow => formatter.write_str("precision reference finite lattice overflow"),
             Self::ShapeMismatch => formatter.write_str("dot-product operand lengths differ"),
         }
@@ -256,14 +258,8 @@ impl PrecisionExecutionSpec {
             let right_stored = self.quantize(PrecisionStage::Storage, right_value)?;
             let left_input = self.quantize(PrecisionStage::Input, left_stored)?;
             let right_input = self.quantize(PrecisionStage::Input, right_stored)?;
-            let product = self.quantize(
-                PrecisionStage::Accumulation,
-                left_input * right_input,
-            )?;
-            accumulation = self.quantize(
-                PrecisionStage::Accumulation,
-                accumulation + product,
-            )?;
+            let product = self.quantize(PrecisionStage::Accumulation, left_input * right_input)?;
+            accumulation = self.quantize(PrecisionStage::Accumulation, accumulation + product)?;
             trace.push(accumulation);
         }
         let output = self.quantize(PrecisionStage::Output, accumulation)?;
@@ -396,13 +392,14 @@ fn floor_log2(value: f64) -> i32 {
         return raw_exponent - 1023;
     }
     let fraction = bits & ((1_u64 << 52) - 1);
-    let highest_bit = 63_i32 - fraction.leading_zeros() as i32;
+    let highest_bit =
+        63_i32 - i32::try_from(fraction.leading_zeros()).expect("leading-zero count fits i32");
     highest_bit - 1074
 }
 
 fn pow2(exponent: i32) -> f64 {
     debug_assert!((-1022..=1023).contains(&exponent));
-    f64::from_bits(((exponent + 1023) as u64) << 52)
+    f64::from_bits(u64::try_from(exponent + 1023).expect("biased exponent is non-negative") << 52)
 }
 
 #[cfg(test)]
@@ -433,7 +430,12 @@ mod tests {
             OverflowPolicy::Reject,
         );
         let halfway = 1.0 + pow2(-11);
-        assert_eq!(spec.quantize(PrecisionStage::Input, halfway).unwrap(), 1.0);
+        assert_eq!(
+            spec.quantize(PrecisionStage::Input, halfway)
+                .unwrap()
+                .to_bits(),
+            1.0_f64.to_bits()
+        );
     }
 
     #[test]
@@ -444,7 +446,12 @@ mod tests {
             OverflowPolicy::Reject,
         );
         let halfway = 1.0 + pow2(-8);
-        assert_eq!(spec.quantize(PrecisionStage::Input, halfway).unwrap(), 1.0);
+        assert_eq!(
+            spec.quantize(PrecisionStage::Input, halfway)
+                .unwrap()
+                .to_bits(),
+            1.0_f64.to_bits()
+        );
     }
 
     #[test]
@@ -454,9 +461,22 @@ mod tests {
             ExecutablePrecision::F4E2M1,
             OverflowPolicy::Reject,
         );
-        assert_eq!(spec.quantize(PrecisionStage::Input, 0.26).unwrap(), 0.5);
-        assert_eq!(spec.quantize(PrecisionStage::Input, 1.25).unwrap(), 1.0);
-        assert_eq!(spec.quantize(PrecisionStage::Input, 2.8).unwrap(), 3.0);
+        assert_eq!(
+            spec.quantize(PrecisionStage::Input, 0.26)
+                .unwrap()
+                .to_bits(),
+            0.5_f64.to_bits()
+        );
+        assert_eq!(
+            spec.quantize(PrecisionStage::Input, 1.25)
+                .unwrap()
+                .to_bits(),
+            1.0_f64.to_bits()
+        );
+        assert_eq!(
+            spec.quantize(PrecisionStage::Input, 2.8).unwrap().to_bits(),
+            3.0_f64.to_bits()
+        );
     }
 
     #[test]
@@ -467,15 +487,17 @@ mod tests {
             ScalarPrecision::F8,
             ScalarPrecision::F8,
         );
-        assert!(PrecisionExecutionSpec::new(
-            policy,
-            ExecutablePrecision::F8E4M3IeeeLike,
-            ExecutablePrecision::F8E5M2,
-            ExecutablePrecision::F8E4M3IeeeLike,
-            ExecutablePrecision::F8E5M2,
-            OverflowPolicy::Reject,
-        )
-        .is_ok());
+        assert!(
+            PrecisionExecutionSpec::new(
+                policy,
+                ExecutablePrecision::F8E4M3IeeeLike,
+                ExecutablePrecision::F8E5M2,
+                ExecutablePrecision::F8E4M3IeeeLike,
+                ExecutablePrecision::F8E5M2,
+                OverflowPolicy::Reject,
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -507,11 +529,21 @@ mod tests {
     fn i8_scale_and_overflow_are_explicit() {
         let spec = uniform(
             ScalarPrecision::I8,
-            ExecutablePrecision::I8Symmetric { scale: 0.1 },
+            ExecutablePrecision::I8Symmetric { scale: 0.125 },
             OverflowPolicy::Saturate,
         );
-        assert!((spec.quantize(PrecisionStage::Input, 0.15).unwrap() - 0.2).abs() < 1.0e-15);
-        assert!((spec.quantize(PrecisionStage::Input, 99.0).unwrap() - 12.7).abs() < 1.0e-15);
+        assert_eq!(
+            spec.quantize(PrecisionStage::Input, 0.1875)
+                .unwrap()
+                .to_bits(),
+            0.25_f64.to_bits()
+        );
+        assert_eq!(
+            spec.quantize(PrecisionStage::Input, 99.0)
+                .unwrap()
+                .to_bits(),
+            15.875_f64.to_bits()
+        );
     }
 
     #[test]
@@ -523,7 +555,7 @@ mod tests {
         );
         let report = spec.dot_product(&[1.25, 0.75], &[1.0, 1.0]).unwrap();
         assert_eq!(report.accumulation_trace(), &[1.0, 2.0]);
-        assert_eq!(report.output(), 2.0);
+        assert_eq!(report.output().to_bits(), 2.0_f64.to_bits());
     }
 
     #[test]
