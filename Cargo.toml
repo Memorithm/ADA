@@ -27,6 +27,7 @@ members = [
     "crates/ada-objective",
     "crates/ada-implementation",
     "crates/ada-cost-model",
+    "crates/ada-discovery",
     "crates/ada-qualification",
     "crates/ada-graduation",
     "crates/ada-replay",
@@ -36,6 +37,7 @@ members = [
     "crates/ada-trace",
     "crates/ada-gradient",
     "crates/ada-cache-reference",
+    "crates/ada-advanced-reference",
     "crates/ada-precision-reference",
 ]
 

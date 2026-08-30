@@ -127,6 +127,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-advanced-reference"
+version = "0.1.0"
+dependencies = [
+ "ada-core",
+ "ada-workload",
+]
+
+[[package]]
 name = "ada-backward"
 version = "0.1.0"
 dependencies = [
@@ -164,6 +172,15 @@ dependencies = [
  "ada-implementation",
  "ada-objective",
  "ada-workload",
+]
+
+[[package]]
+name = "ada-discovery"
+version = "0.1.0"
+dependencies = [
+ "ada-cegis",
+ "ada-objective",
+ "ada-search",
 ]
 
 [[package]]
