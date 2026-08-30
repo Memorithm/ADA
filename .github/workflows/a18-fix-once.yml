@@ -60,12 +60,23 @@ jobs:
                   "assert_eq!(report.output(), 2.0);",
                   "assert_eq!(report.output().to_bits(), 2.0_f64.to_bits());",
               ),
+              (
+                  "ExecutablePrecision::I8Symmetric { scale: 0.1 },",
+                  "ExecutablePrecision::I8Symmetric { scale: 0.125 },",
+              ),
+              (
+                  "assert!((spec.quantize(PrecisionStage::Input, 0.15).unwrap() - 0.2).abs() < 1.0e-15);",
+                  "assert_eq!(\n            spec.quantize(PrecisionStage::Input, 0.1875)\n                .unwrap()\n                .to_bits(),\n            0.25_f64.to_bits()\n        );",
+              ),
+              (
+                  "assert!((spec.quantize(PrecisionStage::Input, 99.0).unwrap() - 12.7).abs() < 1.0e-15);",
+                  "assert_eq!(\n            spec.quantize(PrecisionStage::Input, 99.0)\n                .unwrap()\n                .to_bits(),\n            15.875_f64.to_bits()\n        );",
+              ),
           ]
           for old, new in replacements:
               if old not in text:
                   raise SystemExit(f'expected pattern not found: {old!r}')
               text = text.replace(old, new, 1)
-          # The halfway assertion occurs twice (F16 and BF16); replace the second one too.
           old = "assert_eq!(spec.quantize(PrecisionStage::Input, halfway).unwrap(), 1.0);"
           new = """assert_eq!(\n            spec.quantize(PrecisionStage::Input, halfway)\n                .unwrap()\n                .to_bits(),\n            1.0_f64.to_bits()\n        );"""
           if old not in text:
@@ -94,5 +105,5 @@ jobs:
             echo 'No changes to commit.'
             exit 0
           fi
-          git commit -m 'fix(a18): preserve MSRV and strict lint invariants'
+          git commit -m 'fix(a18): preserve MSRV and exact lattice invariants'
           git push origin HEAD:research/ada-precision-reference
