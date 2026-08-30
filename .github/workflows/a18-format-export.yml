@@ -1,0 +1,47 @@
+name: a18-format-export
+
+on:
+  pull_request:
+    paths:
+      - 'crates/ada-precision-reference/**'
+      - '.github/workflows/a18-format-export.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  format-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: normalize MSRV-compatible source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('crates/ada-precision-reference/src/lib.rs')
+          text = path.read_text()
+          old = '''        if let Self::I8Symmetric { scale } = self
+              && (!scale.is_finite() || *scale <= 0.0)
+          {
+              return Err(PrecisionReferenceError::InvalidScale);
+          }
+'''
+          new = '''        if let Self::I8Symmetric { scale } = self {
+              if !scale.is_finite() || *scale <= 0.0 {
+                  return Err(PrecisionReferenceError::InvalidScale);
+              }
+          }
+'''
+          if old not in text:
+              raise SystemExit('expected let-chain source not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          cargo fmt --all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: a18-formatted-source
+          path: crates/ada-precision-reference/src/lib.rs
+          if-no-files-found: error
