@@ -20,18 +20,58 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - name: restore Rust 1.85 compatibility
+      - name: restore MSRV and strict lint compatibility
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           path = Path('crates/ada-precision-reference/src/lib.rs')
           text = path.read_text()
-          old = """        if let Self::I8Symmetric { scale } = self\n            && (!scale.is_finite() || *scale <= 0.0)\n        {\n            return Err(PrecisionReferenceError::InvalidScale);\n        }"""
-          new = """        if let Self::I8Symmetric { scale } = self {\n            if !scale.is_finite() || *scale <= 0.0 {\n                return Err(PrecisionReferenceError::InvalidScale);\n            }\n        }"""
+          replacements = [
+              (
+                  """        if let Self::I8Symmetric { scale } = self\n            && (!scale.is_finite() || *scale <= 0.0)\n        {\n            return Err(PrecisionReferenceError::InvalidScale);\n        }""",
+                  """        if let Self::I8Symmetric { scale } = self {\n            if !scale.is_finite() || *scale <= 0.0 {\n                return Err(PrecisionReferenceError::InvalidScale);\n            }\n        }""",
+              ),
+              (
+                  "let highest_bit = 63_i32 - fraction.leading_zeros() as i32;",
+                  "let highest_bit = 63_i32\n        - i32::try_from(fraction.leading_zeros()).expect(\"leading-zero count fits i32\");",
+              ),
+              (
+                  "f64::from_bits(((exponent + 1023) as u64) << 52)",
+                  "f64::from_bits(\n        u64::try_from(exponent + 1023).expect(\"biased exponent is non-negative\") << 52,\n    )",
+              ),
+              (
+                  "assert_eq!(spec.quantize(PrecisionStage::Input, halfway).unwrap(), 1.0);",
+                  "assert_eq!(\n            spec.quantize(PrecisionStage::Input, halfway)\n                .unwrap()\n                .to_bits(),\n            1.0_f64.to_bits()\n        );",
+              ),
+              (
+                  "assert_eq!(spec.quantize(PrecisionStage::Input, 0.26).unwrap(), 0.5);",
+                  "assert_eq!(\n            spec.quantize(PrecisionStage::Input, 0.26)\n                .unwrap()\n                .to_bits(),\n            0.5_f64.to_bits()\n        );",
+              ),
+              (
+                  "assert_eq!(spec.quantize(PrecisionStage::Input, 1.25).unwrap(), 1.0);",
+                  "assert_eq!(\n            spec.quantize(PrecisionStage::Input, 1.25)\n                .unwrap()\n                .to_bits(),\n            1.0_f64.to_bits()\n        );",
+              ),
+              (
+                  "assert_eq!(spec.quantize(PrecisionStage::Input, 2.8).unwrap(), 3.0);",
+                  "assert_eq!(\n            spec.quantize(PrecisionStage::Input, 2.8)\n                .unwrap()\n                .to_bits(),\n            3.0_f64.to_bits()\n        );",
+              ),
+              (
+                  "assert_eq!(report.output(), 2.0);",
+                  "assert_eq!(report.output().to_bits(), 2.0_f64.to_bits());",
+              ),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'expected pattern not found: {old!r}')
+              text = text.replace(old, new, 1)
+          # The halfway assertion occurs twice (F16 and BF16); replace the second one too.
+          old = "assert_eq!(spec.quantize(PrecisionStage::Input, halfway).unwrap(), 1.0);"
+          new = """assert_eq!(\n            spec.quantize(PrecisionStage::Input, halfway)\n                .unwrap()\n                .to_bits(),\n            1.0_f64.to_bits()\n        );"""
           if old not in text:
-              raise SystemExit('expected let-chain pattern not found')
-          path.write_text(text.replace(old, new, 1))
+              raise SystemExit('second halfway assertion not found')
+          text = text.replace(old, new, 1)
+          path.write_text(text)
           PY
       - name: format
         run: cargo fmt --all
@@ -54,5 +94,5 @@ jobs:
             echo 'No changes to commit.'
             exit 0
           fi
-          git commit -m 'fix(a18): preserve MSRV and formatting'
+          git commit -m 'fix(a18): preserve MSRV and strict lint invariants'
           git push origin HEAD:research/ada-precision-reference
