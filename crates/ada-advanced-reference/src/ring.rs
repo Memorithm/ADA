@@ -159,8 +159,8 @@ fn local_state(
         let weight = (score - maximum).exp();
         normalizer += weight;
         let value_start = key * value_dimension;
-        for dimension in 0..value_dimension {
-            numerator[dimension] += weight * shard.values[value_start + dimension];
+        for (dimension, numerator_value) in numerator.iter_mut().enumerate() {
+            *numerator_value += weight * shard.values[value_start + dimension];
         }
     }
     if !normalizer.is_finite()
@@ -220,7 +220,7 @@ mod tests {
         let forward = ring_softmax_reduce(&[first.clone(), second.clone()], 1).unwrap();
         let reverse = ring_softmax_reduce(&[second, first], 1).unwrap();
         assert!((forward.output()[0] - reverse.output()[0]).abs() < 1.0e-12);
-        assert_eq!(forward.maximum(), 1000.0);
+        assert!((forward.maximum() - 1000.0).abs() < 1.0e-12);
     }
 
     #[test]

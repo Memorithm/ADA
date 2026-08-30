@@ -124,11 +124,11 @@ pub fn evaluate_delta_rule(
             &input.queries[token * geometry.qk_dimension..(token + 1) * geometry.qk_dimension];
         let value =
             &input.values[token * geometry.value_dimension..(token + 1) * geometry.value_dimension];
-        for value_index in 0..geometry.value_dimension {
-            for key_index in 0..geometry.qk_dimension {
+        for (value_index, &value_component) in value.iter().enumerate() {
+            for (key_index, &key_component) in key.iter().enumerate() {
                 let index = value_index * geometry.qk_dimension + key_index;
                 state[index] = spec.decay * state[index]
-                    + spec.learning_rate * value[value_index] * key[key_index];
+                    + spec.learning_rate * value_component * key_component;
             }
         }
         let out_start = token * geometry.value_dimension;
@@ -246,12 +246,12 @@ pub fn evaluate_linear_attention(
         let query_features = query.iter().copied().map(phi).collect::<Vec<_>>();
         ensure_finite(&key_features, "linear key features")?;
         ensure_finite(&query_features, "linear query features")?;
-        for dimension in 0..geometry.qk_dimension {
+        for (dimension, &key_feature) in key_features.iter().enumerate() {
             let state_start = dimension * columns;
-            for value_index in 0..geometry.value_dimension {
-                state[state_start + value_index] += key_features[dimension] * value[value_index];
+            for (value_index, &value_component) in value.iter().enumerate() {
+                state[state_start + value_index] += key_feature * value_component;
             }
-            state[state_start + geometry.value_dimension] += key_features[dimension];
+            state[state_start + geometry.value_dimension] += key_feature;
         }
         let denominator = spec.epsilon
             + (0..geometry.qk_dimension)

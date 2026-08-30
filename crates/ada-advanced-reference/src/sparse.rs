@@ -328,7 +328,7 @@ mod tests {
                 .unwrap();
         let result = evaluate_sparse(&spec, &input()).unwrap();
         assert_eq!(result.selected_keys()[0], vec![1]);
-        assert_eq!(result.output()[0], 20.0);
+        assert!((result.output()[0] - 20.0).abs() < 1.0e-12);
     }
 
     #[test]
@@ -344,7 +344,7 @@ mod tests {
         .unwrap();
         let result = evaluate_sparse(&spec, &input()).unwrap();
         assert_eq!(result.selected_keys(), &[vec![1, 2], vec![0]]);
-        assert_eq!(result.output()[1], 10.0);
+        assert!((result.output()[1] - 10.0).abs() < 1.0e-12);
     }
 
     #[test]
