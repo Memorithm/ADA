@@ -1,0 +1,58 @@
+name: a18-fix-once
+
+on:
+  push:
+    branches:
+      - research/ada-precision-reference
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/ada-precision-reference
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: restore Rust 1.85 compatibility
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('crates/ada-precision-reference/src/lib.rs')
+          text = path.read_text()
+          old = """        if let Self::I8Symmetric { scale } = self\n            && (!scale.is_finite() || *scale <= 0.0)\n        {\n            return Err(PrecisionReferenceError::InvalidScale);\n        }"""
+          new = """        if let Self::I8Symmetric { scale } = self {\n            if !scale.is_finite() || *scale <= 0.0 {\n                return Err(PrecisionReferenceError::InvalidScale);\n            }\n        }"""
+          if old not in text:
+              raise SystemExit('expected let-chain pattern not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: format
+        run: cargo fmt --all
+      - name: stable strict clippy
+        run: cargo clippy -p ada-precision-reference --all-targets --locked -- -D warnings
+      - name: stable tests
+        run: cargo test -p ada-precision-reference --locked
+      - name: install MSRV
+        run: rustup toolchain install 1.85.0 --profile minimal --no-self-update
+      - name: MSRV check
+        run: cargo +1.85.0 check -p ada-precision-reference --all-targets --locked
+      - name: commit validated fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add crates/ada-precision-reference/src/lib.rs
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+            exit 0
+          fi
+          git commit -m 'fix(a18): preserve MSRV and formatting'
+          git push origin HEAD:research/ada-precision-reference
