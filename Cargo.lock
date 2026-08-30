@@ -167,6 +167,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-discovery"
+version = "0.1.0"
+dependencies = [
+ "ada-cegis",
+ "ada-objective",
+ "ada-search",
+]
+
+[[package]]
 name = "ada-equivalence"
 version = "0.1.0"
 dependencies = [
