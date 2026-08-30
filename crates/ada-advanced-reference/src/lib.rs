@@ -50,7 +50,10 @@ impl Display for AdvancedReferenceError {
                 field,
                 expected,
                 actual,
-            } => write!(formatter, "{field} has {actual} elements; expected {expected}"),
+            } => write!(
+                formatter,
+                "{field} has {actual} elements; expected {expected}"
+            ),
             Self::IdentityMismatch(field) => write!(formatter, "identity mismatch: {field}"),
             Self::InvalidField(field) => {
                 write!(formatter, "invalid advanced-reference field: {field}")
