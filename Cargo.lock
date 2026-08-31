@@ -252,6 +252,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ada-precision-reference"
+version = "0.1.0"
+dependencies = [
+ "ada-workload",
+]
+
+[[package]]
 name = "ada-qualification"
 version = "0.1.0"
 dependencies = [

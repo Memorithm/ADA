@@ -38,6 +38,7 @@ members = [
     "crates/ada-gradient",
     "crates/ada-cache-reference",
     "crates/ada-advanced-reference",
+    "crates/ada-precision-reference",
 ]
 
 [workspace.package]
