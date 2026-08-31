@@ -1,0 +1,148 @@
+schema_version: 1
+kind: ada_ecosystem_agent_roadmap
+status: active
+last_updated: "2026-08-31"
+repository: Memorithm/ADA
+intended_consumer: autonomous_coding_agent
+merge_policy: never_merge_this_file_to_default_branch_unless_user_explicitly_requests
+
+mission:
+  primary: >-
+    Preserve ADA as the deterministic research bench for discovering, falsifying,
+    qualifying, and benchmarking attention algorithms. Candidate generation is
+    cheap; adoption requires mathematical, oracle, adversarial, cost and hardware
+    evidence.
+  ecosystem_goal: >-
+    Feed qualified attention semantics and implementation candidates to
+    FLAT-ATTENTION while reusing SciRust reference primitives, TDI/ITD mechanistic
+    evidence where relevant, and Forge only where its generic search machinery is
+    stronger than ADA-specific bounded semantic search.
+
+invariants:
+  - ADA_is_not_a_production_attention_runtime
+  - generation_never_implies_adoption
+  - every_candidate_requires_independent_reference_oracle_and_adversarial_tests
+  - logical_operation_counts_are_not_physical_hardware_performance
+  - novelty_claims_require_dedicated_prior_art_review
+  - semantic_identity_is_separate_from_implementation_schedule_and_memory_identity
+  - no_candidate_is_promoted_to_FLAT_GPU_execution_without_FLAT_correctness_and_hardware_gates
+  - required_CI_must_be_green_on_exact_PR_head_before_merge
+
+ownership:
+  role: attention_algorithm_discovery_and_semantic_qualification_bench
+  owns:
+    - attention_candidate_semantic_programs_and_canonical_identity
+    - attention_specific_CEGIS_falsification_and_adversarial_counterexample_loop
+    - attention_specific_objective_and_evidence_registry
+    - backend_neutral_attention_implementation_IR_for_candidate_study
+  does_not_own:
+    - FLAT_ATTENTION_production_kernel_runtime_or_device_selection
+    - Forge_general_evolutionary_search_engine
+    - SciRust_general_tensor_scientific_oracle_ownership
+    - TDI_dynamic_recovery_or_ITD_structural_research_semantics
+    - ElasticXxx_generic_runtime_adaptation
+
+pipeline:
+  - GENERATE
+  - PROVE_OR_FALSIFY
+  - RUN_INDEPENDENT_ORACLE
+  - ADVERSARIAL_TEST
+  - ACCOUNT_LOGICAL_AND_MEMORY_COST
+  - BENCHMARK_REAL_HARDWARE_WHEN_RELEVANT
+  - PRIOR_ART_REVIEW_IF_NOVELTY_IS_CANDIDATE
+  - ADOPT_ADAPT_REJECT_OR_DISCOVER
+
+ecosystem_interfaces:
+  Memorithm/FLAT-ATTENTION:
+    relationship: production_execution_target_for_qualified_semantics
+    status: active_direction
+    contract:
+      - ADA_exports_frozen_math_semantic_identity_reference_vectors_and_evidence
+      - FLAT_reimplements_or_adapts_only_after_qualification
+      - FLAT_owns_GPU_correctness_backend_and_performance_promotion
+  Memorithm/TDI:
+    relationship: optional_dynamic_recovery_discriminator_for_attention_semantics
+    status: conditional_research
+    rule: TDI_signal_is_supporting_mechanistic_evidence_not_an_adoption_proof
+  Memorithm/itd-simulator:
+    relationship: optional_comparative_mechanistic_harness
+    status: conditional_research
+  Memorithm/forge:
+    relationship: generic_search_and_implementation_optimization_partner
+    status: planned_selective
+    contract:
+      - ADA_owns_attention_semantic_validity
+      - Forge_may_search_implementation_or_parameter_candidates_after_semantic_constraints_are_frozen
+      - every_returned_candidate_reenters_ADA_or_FLAT_correctness_gates
+  Memorithm/scirust:
+    relationship: reusable_reference_math_tensor_and_statistical_primitive_source
+    status: active_direction
+  Memorithm/ElasticXxx:
+    relationship: future_runtime_selection_consumer_of_already_qualified_attention_candidates
+    status: planned_not_assumed
+
+roadmap:
+  - id: ADA0
+    name: Registry and evidence-state audit
+    status: active
+    goals:
+      - reconcile_ADA_A1_A10_registry_with_executable_current_code
+      - record_qualified_rejected_and_open_candidates_without_erasing_negative_results
+      - verify_semantic_vs_implementation_identity_boundaries
+  - id: ADA1
+    name: Complete exact semantic falsification ladder
+    status: active
+    goals:
+      - strengthen_f64_or_exact_reference_evaluators
+      - expand_adversarial_counterexample_generation
+      - keep_CEGIS_bounded_deterministic_and_checkpointable
+      - persist_rejection_artifacts
+  - id: ADA2
+    name: Attention workload and task-quality contracts
+    status: active
+    goals:
+      - version_attention_geometries_masks_and_modes
+      - separate_algorithmic_error_numerical_error_cost_and_task_quality
+      - add_mechanistic_tasks_before_large_model_cost
+  - id: ADA3
+    name: TDI_ITD mechanistic discrimination
+    status: conditional_after_TDI7_1
+    goals:
+      - expose_controlled_intervention_state_for_frozen_candidate_semantics
+      - compare_static_ADA_diagnostics_ITD_and_TDI_descriptors_with_ablation
+      - preserve_negative_results
+  - id: ADA4
+    name: FLAT promotion envelope
+    status: planned
+    goals:
+      - version_candidate_math_semantic_hash_reference_vectors_tolerances_and_known_failure_modes
+      - provide_cost_model_without_speed_claim
+      - require_FLAT_independent_implementation_and_device_qualification
+  - id: ADA5
+    name: Search-engine convergence
+    status: planned
+    goals:
+      - audit_overlap_between_ada_search_and_Forge
+      - retain_ADA_specific_semantic_CEGIS_where_domain_knowledge_is_essential
+      - delegate_generic_evolutionary_or_hardware_candidate_search_to_Forge_when_it_reduces_duplication
+  - id: ADA6
+    name: Evidence and ecosystem integration
+    status: planned
+    goals:
+      - SciRust_Verify_evidence_envelope
+      - Hub_research_component_contract
+      - ElasticXxx_consumption_only_for_FLAT_or_other_runtime_qualified_candidates
+
+agent_operating_protocol:
+  must_read_this_file:
+    - at_start_of_every_agent_session
+    - before_candidate_semantic_or_evidence_rule_changes
+    - before_FLAT_TDI_ITD_Forge_or_SciRust_integration
+    - before_any_adoption_novelty_or_merge_decision
+  must_update_this_file:
+    - when_candidate_status_changes
+    - when_a_new_evidence_gate_or_semantic_contract_is_added
+    - when_cross_repository_integration_status_changes
+  fail_closed: >-
+    If this roadmap cannot be read, do not make major semantic-adoption, novelty,
+    cross-repository promotion, or merge decisions. Read-only diagnosis is allowed.
