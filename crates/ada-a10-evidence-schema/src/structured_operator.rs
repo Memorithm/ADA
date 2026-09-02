@@ -56,7 +56,7 @@ pub struct OperatorSourceRef {
     pub repository: String,
     /// Exact 40-hex Git commit containing the defining source/derivation.
     pub git_commit: String,
-    /// Repository-relative defining document, formula record, or artifact.
+    /// Normalized repository-relative defining document/formula/artifact path.
     pub artifact: String,
     /// Lowercase SHA-256 of the defining artifact bytes.
     pub artifact_sha256: String,
@@ -117,6 +117,9 @@ pub enum StructuredOperatorImportError {
     InvalidSha256(&'static str),
     /// A required text field is empty or has surrounding whitespace.
     InvalidText(&'static str),
+    /// A repository-relative source path is absolute, traversing, or otherwise
+    /// non-canonical.
+    InvalidRepositoryRelativePath(&'static str),
     /// A list item is empty or has surrounding whitespace.
     InvalidListItem(&'static str),
     /// A list contains a duplicate item.
@@ -126,6 +129,9 @@ pub enum StructuredOperatorImportError {
     FormalAsymptoticWithoutOpenGap,
     /// `exact_identity` was declared without any proved property.
     ExactIdentityWithoutProvedProperty,
+    /// `numerical_validation` was declared without naming any numerically
+    /// validated property.
+    NumericalValidationWithoutProperty,
     /// No non-transferable interpretation was stated, which would leave the
     /// cross-domain claim boundary ambiguous.
     MissingNonTransferableInterpretation,
@@ -157,7 +163,7 @@ impl StructuredOperatorImportV1 {
         validate_operator_id(&self.operator_id)?;
         validate_repository(&self.source.repository)?;
         validate_git_commit(&self.source.git_commit)?;
-        validate_text(&self.source.artifact, "source.artifact")?;
+        validate_repository_relative_path(&self.source.artifact, "source.artifact")?;
         validate_sha256(&self.source.artifact_sha256, "source.artifact_sha256")?;
         validate_text(
             &self.mathematical_definition,
@@ -194,6 +200,11 @@ impl StructuredOperatorImportV1 {
         {
             return Err(StructuredOperatorImportError::ExactIdentityWithoutProvedProperty);
         }
+        if self.evidence_class == OperatorEvidenceClass::NumericalValidation
+            && self.numerically_validated_properties.is_empty()
+        {
+            return Err(StructuredOperatorImportError::NumericalValidationWithoutProperty);
+        }
 
         for fixture in &self.reference_fixtures {
             validate_text(&fixture.artifact, "reference_fixtures.artifact")?;
@@ -205,12 +216,14 @@ impl StructuredOperatorImportV1 {
 }
 
 fn validate_operator_id(value: &str) -> Result<(), StructuredOperatorImportError> {
-    let valid = value.starts_with("RB5-OP-")
-        && value.len() <= MAX_OPERATOR_IDENTIFIER_BYTES
-        && value.bytes().all(|byte| {
-            byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'-'
-        });
-    if valid {
+    let Some(suffix) = value.strip_prefix("RB5-OP-") else {
+        return Err(StructuredOperatorImportError::InvalidOperatorId);
+    };
+    let valid_suffix = !suffix.is_empty()
+        && suffix
+            .split('-')
+            .all(|segment| !segment.is_empty() && segment.bytes().all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit()));
+    if value.len() <= MAX_OPERATOR_IDENTIFIER_BYTES && valid_suffix {
         Ok(())
     } else {
         Err(StructuredOperatorImportError::InvalidOperatorId)
@@ -270,6 +283,25 @@ fn validate_text(
     }
 }
 
+fn validate_repository_relative_path(
+    value: &str,
+    field: &'static str,
+) -> Result<(), StructuredOperatorImportError> {
+    validate_text(value, field)?;
+    let bytes = value.as_bytes();
+    let windows_prefix = bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
+    let canonical_segments = value
+        .split('/')
+        .all(|segment| !segment.is_empty() && segment != "." && segment != "..");
+    if value.starts_with('/') || value.contains('\\') || windows_prefix || !canonical_segments {
+        Err(StructuredOperatorImportError::InvalidRepositoryRelativePath(
+            field,
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn validate_unique_text_list(
     values: &[String],
     field: &'static str,
@@ -305,7 +337,7 @@ mod tests {
     use super::*;
 
     fn hex(fill: char, count: usize) -> String {
-        std::iter::repeat(fill).take(count).collect()
+        std::iter::repeat_n(fill, count).collect()
     }
 
     fn valid_record() -> StructuredOperatorImportV1 {
@@ -365,6 +397,17 @@ mod tests {
     }
 
     #[test]
+    fn numerical_validation_requires_a_named_numerical_result() {
+        let mut record = valid_record();
+        record.evidence_class = OperatorEvidenceClass::NumericalValidation;
+        record.numerically_validated_properties.clear();
+        assert_eq!(
+            record.validate(),
+            Err(StructuredOperatorImportError::NumericalValidationWithoutProperty)
+        );
+    }
+
+    #[test]
     fn claim_boundary_cannot_be_omitted() {
         let mut record = valid_record();
         record.non_transferable_interpretations.clear();
@@ -394,13 +437,38 @@ mod tests {
     }
 
     #[test]
-    fn operator_identity_is_rb5_scoped() {
-        let mut record = valid_record();
-        record.operator_id = "ADA-OP-TOEPLITZ".into();
-        assert_eq!(
-            record.validate(),
-            Err(StructuredOperatorImportError::InvalidOperatorId)
-        );
+    fn source_artifact_must_be_a_canonical_repository_relative_path() {
+        for invalid in [
+            "/etc/passwd",
+            "../outside.md",
+            "docs/../outside.md",
+            "docs//operator.md",
+            "C:\\temp\\operator.md",
+            ".\\operator.md",
+        ] {
+            let mut record = valid_record();
+            record.source.artifact = invalid.into();
+            assert_eq!(
+                record.validate(),
+                Err(StructuredOperatorImportError::InvalidRepositoryRelativePath(
+                    "source.artifact"
+                )),
+                "invalid path must fail closed: {invalid}"
+            );
+        }
+    }
+
+    #[test]
+    fn operator_identity_is_rb5_scoped_and_requires_a_suffix() {
+        for invalid in ["ADA-OP-TOEPLITZ", "RB5-OP-", "RB5-OP--TOEPLITZ", "RB5-OP-toeplitz"] {
+            let mut record = valid_record();
+            record.operator_id = invalid.into();
+            assert_eq!(
+                record.validate(),
+                Err(StructuredOperatorImportError::InvalidOperatorId),
+                "invalid operator id must fail closed: {invalid}"
+            );
+        }
     }
 
     #[test]
