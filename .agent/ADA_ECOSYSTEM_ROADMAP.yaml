@@ -1,7 +1,7 @@
 schema_version: 1
 kind: ada_ecosystem_agent_roadmap
 status: active
-last_updated: "2026-08-31"
+last_updated: "2026-09-02"
 repository: Memorithm/ADA
 intended_consumer: autonomous_coding_agent
 merge_policy: never_merge_this_file_to_default_branch_unless_user_explicitly_requests
@@ -52,6 +52,58 @@ pipeline:
   - PRIOR_ART_REVIEW_IF_NOVELTY_IS_CANDIDATE
   - ADOPT_ADAPT_REJECT_OR_DISCOVER
 
+verified_current_state:
+  audited_main_sha: a54aeda8b76d7c9f273ab2892dd58fa08724b0af
+  A11:
+    status: reference_pipeline_implemented_do_not_duplicate
+    evidence:
+      - slice: A11_E0_semantic_identity
+        pull_request: 8
+        state: merged
+      - slice: A11_E1_deterministic_non_softmax_oracle
+        pull_request: 12
+        merge_commit: 1ceb083762e0c88bb5901baaddd934de887176fb
+        state: merged
+      - slice: A11_E2_versioned_semantic_evidence
+        pull_request: 15
+        merge_commit: a0eac6d88f73b4b67c3ae47dda90b92191958b21
+        state: merged
+      - slice: A11_E3_bounded_semantic_generation
+        pull_request: 14
+        merge_commit: 8e9a12d2a82964adc089f60a4e76069f578830b5
+        state: merged
+      - slice: A11_E3_workload_bound_CEGIS_qualification
+        pull_request: 21
+        head_sha: ef457ffce52b1b8de4aa47e2d11e438794decb1b
+        merge_commit: 134ba22662af90917ef56a9e343c8d81c83b46f5
+        state: merged
+      - slice: A11_E4a_fail_closed_FLAT_graduation_bundle
+        pull_request: 22
+        head_sha: 8b07a84be6348e903ca0fe875a113fd8cf80a823
+        merge_commit: bb8d711252d78de43f006aba0cf2debe3f634f1b
+        state: merged
+      - slice: A11_E4b_bit_exact_replayable_fixtures
+        pull_request: 23
+        head_sha: 36a34eae48311f6caee7d500429e8bd8ac28506a
+        merge_commit: f5075ac505df68f14199103eef189a061c4f3d3e
+        state: merged
+    current_boundary: >-
+      ADA already has semantic identity, deterministic reference execution,
+      bounded generation, CEGIS qualification, workload/evidence binding,
+      fail-closed FLAT graduation artifacts, and bit-exact replay. Do not create
+      a second qualification lifecycle. Production lowering, GPU correctness,
+      hardware qualification, and runtime selection remain outside ADA.
+    open_issue_note: >-
+      Issue 7 remains open as the umbrella A11 mission even though its E0-E4
+      reference plumbing is materially implemented. Treat it as a reconciliation
+      umbrella, not evidence that the earlier slices are missing.
+  later_foundations_present_on_main:
+    - ada_implementation_backend_neutral_IR
+    - ada_objective_and_cost_layers
+    - ada_advanced_reference_models
+    - ada_precision_reference_models
+
+
 ecosystem_interfaces:
   Memorithm/FLAT-ATTENTION:
     relationship: production_execution_target_for_qualified_semantics
@@ -84,14 +136,15 @@ ecosystem_interfaces:
 roadmap:
   - id: ADA0
     name: Registry and evidence-state audit
-    status: active
+    status: active_reconciliation
     goals:
-      - reconcile_ADA_A1_A10_registry_with_executable_current_code
+      - reconcile_ADA_A1_A18_registry_with_executable_current_code
       - record_qualified_rejected_and_open_candidates_without_erasing_negative_results
       - verify_semantic_vs_implementation_identity_boundaries
+      - keep_this_roadmap_synchronized_with_already_merged_A11_and_later_foundations
   - id: ADA1
     name: Complete exact semantic falsification ladder
-    status: active
+    status: active_on_top_of_implemented_CEGIS_foundation
     goals:
       - strengthen_f64_or_exact_reference_evaluators
       - expand_adversarial_counterexample_generation
@@ -113,9 +166,13 @@ roadmap:
       - preserve_negative_results
   - id: ADA4
     name: FLAT promotion envelope
-    status: planned
+    status: reference_handoff_implemented_runtime_promotion_external
+    evidence:
+      qualification_bridge_pr: 21
+      graduation_bundle_pr: 22
+      replay_bundle_pr: 23
     goals:
-      - version_candidate_math_semantic_hash_reference_vectors_tolerances_and_known_failure_modes
+      - preserve_versioned_candidate_math_semantic_hash_reference_vectors_tolerances_and_known_failure_modes
       - provide_cost_model_without_speed_claim
       - require_FLAT_independent_implementation_and_device_qualification
   - id: ADA5
