@@ -17,8 +17,8 @@ pub use semantic::{
     SemanticEvidenceError, SemanticEvidenceRecord, SemanticEvidenceSpec,
 };
 pub use structured_operator::{
-    MAX_OPERATOR_IDENTIFIER_BYTES, STRUCTURED_OPERATOR_IMPORT_VERSION, OperatorEvidenceClass,
-    OperatorFixtureRef, OperatorSourceRef, PreferredDownstreamRoute, StructuredOperatorImportError,
+    MAX_OPERATOR_IDENTIFIER_BYTES, OperatorEvidenceClass, OperatorFixtureRef, OperatorSourceRef,
+    PreferredDownstreamRoute, STRUCTURED_OPERATOR_IMPORT_VERSION, StructuredOperatorImportError,
     StructuredOperatorImportV1,
 };
 
