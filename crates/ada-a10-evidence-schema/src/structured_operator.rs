@@ -165,10 +165,7 @@ impl StructuredOperatorImportV1 {
         validate_git_commit(&self.source.git_commit)?;
         validate_repository_relative_path(&self.source.artifact, "source.artifact")?;
         validate_sha256(&self.source.artifact_sha256, "source.artifact_sha256")?;
-        validate_text(
-            &self.mathematical_definition,
-            "mathematical_definition",
-        )?;
+        validate_text(&self.mathematical_definition, "mathematical_definition")?;
         validate_text(
             &self.finite_domain_and_dimensions,
             "finite_domain_and_dimensions",
@@ -186,9 +183,7 @@ impl StructuredOperatorImportV1 {
         )?;
 
         if self.non_transferable_interpretations.is_empty() {
-            return Err(
-                StructuredOperatorImportError::MissingNonTransferableInterpretation,
-            );
+            return Err(StructuredOperatorImportError::MissingNonTransferableInterpretation);
         }
         if self.evidence_class == OperatorEvidenceClass::FormalAsymptotic
             && self.open_gaps.is_empty()
@@ -220,9 +215,12 @@ fn validate_operator_id(value: &str) -> Result<(), StructuredOperatorImportError
         return Err(StructuredOperatorImportError::InvalidOperatorId);
     };
     let valid_suffix = !suffix.is_empty()
-        && suffix
-            .split('-')
-            .all(|segment| !segment.is_empty() && segment.bytes().all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit()));
+        && suffix.split('-').all(|segment| {
+            !segment.is_empty()
+                && segment
+                    .bytes()
+                    .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit())
+        });
     if value.len() <= MAX_OPERATOR_IDENTIFIER_BYTES && valid_suffix {
         Ok(())
     } else {
@@ -255,10 +253,7 @@ fn validate_git_commit(value: &str) -> Result<(), StructuredOperatorImportError>
     }
 }
 
-fn validate_sha256(
-    value: &str,
-    field: &'static str,
-) -> Result<(), StructuredOperatorImportError> {
+fn validate_sha256(value: &str, field: &'static str) -> Result<(), StructuredOperatorImportError> {
     if value.len() == 64 && is_lower_hex(value) {
         Ok(())
     } else {
@@ -272,10 +267,7 @@ fn is_lower_hex(value: &str) -> bool {
         .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-fn validate_text(
-    value: &str,
-    field: &'static str,
-) -> Result<(), StructuredOperatorImportError> {
+fn validate_text(value: &str, field: &'static str) -> Result<(), StructuredOperatorImportError> {
     if !value.is_empty() && value.trim() == value {
         Ok(())
     } else {
@@ -294,9 +286,7 @@ fn validate_repository_relative_path(
         .split('/')
         .all(|segment| !segment.is_empty() && segment != "." && segment != "..");
     if value.starts_with('/') || value.contains('\\') || windows_prefix || !canonical_segments {
-        Err(StructuredOperatorImportError::InvalidRepositoryRelativePath(
-            field,
-        ))
+        Err(StructuredOperatorImportError::InvalidRepositoryRelativePath(field))
     } else {
         Ok(())
     }
@@ -353,10 +343,13 @@ mod tests {
                 artifact_sha256: hex('b', 64),
             },
             mathematical_definition: "Finite symmetric Toeplitz matrix T[i,j]=c[|i-j|].".into(),
-            finite_domain_and_dimensions: "n in 1..=64; i,j in 0..n; finite real coefficients.".into(),
+            finite_domain_and_dimensions: "n in 1..=64; i,j in 0..n; finite real coefficients."
+                .into(),
             parameter_domain: "c[k] finite binary64 reference values for 0<=k<n.".into(),
             proved_properties: vec!["Toeplitz structure under the stated indexing.".into()],
-            numerically_validated_properties: vec!["Reference eigensolver fixture agrees within declared tolerance.".into()],
+            numerically_validated_properties: vec![
+                "Reference eigensolver fixture agrees within declared tolerance.".into(),
+            ],
             open_gaps: Vec::new(),
             reference_fixtures: vec![OperatorFixtureRef {
                 artifact: "fixtures/toeplitz_v1.txt".into(),
@@ -450,9 +443,9 @@ mod tests {
             record.source.artifact = invalid.into();
             assert_eq!(
                 record.validate(),
-                Err(StructuredOperatorImportError::InvalidRepositoryRelativePath(
-                    "source.artifact"
-                )),
+                Err(
+                    StructuredOperatorImportError::InvalidRepositoryRelativePath("source.artifact")
+                ),
                 "invalid path must fail closed: {invalid}"
             );
         }
@@ -460,7 +453,12 @@ mod tests {
 
     #[test]
     fn operator_identity_is_rb5_scoped_and_requires_a_suffix() {
-        for invalid in ["ADA-OP-TOEPLITZ", "RB5-OP-", "RB5-OP--TOEPLITZ", "RB5-OP-toeplitz"] {
+        for invalid in [
+            "ADA-OP-TOEPLITZ",
+            "RB5-OP-",
+            "RB5-OP--TOEPLITZ",
+            "RB5-OP-toeplitz",
+        ] {
             let mut record = valid_record();
             record.operator_id = invalid.into();
             assert_eq!(
@@ -474,7 +472,9 @@ mod tests {
     #[test]
     fn duplicate_fixtures_are_rejected() {
         let mut record = valid_record();
-        record.reference_fixtures.push(record.reference_fixtures[0].clone());
+        record
+            .reference_fixtures
+            .push(record.reference_fixtures[0].clone());
         assert_eq!(
             record.validate(),
             Err(StructuredOperatorImportError::DuplicateListItem(
