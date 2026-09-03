@@ -2,18 +2,24 @@
 //!
 //! The historical hardware evidence protocol (see `scripts/thor_a1_l2.sh`)
 //! records SHA-256 bindings between a git commit and measured artifacts. A10
-//! keeps that validator intact and also hosts the versioned A11 semantic
-//! evidence interchange used to bind external mechanistic evidence to explicit
-//! semantic/workload identities.
+//! keeps that validator intact and also hosts versioned A11 interchange
+//! contracts used to bind external mechanistic and mathematical evidence to
+//! explicit provenance without upgrading its scientific status.
 
 #![forbid(unsafe_code)]
 
 mod semantic;
+mod structured_operator;
 
 pub use semantic::{
     EvidenceWorkloadFingerprint, MAX_EVIDENCE_IDENTIFIER_BYTES, MAX_SEMANTIC_EVIDENCE_BYTES,
     MAX_SUMMARY_METRICS, SEMANTIC_EVIDENCE_HEADER, SEMANTIC_EVIDENCE_VERSION,
     SemanticEvidenceError, SemanticEvidenceRecord, SemanticEvidenceSpec,
+};
+pub use structured_operator::{
+    MAX_OPERATOR_IDENTIFIER_BYTES, OperatorEvidenceClass, OperatorFixtureRef, OperatorSourceRef,
+    PreferredDownstreamRoute, STRUCTURED_OPERATOR_IMPORT_VERSION, StructuredOperatorImportError,
+    StructuredOperatorImportV1,
 };
 
 /// One structured historical hardware evidence record.
