@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Memorithm/ADA/blob/main/docs/ada-a11-flat-graduation-record.schema.json",
+  "title": "ADA-A11 SemanticQualificationRecord",
+  "description": "Machine-readable graduation artifact for carrying an ADA semantic candidate toward FLAT-ATTENTION without conflating semantic identity, implementation identity, external diagnostics, or scientific verdicts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate_id",
+    "semantic_id",
+    "semantic_version",
+    "reference_definition",
+    "invariants",
+    "mask_state_contract",
+    "numeric_policy",
+    "oracle_fixtures",
+    "adversarial_cases",
+    "task_evidence",
+    "external_diagnostics",
+    "logical_cost_evidence",
+    "prior_art_status",
+    "verdict"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "candidate_id": { "type": "string", "minLength": 1 },
+    "semantic_id": { "type": "string", "minLength": 1 },
+    "semantic_version": { "type": "integer", "minimum": 1 },
+    "reference_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "commit", "artifact", "sha256"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "artifact": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "mask_state_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mask", "state"],
+      "properties": {
+        "mask": { "type": "string", "minLength": 1 },
+        "state": { "type": "string", "minLength": 1 }
+      }
+    },
+    "numeric_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference_precision", "non_finite_policy"],
+      "properties": {
+        "reference_precision": { "type": "string", "minLength": 1 },
+        "non_finite_policy": { "type": "string", "minLength": 1 }
+      }
+    },
+    "oracle_fixtures": { "$ref": "#/$defs/evidenceRefs" },
+    "adversarial_cases": { "$ref": "#/$defs/evidenceRefs" },
+    "task_evidence": { "$ref": "#/$defs/evidenceRefs" },
+    "external_diagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itd", "tdi"],
+      "properties": {
+        "itd": { "$ref": "#/$defs/evidenceRefs" },
+        "tdi": { "$ref": "#/$defs/evidenceRefs" }
+      }
+    },
+    "logical_cost_evidence": { "$ref": "#/$defs/evidenceRefs" },
+    "prior_art_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "references"],
+      "properties": {
+        "status": {
+          "enum": ["not_assessed", "search_in_progress", "known_prior_art", "distinctness_unresolved", "reviewed_no_claim"]
+        },
+        "references": { "$ref": "#/$defs/evidenceRefs" }
+      }
+    },
+    "verdict": { "enum": ["ADOPT", "ADAPT", "REJECT", "CONTINUE_RESEARCH"] }
+  },
+  "$defs": {
+    "evidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "repository", "commit", "artifact", "sha256"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "minLength": 1 },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "artifact": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidenceRef" }
+    }
+  }
+}
