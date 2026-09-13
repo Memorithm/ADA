@@ -1,7 +1,7 @@
 schema_version: 1
 kind: ada_ecosystem_agent_roadmap
 status: active
-last_updated: "2026-09-02"
+last_updated: "2026-09-13"
 repository: Memorithm/ADA
 intended_consumer: autonomous_coding_agent
 merge_policy: never_merge_this_file_to_default_branch_unless_user_explicitly_requests
@@ -53,7 +53,7 @@ pipeline:
   - ADOPT_ADAPT_REJECT_OR_DISCOVER
 
 verified_current_state:
-  audited_main_sha: a54aeda8b76d7c9f273ab2892dd58fa08724b0af
+  audited_main_sha: 4bd5f76f5646abe46fe655f21812d3e8f8719ee9
   A11:
     status: reference_pipeline_implemented_do_not_duplicate
     evidence:
@@ -87,12 +87,37 @@ verified_current_state:
         head_sha: 36a34eae48311f6caee7d500429e8bd8ac28506a
         merge_commit: f5075ac505df68f14199103eef189a061c4f3d3e
         state: merged
+    evidence_continued:
+      - slice: A11_RB5_structured_operator_import
+        pull_request: 40
+        merge_commit: 6ecc9e5b3ee6f8cf8ec3115400d64aa99113280c
+        state: merged
+      - slice: A11_registry_reconciliation_doc
+        pull_request: 41
+        state: merged
+      - slice: A11_machine_readable_FLAT_graduation_record_json_schema
+        path: docs/ada-a11-flat-graduation-record.schema.json
+        merge_commit: 4bd5f76f5646abe46fe655f21812d3e8f8719ee9
+        state: merged_on_main
+      - slice: A11_ADA0_registry_row_and_rust_json_codec
+        pull_request: 43
+        head_branch: research/ada0-registry-graduation-schema
+        crate: ada-a10-evidence-schema
+        module: graduation
+        state: open_pr_not_yet_merged
+        notes: >-
+          Dependency-free fail-closed SemanticQualificationRecord codec
+          (schema_version 1). No automatic FlatGraduationBundle conversion;
+          missing evidence fails closed. No usefulness/novelty/FLAT-adoption
+          or speedup claims.
     current_boundary: >-
       ADA already has semantic identity, deterministic reference execution,
       bounded generation, CEGIS qualification, workload/evidence binding,
-      fail-closed FLAT graduation artifacts, and bit-exact replay. Do not create
-      a second qualification lifecycle. Production lowering, GPU correctness,
-      hardware qualification, and runtime selection remain outside ADA.
+      fail-closed FLAT graduation artifacts, bit-exact replay, a machine-readable
+      graduation JSON schema on main, and an in-flight ADA0 Rust JSON codec/PR
+      for registry reconciliation. Do not create a second qualification lifecycle.
+      Production lowering, GPU correctness, hardware qualification, and runtime
+      selection remain outside ADA.
     open_issue_note: >-
       Issue 7 remains open as the umbrella A11 mission even though its E0-E4
       reference plumbing is materially implemented. Treat it as a reconciliation
@@ -137,11 +162,17 @@ roadmap:
   - id: ADA0
     name: Registry and evidence-state audit
     status: active_reconciliation
+    evidence:
+      a11_registry_reconciliation_doc_pr: 41
+      a11_graduation_json_schema_on_main: docs/ada-a11-flat-graduation-record.schema.json
+      a11_registry_row_and_rust_codec_pr: 43
+      conservative_a11_registry_status: REFERENCE-PIPELINE-IMPLEMENTED / RESEARCH-ONLY / NOT-ADOPTED / NO-NOVELTY-CLAIM
     goals:
       - reconcile_ADA_A1_A18_registry_with_executable_current_code
       - record_qualified_rejected_and_open_candidates_without_erasing_negative_results
       - verify_semantic_vs_implementation_identity_boundaries
       - keep_this_roadmap_synchronized_with_already_merged_A11_and_later_foundations
+      - land_PR_43_A11_registry_row_and_SemanticQualificationRecord_json_codec
   - id: ADA1
     name: Complete exact semantic falsification ladder
     status: active_on_top_of_implemented_CEGIS_foundation
@@ -171,10 +202,14 @@ roadmap:
       qualification_bridge_pr: 21
       graduation_bundle_pr: 22
       replay_bundle_pr: 23
+      machine_readable_graduation_record_schema: docs/ada-a11-flat-graduation-record.schema.json
+      semantic_qualification_record_rust_codec_pr: 43
+      codec_location: crates/ada-a10-evidence-schema/src/graduation
     goals:
       - preserve_versioned_candidate_math_semantic_hash_reference_vectors_tolerances_and_known_failure_modes
       - provide_cost_model_without_speed_claim
       - require_FLAT_independent_implementation_and_device_qualification
+      - keep_SemanticQualificationRecord_lanes_separate_and_fail_closed_on_missing_evidence
   - id: ADA5
     name: Search-engine convergence
     status: planned
