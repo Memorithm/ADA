@@ -72,14 +72,18 @@ fn normalize_surrogate_pairs(text: &str) -> Result<String, SemanticQualification
         let first = parse_hex_quad(bytes, index + 2)?;
         if (0xd800..=0xdbff).contains(&first) {
             if bytes.get(index + 6) != Some(&b'\\') || bytes.get(index + 7) != Some(&b'u') {
-                return Err(malformed("high surrogate is not followed by a low surrogate"));
+                return Err(malformed(
+                    "high surrogate is not followed by a low surrogate",
+                ));
             }
             let second = parse_hex_quad(bytes, index + 8)?;
             if !(0xdc00..=0xdfff).contains(&second) {
-                return Err(malformed("high surrogate is not followed by a low surrogate"));
+                return Err(malformed(
+                    "high surrogate is not followed by a low surrogate",
+                ));
             }
-            let scalar = 0x1_0000
-                + (((u32::from(first) - 0xd800) << 10) | (u32::from(second) - 0xdc00));
+            let scalar =
+                0x1_0000 + (((u32::from(first) - 0xd800) << 10) | (u32::from(second) - 0xdc00));
             let ch = char::from_u32(scalar)
                 .ok_or_else(|| malformed("invalid unicode surrogate pair"))?;
             out.push(ch);
@@ -88,7 +92,9 @@ fn normalize_surrogate_pairs(text: &str) -> Result<String, SemanticQualification
         }
 
         if (0xdc00..=0xdfff).contains(&first) {
-            return Err(malformed("low surrogate appears without a leading high surrogate"));
+            return Err(malformed(
+                "low surrogate appears without a leading high surrogate",
+            ));
         }
 
         out.push_str(&text[index..index + 6]);
