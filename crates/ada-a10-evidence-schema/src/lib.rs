@@ -4,13 +4,22 @@
 //! records SHA-256 bindings between a git commit and measured artifacts. A10
 //! keeps that validator intact and also hosts versioned A11 interchange
 //! contracts used to bind external mechanistic and mathematical evidence to
-//! explicit provenance without upgrading its scientific status.
+//! explicit provenance without upgrading its scientific status. It also hosts
+//! the fail-closed ADA-A11 `SemanticQualificationRecord` JSON codec for
+//! machine-readable FLAT graduation handoff artifacts.
 
 #![forbid(unsafe_code)]
 
+mod graduation;
 mod semantic;
 mod structured_operator;
 
+pub use graduation::{
+    EvidenceRef as QualificationEvidenceRef, ExternalDiagnostics, MaskStateContract, NumericPolicy,
+    PriorArtStatus, PriorArtStatusKind, QualificationVerdictJson, ReferenceDefinition,
+    SEMANTIC_QUALIFICATION_SCHEMA_VERSION, SemanticQualificationError, SemanticQualificationRecord,
+    SemanticQualificationSpec,
+};
 pub use semantic::{
     EvidenceWorkloadFingerprint, MAX_EVIDENCE_IDENTIFIER_BYTES, MAX_SEMANTIC_EVIDENCE_BYTES,
     MAX_SUMMARY_METRICS, SEMANTIC_EVIDENCE_HEADER, SEMANTIC_EVIDENCE_VERSION,

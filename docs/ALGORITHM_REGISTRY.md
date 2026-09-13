@@ -12,8 +12,11 @@
 | ADA-A8 | Attention recurrence program synthesis | E0-IR-AND-SEARCH-RESEARCH (`ada-ir` + `ada-search`) |
 | ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) / E0-DISPATCH-PARITY (`ada-a9-dispatch`) |
 | ADA-A10 | Reproducible numerical oracle/certification | E0-SCHEMA-VALIDATOR (`ada-a10-evidence-schema`) |
+| ADA-A11 | Semantic discovery / qualification reference pipeline | REFERENCE-PIPELINE-IMPLEMENTED / RESEARCH-ONLY / NOT-ADOPTED / NO-NOVELTY-CLAIM |
 
 ## Status semantics
+
+- `REFERENCE-PIPELINE-IMPLEMENTED / RESEARCH-ONLY / NOT-ADOPTED / NO-NOVELTY-CLAIM` (ADA-A11) means the reference research pipeline for semantic identity, deterministic reference execution, versioned evidence, bounded generation, workload-bound CEGIS qualification, fail-closed FLAT graduation artifacts, and bit-exact replay is implemented on the audited main history. This is infrastructure/administration status only. It does not claim that any A11 semantic is useful, novel, production-qualified, FLAT-adopted, or faster. See `docs/A11_REGISTRY_RECONCILIATION.md` and the machine-readable handoff schema `docs/ada-a11-flat-graduation-record.schema.json` (Rust codec in `ada-a10-evidence-schema`).
 
 - `E0-K-FIRST-V-LATE-CORRECTNESS` means the isolated A2 exact K-first/V-late scalar contract passed its declared local correctness gates: workspace fmt, strict crate/workspace Clippy, all workspace unit/doc tests, exhaustive small support-mask weighted-sum parity, integrated alpha 1.5 and alpha 2.0 A5-priority-to-A2 cases, dense Entmax/output parity, exact `V_loaded == final support size`, `K_loaded >= V_loaded`, safe dense-support fallback, rejection of non-finite values in actually loaded V rows, and a structural sentinel test showing that zero-probability V rows are skipped before their scalars are inspected. This qualifies source-level logical V-late semantics and accounting only. It is not a physical memory-traffic, cache, GPU, wall-clock, model-quality, production floating-point, or novelty claim.
 
