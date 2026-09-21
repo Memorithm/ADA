@@ -793,6 +793,505 @@ impl CausalArgmaxRetrievalTask {
     }
 }
 
+/// Tiny deterministic masked-position retrieval fixture.
+///
+/// Among positions with `mask[j] == true`, the oracle selects the highest score
+/// (first index on ties) and returns that value. Mask-false positions are
+/// invisible even if they have larger scores. Mechanistic unit task only.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MaskedPositionRetrievalTask {
+    scores: Vec<f64>,
+    values: Vec<f64>,
+    mask: Vec<bool>,
+}
+
+/// Oracle expectation for [`MaskedPositionRetrievalTask`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MaskedPositionOracle {
+    expected_index: usize,
+    expected_value: f64,
+}
+
+/// Candidate answer offered against the masked-position fixture.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MaskedPositionCandidate {
+    /// Selected key index.
+    pub selected_index: usize,
+    /// Returned value.
+    pub selected_value: f64,
+}
+
+impl MaskedPositionRetrievalTask {
+    /// Construct a bounded fixture.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when lengths mismatch, no position is visible, or values
+    /// are non-finite.
+    pub fn new(
+        scores: Vec<f64>,
+        values: Vec<f64>,
+        mask: Vec<bool>,
+    ) -> Result<Self, TaskQualityError> {
+        if scores.is_empty() || values.is_empty() || mask.is_empty() {
+            return Err(TaskQualityError::InvalidField("masked_task.empty"));
+        }
+        if scores.len() != values.len() || scores.len() != mask.len() {
+            return Err(TaskQualityError::InvalidField(
+                "masked_task.score_value_mask_length",
+            ));
+        }
+        if !mask.iter().any(|&visible| visible) {
+            return Err(TaskQualityError::InvalidField("masked_task.no_visible"));
+        }
+        if scores.iter().any(|value| !value.is_finite())
+            || values.iter().any(|value| !value.is_finite())
+        {
+            return Err(TaskQualityError::InvalidField("masked_task.non_finite"));
+        }
+        Ok(Self {
+            scores,
+            values,
+            mask,
+        })
+    }
+
+    /// Score row.
+    #[must_use]
+    pub fn scores(&self) -> &[f64] {
+        &self.scores
+    }
+
+    /// Value row.
+    #[must_use]
+    pub fn values(&self) -> &[f64] {
+        &self.values
+    }
+
+    /// Visibility mask (`true` = visible).
+    #[must_use]
+    pub fn mask(&self) -> &[bool] {
+        &self.mask
+    }
+
+    /// Compute the deterministic oracle expectation.
+    #[must_use]
+    pub fn oracle(&self) -> MaskedPositionOracle {
+        let mut best_index = 0usize;
+        let mut best_score = f64::NEG_INFINITY;
+        let mut found = false;
+        for (index, (&score, &visible)) in self.scores.iter().zip(&self.mask).enumerate() {
+            if !visible {
+                continue;
+            }
+            if !found || score > best_score {
+                best_score = score;
+                best_index = index;
+                found = true;
+            }
+        }
+        debug_assert!(found, "constructor requires at least one visible position");
+        MaskedPositionOracle {
+            expected_index: best_index,
+            expected_value: self.values[best_index],
+        }
+    }
+
+    /// Default task-quality contract: maximize exact retrieval.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the contract cannot be constructed.
+    pub fn quality_contract() -> Result<TaskQualityContract, TaskQualityError> {
+        TaskQualityContract::new(vec![TaskQualitySlot::new(
+            "exact_retrieval",
+            ObjectiveDirection::Maximize,
+        )?])
+    }
+
+    /// Grade a candidate into separated lanes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when quality materialization fails.
+    pub fn grade(
+        &self,
+        candidate: MaskedPositionCandidate,
+        logical: LogicalCost,
+    ) -> Result<LaneSeparatedEvidence, TaskQualityError> {
+        let oracle = self.oracle();
+        let masked_violation = u64::from(
+            candidate.selected_index >= self.mask.len() || !self.mask[candidate.selected_index],
+        );
+        let selection_failures = u64::from(
+            candidate.selected_index != oracle.expected_index
+                || candidate.selected_value.to_bits() != oracle.expected_value.to_bits(),
+        );
+        let exact = f64::from(u8::from(selection_failures == 0 && masked_violation == 0));
+        let algorithmic = AlgorithmicError {
+            support_mismatches: Some(masked_violation),
+            selection_failures: Some(selection_failures),
+            invariant_violations: Some(0),
+        };
+        let fills = [TaskQualityFill::new(
+            "exact_retrieval",
+            exact,
+            QualityValueSource::MechanisticFixtureEvaluation,
+        )?];
+        LaneSeparatedEvidence::bind(
+            &Self::quality_contract()?,
+            &LaneSeparatedEvidenceSpec {
+                correctness: if selection_failures == 0 && masked_violation == 0 {
+                    CorrectnessStatus::Provisional
+                } else {
+                    CorrectnessStatus::Falsified
+                },
+                algorithmic,
+                numerical: NumericalObjectives::default(),
+                logical,
+                estimated: EstimatedCost::default(),
+                measured: MeasuredCost::default(),
+                fills: fills.to_vec(),
+            },
+        )
+    }
+}
+
+impl MaskedPositionOracle {
+    /// Expected selected index.
+    #[must_use]
+    pub const fn expected_index(self) -> usize {
+        self.expected_index
+    }
+
+    /// Expected selected value.
+    #[must_use]
+    pub const fn expected_value(self) -> f64 {
+        self.expected_value
+    }
+}
+
+/// Tiny deterministic relative-offset selection fixture.
+///
+/// The oracle selects `values[query_index + relative_offset]` when the target
+/// index is in range; construction fails closed when the offset would leave the
+/// sequence. Mechanistic unit task only (not an LM benchmark).
+#[derive(Debug, Clone, PartialEq)]
+pub struct RelativeOffsetSelectionTask {
+    values: Vec<f64>,
+    query_index: usize,
+    relative_offset: i32,
+    target_index: usize,
+}
+
+/// Oracle expectation for [`RelativeOffsetSelectionTask`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RelativeOffsetOracle {
+    expected_index: usize,
+    expected_value: f64,
+}
+
+/// Candidate answer offered against the relative-offset fixture.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RelativeOffsetCandidate {
+    /// Selected index.
+    pub selected_index: usize,
+    /// Returned value.
+    pub selected_value: f64,
+}
+
+impl RelativeOffsetSelectionTask {
+    /// Construct a bounded fixture.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the value row is empty, values are non-finite, the
+    /// query index is out of range, or `query_index + relative_offset` is out of
+    /// range.
+    pub fn new(
+        values: Vec<f64>,
+        query_index: usize,
+        relative_offset: i32,
+    ) -> Result<Self, TaskQualityError> {
+        if values.is_empty() {
+            return Err(TaskQualityError::InvalidField("offset_task.empty"));
+        }
+        if query_index >= values.len() {
+            return Err(TaskQualityError::InvalidField("offset_task.query_index"));
+        }
+        if values.iter().any(|value| !value.is_finite()) {
+            return Err(TaskQualityError::InvalidField("offset_task.non_finite"));
+        }
+        let target = i64::try_from(query_index)
+            .ok()
+            .and_then(|index| index.checked_add(i64::from(relative_offset)))
+            .and_then(|index| usize::try_from(index).ok())
+            .filter(|&index| index < values.len())
+            .ok_or(TaskQualityError::InvalidField("offset_task.target_oob"))?;
+        Ok(Self {
+            values,
+            query_index,
+            relative_offset,
+            target_index: target,
+        })
+    }
+
+    /// Value row.
+    #[must_use]
+    pub fn values(&self) -> &[f64] {
+        &self.values
+    }
+
+    /// Query position.
+    #[must_use]
+    pub const fn query_index(&self) -> usize {
+        self.query_index
+    }
+
+    /// Relative offset applied to the query index.
+    #[must_use]
+    pub const fn relative_offset(&self) -> i32 {
+        self.relative_offset
+    }
+
+    /// Resolved target index.
+    #[must_use]
+    pub const fn target_index(&self) -> usize {
+        self.target_index
+    }
+
+    /// Compute the deterministic oracle expectation.
+    #[must_use]
+    pub fn oracle(&self) -> RelativeOffsetOracle {
+        RelativeOffsetOracle {
+            expected_index: self.target_index,
+            expected_value: self.values[self.target_index],
+        }
+    }
+
+    /// Default task-quality contract: maximize exact selection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the contract cannot be constructed.
+    pub fn quality_contract() -> Result<TaskQualityContract, TaskQualityError> {
+        TaskQualityContract::new(vec![TaskQualitySlot::new(
+            "exact_selection",
+            ObjectiveDirection::Maximize,
+        )?])
+    }
+
+    /// Grade a candidate into separated lanes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when quality materialization fails.
+    pub fn grade(
+        &self,
+        candidate: RelativeOffsetCandidate,
+        logical: LogicalCost,
+    ) -> Result<LaneSeparatedEvidence, TaskQualityError> {
+        let oracle = self.oracle();
+        let selection_failures = u64::from(
+            candidate.selected_index != oracle.expected_index
+                || candidate.selected_value.to_bits() != oracle.expected_value.to_bits(),
+        );
+        let exact = f64::from(u8::from(selection_failures == 0));
+        let algorithmic = AlgorithmicError {
+            support_mismatches: Some(0),
+            selection_failures: Some(selection_failures),
+            invariant_violations: Some(0),
+        };
+        let fills = [TaskQualityFill::new(
+            "exact_selection",
+            exact,
+            QualityValueSource::MechanisticFixtureEvaluation,
+        )?];
+        LaneSeparatedEvidence::bind(
+            &Self::quality_contract()?,
+            &LaneSeparatedEvidenceSpec {
+                correctness: if selection_failures == 0 {
+                    CorrectnessStatus::Provisional
+                } else {
+                    CorrectnessStatus::Falsified
+                },
+                algorithmic,
+                numerical: NumericalObjectives::default(),
+                logical,
+                estimated: EstimatedCost::default(),
+                measured: MeasuredCost::default(),
+                fills: fills.to_vec(),
+            },
+        )
+    }
+}
+
+impl RelativeOffsetOracle {
+    /// Expected selected index.
+    #[must_use]
+    pub const fn expected_index(self) -> usize {
+        self.expected_index
+    }
+
+    /// Expected selected value.
+    #[must_use]
+    pub const fn expected_value(self) -> f64 {
+        self.expected_value
+    }
+}
+
+/// Tiny deterministic copy-token fixture through attention weights.
+///
+/// The oracle takes `argmax(weights)` (first on ties) as the source token and
+/// expects that token's value. This models hard attention copy, not soft mixing
+/// benchmarks or LM tasks.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CopyTokenAttentionTask {
+    weights: Vec<f64>,
+    values: Vec<f64>,
+}
+
+/// Oracle expectation for [`CopyTokenAttentionTask`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CopyTokenOracle {
+    expected_index: usize,
+    expected_value: f64,
+}
+
+/// Candidate answer offered against the copy-token fixture.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CopyTokenCandidate {
+    /// Claimed source token index.
+    pub selected_index: usize,
+    /// Returned (copied) value.
+    pub selected_value: f64,
+}
+
+impl CopyTokenAttentionTask {
+    /// Construct a bounded fixture.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when lengths mismatch, rows are empty, or values are
+    /// non-finite. Weights may be any finite scores; soft distributions are
+    /// allowed, but the oracle still uses hard argmax for the copy target.
+    pub fn new(weights: Vec<f64>, values: Vec<f64>) -> Result<Self, TaskQualityError> {
+        if weights.is_empty() || values.is_empty() {
+            return Err(TaskQualityError::InvalidField("copy_token.empty"));
+        }
+        if weights.len() != values.len() {
+            return Err(TaskQualityError::InvalidField(
+                "copy_token.weight_value_length",
+            ));
+        }
+        if weights.iter().any(|value| !value.is_finite())
+            || values.iter().any(|value| !value.is_finite())
+        {
+            return Err(TaskQualityError::InvalidField("copy_token.non_finite"));
+        }
+        Ok(Self { weights, values })
+    }
+
+    /// Attention weights / affinities used for hard copy.
+    #[must_use]
+    pub fn weights(&self) -> &[f64] {
+        &self.weights
+    }
+
+    /// Token values.
+    #[must_use]
+    pub fn values(&self) -> &[f64] {
+        &self.values
+    }
+
+    /// Compute the deterministic oracle expectation.
+    #[must_use]
+    pub fn oracle(&self) -> CopyTokenOracle {
+        let mut best_index = 0usize;
+        let mut best_weight = f64::NEG_INFINITY;
+        for (index, &weight) in self.weights.iter().enumerate() {
+            if weight > best_weight {
+                best_weight = weight;
+                best_index = index;
+            }
+        }
+        CopyTokenOracle {
+            expected_index: best_index,
+            expected_value: self.values[best_index],
+        }
+    }
+
+    /// Default task-quality contract: maximize exact copy.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the contract cannot be constructed.
+    pub fn quality_contract() -> Result<TaskQualityContract, TaskQualityError> {
+        TaskQualityContract::new(vec![TaskQualitySlot::new(
+            "exact_copy",
+            ObjectiveDirection::Maximize,
+        )?])
+    }
+
+    /// Grade a candidate into separated lanes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when quality materialization fails.
+    pub fn grade(
+        &self,
+        candidate: CopyTokenCandidate,
+        logical: LogicalCost,
+    ) -> Result<LaneSeparatedEvidence, TaskQualityError> {
+        let oracle = self.oracle();
+        let selection_failures = u64::from(
+            candidate.selected_index != oracle.expected_index
+                || candidate.selected_value.to_bits() != oracle.expected_value.to_bits(),
+        );
+        let exact = f64::from(u8::from(selection_failures == 0));
+        let algorithmic = AlgorithmicError {
+            support_mismatches: Some(0),
+            selection_failures: Some(selection_failures),
+            invariant_violations: Some(0),
+        };
+        let fills = [TaskQualityFill::new(
+            "exact_copy",
+            exact,
+            QualityValueSource::MechanisticFixtureEvaluation,
+        )?];
+        LaneSeparatedEvidence::bind(
+            &Self::quality_contract()?,
+            &LaneSeparatedEvidenceSpec {
+                correctness: if selection_failures == 0 {
+                    CorrectnessStatus::Provisional
+                } else {
+                    CorrectnessStatus::Falsified
+                },
+                algorithmic,
+                numerical: NumericalObjectives::default(),
+                logical,
+                estimated: EstimatedCost::default(),
+                measured: MeasuredCost::default(),
+                fills: fills.to_vec(),
+            },
+        )
+    }
+}
+
+impl CopyTokenOracle {
+    /// Expected source index.
+    #[must_use]
+    pub const fn expected_index(self) -> usize {
+        self.expected_index
+    }
+
+    /// Expected copied value.
+    #[must_use]
+    pub const fn expected_value(self) -> f64 {
+        self.expected_value
+    }
+}
+
 impl CausalArgmaxOracle {
     /// Expected selected index.
     #[must_use]
@@ -1000,5 +1499,99 @@ mod tests {
                 source
             );
         }
+    }
+
+    #[test]
+    fn masked_position_fixture_ignores_invisible_high_scores() {
+        let task = MaskedPositionRetrievalTask::new(
+            vec![0.1, 9.0, 1.5],
+            vec![10.0, 20.0, 30.0],
+            vec![true, false, true],
+        )
+        .unwrap();
+        let oracle = task.oracle();
+        assert_eq!(oracle.expected_index(), 2);
+        assert_eq!(oracle.expected_value().to_bits(), 30.0_f64.to_bits());
+        let good = task
+            .grade(
+                MaskedPositionCandidate {
+                    selected_index: 2,
+                    selected_value: 30.0,
+                },
+                LogicalCost::default(),
+            )
+            .unwrap();
+        assert_eq!(good.quality()[0].value(), Some(1.0));
+        let bad = task
+            .grade(
+                MaskedPositionCandidate {
+                    selected_index: 1,
+                    selected_value: 20.0,
+                },
+                LogicalCost {
+                    flops: Some(1),
+                    ..LogicalCost::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(bad.algorithmic().support_mismatches, Some(1));
+        assert_eq!(bad.quality()[0].value(), Some(0.0));
+        assert!(MaskedPositionRetrievalTask::new(vec![1.0], vec![1.0], vec![false]).is_err());
+    }
+
+    #[test]
+    fn relative_offset_fixture_is_deterministic_and_fail_closed_on_oob() {
+        let task = RelativeOffsetSelectionTask::new(vec![1.0, 2.0, 3.0, 4.0], 2, -1).unwrap();
+        assert_eq!(task.target_index(), 1);
+        let oracle = task.oracle();
+        assert_eq!(oracle.expected_index(), 1);
+        assert_eq!(oracle.expected_value().to_bits(), 2.0_f64.to_bits());
+        let good = task
+            .grade(
+                RelativeOffsetCandidate {
+                    selected_index: 1,
+                    selected_value: 2.0,
+                },
+                LogicalCost::default(),
+            )
+            .unwrap();
+        assert_eq!(good.quality()[0].name(), "exact_selection");
+        assert_eq!(good.quality()[0].value(), Some(1.0));
+        assert!(RelativeOffsetSelectionTask::new(vec![1.0, 2.0], 0, -1).is_err());
+        assert!(RelativeOffsetSelectionTask::new(vec![1.0, 2.0], 1, 1).is_err());
+    }
+
+    #[test]
+    fn copy_token_fixture_uses_hard_argmax_of_weights() {
+        let task = CopyTokenAttentionTask::new(vec![0.1, 0.8, 0.1], vec![5.0, 7.0, 9.0]).unwrap();
+        let oracle = task.oracle();
+        assert_eq!(oracle.expected_index(), 1);
+        assert_eq!(oracle.expected_value().to_bits(), 7.0_f64.to_bits());
+        let good = task
+            .grade(
+                CopyTokenCandidate {
+                    selected_index: 1,
+                    selected_value: 7.0,
+                },
+                LogicalCost {
+                    flops: Some(3),
+                    ..LogicalCost::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(good.quality()[0].name(), "exact_copy");
+        assert_eq!(good.quality()[0].value(), Some(1.0));
+        assert_eq!(good.logical().flops, Some(3));
+        let bad = task
+            .grade(
+                CopyTokenCandidate {
+                    selected_index: 2,
+                    selected_value: 9.0,
+                },
+                LogicalCost::default(),
+            )
+            .unwrap();
+        assert_eq!(bad.quality()[0].value(), Some(0.0));
+        assert_eq!(bad.correctness(), CorrectnessStatus::Falsified);
     }
 }

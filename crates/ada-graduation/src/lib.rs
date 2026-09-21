@@ -4,6 +4,10 @@
 //! exact semantic definition, workload, oracle fixtures, implementation plan,
 //! reproducible A12 cost estimate, typed objectives, E2 evidence, and explicit
 //! research verdict into one deterministic artifact.
+//!
+//! Optional task-quality attachment goes through
+//! [`GraduationObjectives::from_lane_separated`]: CEGIS survival, ITD/TDI, and
+//! cost fields cannot silently fill task-quality slots.
 
 #![forbid(unsafe_code)]
 
@@ -74,6 +78,12 @@ pub enum GraduationError {
     EvidenceBindingMismatch,
     /// Two canonical E2 evidence artifacts are identical.
     DuplicateEvidence,
+    /// Task-quality contract materialization failed.
+    TaskQuality(String),
+    /// Lane-separated evidence quality schema does not match the contract.
+    TaskQualitySchemaMismatch,
+    /// CEGIS survival / rejection disposition cannot fill task quality.
+    SurvivalIsNotTaskQuality,
     /// Canonical graduation text is malformed or non-canonical.
     MalformedCanonical(String),
 }
@@ -111,6 +121,13 @@ impl Display for GraduationError {
                 .write_str("evidence semantic/workload binding does not match graduation bundle"),
             Self::DuplicateEvidence => {
                 formatter.write_str("duplicate canonical semantic evidence artifact")
+            }
+            Self::TaskQuality(reason) => write!(formatter, "task-quality failure: {reason}"),
+            Self::TaskQualitySchemaMismatch => formatter.write_str(
+                "lane-separated evidence quality schema does not match task-quality contract",
+            ),
+            Self::SurvivalIsNotTaskQuality => {
+                formatter.write_str("CEGIS survival/rejection is not task quality")
             }
             Self::MalformedCanonical(reason) => {
                 write!(formatter, "malformed graduation artifact: {reason}")
@@ -267,6 +284,12 @@ pub struct FlatGraduationBundle {
 /// [`EvidenceBoundQualification`] always maps to [`CorrectnessStatus::Provisional`].
 /// Numerical error remains represented by the exact retained oracle fixtures
 /// until ADA gains a separately provenance-bound numerical evidence record.
+///
+/// Prefer [`GraduationObjectives::from_lane_separated`] when supplying observed
+/// task quality so fills must already have passed a [`ada_objective::TaskQualityContract`].
+/// Constructing `quality` directly remains possible for legacy callers, but
+/// observed values still require `TaskBehavior` E2 evidence and never become
+/// adoption.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraduationObjectives {
     /// Physical measurements. These require `HardwareCost` E2 provenance.
@@ -277,6 +300,12 @@ pub struct GraduationObjectives {
 
 mod codec;
 mod policy;
+mod task_quality;
+
+pub use task_quality::{
+    accept_lane_separated_quality, materialize_graduation_quality, reject_survival_fills,
+    task_quality_from_cegis_survival,
+};
 
 impl FlatGraduationBundle {
     /// Assemble one graduation artifact from qualified semantic evidence.

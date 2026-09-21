@@ -62,7 +62,8 @@ speedup is implied by the existence of a schedule.
 | Multi-objective/Pareto archive | yes | typed dimensions; no hidden scalar weighting |
 | Attention surface identity (geometry+mask+mode) | yes | versioned codec/fingerprint; not an oracle |
 | Task-quality contract / lane separation | yes | algorithmic vs numerical vs cost vs task quality; ITD/TDI/cost/survival cannot fill task quality |
-| Mechanistic task fixtures | partial | tiny causal-argmax retrieval fixture only; not LM benchmarks |
+| Graduation task-quality adapter | yes | LaneSeparatedEvidence → GraduationObjectives; CEGIS survival rejected |
+| Mechanistic task fixtures | partial | causal-argmax, masked-position, relative-offset, copy-token; not LM benches |
 | Implementation identity | yes | multiple implementation candidates may share one semantic |
 | Implementation/schedule/memory IR | yes | representation only; no backend lowering or performance claim |
 | Backend compiler/lowering | no | no general CUDA/Triton/CuTe/WGSL lowering |
