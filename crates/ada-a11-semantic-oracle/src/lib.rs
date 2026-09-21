@@ -184,6 +184,260 @@ pub fn advance_horizon(
     Ok(current)
 }
 
+/// Integer numerator matrix for the frozen mixer with common denominator 4.
+///
+/// ```text
+/// M = (1/4) * [[2, 2, 0], [1, 2, 1], [0, 2, 2]]
+/// ```
+pub const MIXER_NUMERATORS: [[i64; TOKEN_COUNT]; TOKEN_COUNT] = [[2, 2, 0], [1, 2, 1], [0, 2, 2]];
+/// Shared positive denominator for [`MIXER_NUMERATORS`].
+pub const MIXER_DENOMINATOR: i64 = 4;
+/// Bit shift equivalent of [`MIXER_DENOMINATOR`] (`4 = 2^2`).
+pub const MIXER_DENOMINATOR_SHIFT: u32 = 2;
+
+/// Exact dyadic-rational state for the frozen E1 mixer.
+///
+/// Each coordinate is `numerators[i] / 2^denominator_shift`. The evaluator never
+/// accumulates through general `f64` multiply-add for the mixer step itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ExactScalarSequenceState {
+    numerators: [i128; TOKEN_COUNT],
+    denominator_shift: u32,
+}
+
+/// Fail-closed errors from the exact/integer-scaled mixer path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExactStateError {
+    /// A coordinate was non-finite when converting from [`ScalarSequenceState`].
+    NonFinite {
+        /// Index of the first non-finite component.
+        index: usize,
+    },
+    /// An exact step overflowed signed 128-bit intermediate arithmetic.
+    Overflow,
+    /// The denominator shift exceeded the supported bound.
+    DenominatorShiftOverflow,
+    /// Exact value could not be represented as a finite `f64`.
+    NonFiniteF64 {
+        /// Index of the first non-finite conversion result.
+        index: usize,
+    },
+}
+
+impl ExactScalarSequenceState {
+    /// Construct an exact integer state (`denominator_shift = 0`).
+    #[must_use]
+    pub const fn from_integers(values: [i64; TOKEN_COUNT]) -> Self {
+        Self {
+            numerators: [values[0] as i128, values[1] as i128, values[2] as i128],
+            denominator_shift: 0,
+        }
+    }
+
+    /// All-zero exact state.
+    #[must_use]
+    pub const fn zeros() -> Self {
+        Self {
+            numerators: [0; TOKEN_COUNT],
+            denominator_shift: 0,
+        }
+    }
+
+    /// Borrow exact numerators.
+    #[must_use]
+    pub const fn numerators(&self) -> &[i128; TOKEN_COUNT] {
+        &self.numerators
+    }
+
+    /// Power-of-two denominator shift (`value = numerator / 2^shift`).
+    #[must_use]
+    pub const fn denominator_shift(&self) -> u32 {
+        self.denominator_shift
+    }
+
+    /// Convert a finite f64 state into an exact integer state when every
+    /// coordinate is an integer representable in `i64`.
+    ///
+    /// Non-integer finite inputs are rejected; callers that need a general
+    /// rational lift must construct [`ExactScalarSequenceState`] explicitly.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExactStateError::NonFinite`] for non-finite inputs and
+    /// [`ExactStateError::Overflow`] when a finite value is not an `i64`
+    /// integer.
+    pub fn try_from_integer_f64(state: &ScalarSequenceState) -> Result<Self, ExactStateError> {
+        let mut numerators = [0_i128; TOKEN_COUNT];
+        for (index, value) in state.values().iter().enumerate() {
+            if !value.is_finite() {
+                return Err(ExactStateError::NonFinite { index });
+            }
+            numerators[index] = f64_exact_i64(*value).map(i128::from)?;
+        }
+        Ok(Self {
+            numerators,
+            denominator_shift: 0,
+        })
+    }
+
+    /// Convert to a finite [`ScalarSequenceState`].
+    ///
+    /// # Errors
+    ///
+    /// Fails closed on non-finite `f64` conversion.
+    pub fn to_f64_state(&self) -> Result<ScalarSequenceState, ExactStateError> {
+        let mut values = [0.0_f64; TOKEN_COUNT];
+        for (index, numerator) in self.numerators.iter().enumerate() {
+            let value = dyadic_i128_to_f64(*numerator, self.denominator_shift)?;
+            if !value.is_finite() {
+                return Err(ExactStateError::NonFiniteF64 { index });
+            }
+            values[index] = value;
+        }
+        ScalarSequenceState::new(values).map_err(|error| match error {
+            StateError::NonFinite { index } => ExactStateError::NonFiniteF64 { index },
+        })
+    }
+}
+
+/// Apply one exact mixer step using integer-scaled dyadic arithmetic.
+///
+/// The step computes `numerators' = MIXER_NUMERATORS * numerators` and increases
+/// the denominator shift by [`MIXER_DENOMINATOR_SHIFT`], without a general `f64`
+/// multiply accumulation.
+///
+/// # Errors
+///
+/// Returns [`ExactStateError::Overflow`] or
+/// [`ExactStateError::DenominatorShiftOverflow`] on range failure.
+pub fn advance_exact(
+    state: &ExactScalarSequenceState,
+) -> Result<ExactScalarSequenceState, ExactStateError> {
+    let next_shift = state
+        .denominator_shift
+        .checked_add(MIXER_DENOMINATOR_SHIFT)
+        .ok_or(ExactStateError::DenominatorShiftOverflow)?;
+    let mut numerators = [0_i128; TOKEN_COUNT];
+    for (row_index, row) in MIXER_NUMERATORS.iter().enumerate() {
+        let mut acc = 0_i128;
+        for (col_index, weight) in row.iter().enumerate() {
+            let term = i128::from(*weight)
+                .checked_mul(state.numerators[col_index])
+                .ok_or(ExactStateError::Overflow)?;
+            acc = acc.checked_add(term).ok_or(ExactStateError::Overflow)?;
+        }
+        numerators[row_index] = acc;
+    }
+    Ok(ExactScalarSequenceState {
+        numerators,
+        denominator_shift: next_shift,
+    })
+}
+
+/// Apply `horizon` exact mixer steps.
+///
+/// # Errors
+///
+/// Propagates overflow / denominator failures from [`advance_exact`].
+pub fn advance_exact_horizon(
+    initial: &ExactScalarSequenceState,
+    horizon: usize,
+) -> Result<ExactScalarSequenceState, ExactStateError> {
+    let mut current = *initial;
+    for _ in 0..horizon {
+        current = advance_exact(&current)?;
+    }
+    Ok(current)
+}
+
+/// Exact closed-form antisymmetric oracle `2^-h [1, 0, -1]` as dyadic integers.
+///
+/// Represented in the same unreduced form produced by [`advance_exact_horizon`]:
+/// numerators `[2^h, 0, -2^h]` with `denominator_shift = 2h`.
+///
+/// This function does not call [`advance_exact`]; it constructs the independent
+/// mathematical expectation directly.
+#[must_use]
+pub const fn antisymmetric_oracle_exact(horizon: usize) -> ExactScalarSequenceState {
+    let mut factor = 1_i128;
+    let mut shift = 0_u32;
+    let mut step = 0_usize;
+    while step < horizon {
+        factor *= 2;
+        let Some(next_shift) = shift.checked_add(MIXER_DENOMINATOR_SHIFT) else {
+            return ExactScalarSequenceState {
+                numerators: [factor, 0, -factor],
+                denominator_shift: u32::MAX,
+            };
+        };
+        shift = next_shift;
+        step += 1;
+    }
+    ExactScalarSequenceState {
+        numerators: [factor, 0, -factor],
+        denominator_shift: shift,
+    }
+}
+
+fn dyadic_i128_to_f64(numerator: i128, denominator_shift: u32) -> Result<f64, ExactStateError> {
+    if numerator == 0 {
+        return Ok(0.0);
+    }
+    let num = i128_to_exact_f64(numerator)?;
+    if denominator_shift == 0 {
+        return Ok(num);
+    }
+    // Scale by repeated division by 2 to preserve dyadic exactness for small shifts.
+    let mut value = num;
+    let mut remaining = denominator_shift;
+    while remaining > 0 {
+        value *= 0.5;
+        if !value.is_finite() {
+            return Err(ExactStateError::Overflow);
+        }
+        remaining -= 1;
+    }
+    Ok(value)
+}
+
+fn i128_to_exact_f64(value: i128) -> Result<f64, ExactStateError> {
+    // Only accept integers inside the exact f64 integer range.
+    const EXACT_F64_INT_MAX: i128 = 1_i128 << 53;
+    if !(-EXACT_F64_INT_MAX..=EXACT_F64_INT_MAX).contains(&value) {
+        return Err(ExactStateError::Overflow);
+    }
+    let as_i64 = i64::try_from(value).map_err(|_| ExactStateError::Overflow)?;
+    Ok(i64_to_f64_exact(as_i64))
+}
+
+fn i64_to_f64_exact(value: i64) -> f64 {
+    // Safe: callers restrict to |value| <= 2^53.
+    #[allow(clippy::cast_precision_loss)]
+    {
+        value as f64
+    }
+}
+
+fn f64_exact_i64(value: f64) -> Result<i64, ExactStateError> {
+    // 2^53: largest magnitude with exact integer representation in f64.
+    const EXACT_F64_INT_MAX: f64 = 9_007_199_254_740_992.0;
+    if !value.is_finite() {
+        return Err(ExactStateError::Overflow);
+    }
+    if value.fract() != 0.0 {
+        return Err(ExactStateError::Overflow);
+    }
+    if !(-EXACT_F64_INT_MAX..=EXACT_F64_INT_MAX).contains(&value) {
+        return Err(ExactStateError::Overflow);
+    }
+    #[allow(clippy::cast_possible_truncation)]
+    let as_i64 = value as i64;
+    if i64_to_f64_exact(as_i64).to_bits() != value.to_bits() {
+        return Err(ExactStateError::Overflow);
+    }
+    Ok(as_i64)
+}
+
 /// Balanced antisymmetric mode used for the independent E1 oracle.
 ///
 /// For the frozen matrix, `v = [1, 0, -1]^T` satisfies `M v = (1/2) v`.
@@ -311,6 +565,83 @@ mod tests {
         assert!(matches!(
             ScalarSequenceState::new([0.0, f64::INFINITY, 0.0]),
             Err(StateError::NonFinite { index: 1 })
+        ));
+    }
+
+    #[test]
+    fn exact_mixer_matches_hand_derived_basis_and_integer_cases() {
+        let zero = advance_exact(&ExactScalarSequenceState::zeros()).expect("exact");
+        assert_eq!(zero.numerators(), &[0, 0, 0]);
+        assert_eq!(zero.denominator_shift(), MIXER_DENOMINATOR_SHIFT);
+
+        let e0 = advance_exact(&ExactScalarSequenceState::from_integers([1, 0, 0])).expect("exact");
+        assert_eq!(e0.numerators(), &[2, 1, 0]);
+        assert_eq!(e0.denominator_shift(), 2);
+
+        let e1 = advance_exact(&ExactScalarSequenceState::from_integers([0, 1, 0])).expect("exact");
+        assert_eq!(e1.numerators(), &[2, 2, 2]);
+        assert_eq!(e1.denominator_shift(), 2);
+
+        let e2 = advance_exact(&ExactScalarSequenceState::from_integers([0, 0, 1])).expect("exact");
+        assert_eq!(e2.numerators(), &[0, 1, 2]);
+        assert_eq!(e2.denominator_shift(), 2);
+
+        let simple =
+            advance_exact(&ExactScalarSequenceState::from_integers([4, -2, 2])).expect("exact");
+        assert_eq!(simple.numerators(), &[4, 2, 0]);
+        assert_eq!(simple.denominator_shift(), 2);
+    }
+
+    #[test]
+    fn exact_path_parity_checks_f64_path_on_dyadic_fixtures() {
+        let seeds = [
+            ExactScalarSequenceState::zeros(),
+            ExactScalarSequenceState::from_integers([1, 0, 0]),
+            ExactScalarSequenceState::from_integers([0, 1, 0]),
+            ExactScalarSequenceState::from_integers([0, 0, 1]),
+            ExactScalarSequenceState::from_integers([1, 0, -1]),
+            ExactScalarSequenceState::from_integers([2, 2, 2]),
+            ExactScalarSequenceState::from_integers([4, -2, 2]),
+        ];
+        for seed in seeds {
+            let exact = advance_exact(&seed).expect("exact step");
+            let f64_seed = seed.to_f64_state().expect("finite seed");
+            let f64_out = advance(&f64_seed).expect("f64 step");
+            let exact_as_f64 = exact.to_f64_state().expect("finite exact");
+            assert_state_bits(&exact_as_f64, &f64_out);
+        }
+    }
+
+    #[test]
+    fn exact_antisymmetric_oracle_matches_evaluator_and_f64_oracle() {
+        let seed = ExactScalarSequenceState::from_integers([1, 0, -1]);
+        for horizon in 0..=16 {
+            let evaluated = advance_exact_horizon(&seed, horizon).expect("exact");
+            let expected = antisymmetric_oracle_exact(horizon);
+            assert_eq!(evaluated.numerators(), expected.numerators());
+            assert_eq!(evaluated.denominator_shift(), expected.denominator_shift());
+            let as_f64 = evaluated.to_f64_state().expect("finite");
+            assert_state_bits(&as_f64, &antisymmetric_oracle(horizon));
+            let f64_eval =
+                advance_horizon(&antisymmetric_seed(), horizon).expect("f64 remains finite");
+            assert_state_bits(&as_f64, &f64_eval);
+        }
+    }
+
+    #[test]
+    fn exact_path_fails_closed_on_overflow_and_non_integer_inputs() {
+        let non_integer = ScalarSequenceState::new([0.5, 0.0, 0.0]).expect("finite");
+        assert!(matches!(
+            ExactScalarSequenceState::try_from_integer_f64(&non_integer),
+            Err(ExactStateError::Overflow)
+        ));
+        let huge = ExactScalarSequenceState {
+            numerators: [i128::MAX, i128::MAX, i128::MAX],
+            denominator_shift: 0,
+        };
+        assert!(matches!(
+            advance_exact(&huge),
+            Err(ExactStateError::Overflow)
         ));
     }
 }
