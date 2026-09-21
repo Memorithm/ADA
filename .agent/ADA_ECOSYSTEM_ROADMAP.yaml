@@ -155,6 +155,26 @@ verified_current_state:
           payloads, provisional survivors, rejected-so-far counterexamples, and
           stats. Resume is bit-deterministic; checkpoint is not qualification,
           adoption, or novelty. Based on main without requiring #46 archive APIs.
+      - slice: ADA2_attention_surface_and_task_quality_contracts
+        pull_request: 49
+        head_branch: research/ada2-workload-task-quality
+        head_sha: 5723c74
+        crates:
+          - ada-workload
+          - ada-objective
+        state: open_pr_not_yet_merged
+        based_on: main
+        independent_of_pr:
+          - 46
+          - 47
+          - 48
+        notes: >-
+          Versioned AttentionSurfaceIdentity (geometry+mask+mode codec/fingerprint)
+          plus fail-closed TaskQualityContract / LaneSeparatedEvidence. Algorithmic
+          error, numerical error, cost, and task quality are separate lanes;
+          ITD/TDI diagnostics, cost fields, and CEGIS survival cannot fill task
+          quality. Tiny CausalArgmaxRetrievalTask mechanistic fixture with oracle
+          grading. Not LM benchmarks, adoption, novelty, or FLAT promotion.
     current_boundary: >-
       ADA already has semantic identity, deterministic reference execution,
       bounded generation, CEGIS qualification, workload/evidence binding,
@@ -164,9 +184,10 @@ verified_current_state:
       (persistable CegisRunArchive + exact A11-E1 mixer), PR 47 (bounded
       attention adversarial generators), and PR 48 (mid-run CEGIS
       checkpoint/resume) in flight; 46/47/48 are mutually independent.
-      Do not create a second qualification lifecycle. Production lowering, GPU
-      correctness, hardware qualification, and runtime selection remain outside
-      ADA.
+      ADA2 has PR 49 (AttentionSurfaceIdentity + TaskQualityContract + causal-argmax
+      mechanistic fixture) on main, independent of ADA1 open PRs. Do not create a
+      second qualification lifecycle. Production lowering, GPU correctness,
+      hardware qualification, and runtime selection remain outside ADA.
     open_issue_note: >-
       Issue 7 remains open as the umbrella A11 mission even though its E0-E4
       reference plumbing is materially implemented. Treat it as a reconciliation
@@ -251,6 +272,20 @@ roadmap:
   - id: ADA2
     name: Attention workload and task-quality contracts
     status: active
+    evidence:
+      attention_surface_and_task_quality_contracts_pr: 49
+      attention_surface_and_task_quality_contracts_state: open_pr_not_yet_merged
+      head_branch: research/ada2-workload-task-quality
+      head_sha: 5723c74
+      delivered_in_pr_49:
+        - AttentionSurfaceIdentity_geometry_mask_mode_codec_fingerprint
+        - TaskQualityContract_fail_closed_lane_separation
+        - AlgorithmicError_lane_separate_from_numerical_and_cost
+        - CausalArgmaxRetrievalTask_mechanistic_fixture_with_oracle
+      still_open:
+        - additional_mechanistic_task_fixtures_beyond_causal_argmax
+        - broader_task_quality_slots_wired_through_graduation_CEGIS
+        - optional_ObjectiveVector_codec_extension_for_algorithmic_error
     goals:
       - version_attention_geometries_masks_and_modes
       - separate_algorithmic_error_numerical_error_cost_and_task_quality
