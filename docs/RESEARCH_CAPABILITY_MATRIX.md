@@ -54,6 +54,9 @@ speedup is implied by the existence of a schedule.
 | Deterministic semantic search | yes | bounded generation/dedup/checkpoint; survival is not qualification |
 | CEGIS / retained counterexamples | yes | bounded differential/adversarial orchestration; no proof claim |
 | Multi-objective/Pareto archive | yes | typed dimensions; no hidden scalar weighting |
+| Attention surface identity (geometry+mask+mode) | yes | versioned codec/fingerprint; not an oracle |
+| Task-quality contract / lane separation | yes | algorithmic vs numerical vs cost vs task quality; ITD/TDI/cost/survival cannot fill task quality |
+| Mechanistic task fixtures | partial | tiny causal-argmax retrieval fixture only; not LM benchmarks |
 | Implementation identity | yes | multiple implementation candidates may share one semantic |
 | Implementation/schedule/memory IR | yes | representation only; no backend lowering or performance claim |
 | Backend compiler/lowering | no | no general CUDA/Triton/CuTe/WGSL lowering |
@@ -77,13 +80,13 @@ speedup is implied by the existence of a schedule.
 
 The layers are intentionally separate:
 
-    validated workload geometry
+    validated workload geometry / attention surface identity
             ↓
     executable semantic IR
             ↓
     bounded search + CEGIS / oracle / differential evidence
             ↓
-    objective vectors / Pareto archive
+    lane-separated objectives (algorithmic / numerical / cost / task quality)
             ↓
     implementation + schedule/memory IR
             ↓

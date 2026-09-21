@@ -1,9 +1,15 @@
 //! Typed multi-objective records and deterministic Pareto archiving.
 //!
-//! This crate keeps correctness, numerical error, logical cost, estimated
-//! cost, measured cost, and task quality as separate dimensions. It never
-//! invents weights to collapse them into one score. Missing optional
-//! dimensions are incomparable rather than silently imputed.
+//! This crate keeps correctness, algorithmic/structural error, numerical
+//! error, logical cost, estimated cost, measured cost, and task quality as
+//! separate dimensions. It never invents weights to collapse them into one
+//! score. Missing optional dimensions are incomparable rather than silently
+//! imputed.
+//!
+//! The [`task_quality`] module adds fail-closed [`TaskQualityContract`] rules:
+//! ITD/TDI diagnostics, cost fields, numerical diagnostics, and CEGIS
+//! survival/rejection cannot silently fill task-quality slots. Survival and
+//! adoption remain distinct from task quality.
 
 #![forbid(unsafe_code)]
 
@@ -12,8 +18,15 @@ use std::collections::BTreeSet;
 use std::fmt::{Display, Formatter};
 
 mod codec;
+mod task_quality;
 
 pub use codec::{OBJECTIVE_TEXT_HEADER, OBJECTIVE_VECTOR_VERSION};
+pub use task_quality::{
+    AlgorithmicError, CausalArgmaxCandidate, CausalArgmaxOracle, CausalArgmaxRetrievalTask,
+    LaneSeparatedEvidence, LaneSeparatedEvidenceSpec, QualityValueSource,
+    TASK_QUALITY_CONTRACT_HEADER, TASK_QUALITY_CONTRACT_VERSION, TaskQualityContract,
+    TaskQualityError, TaskQualityFill, TaskQualitySlot,
+};
 
 /// Maximum number of task-quality dimensions in one objective vector.
 pub const MAX_QUALITY_METRICS: u64 = 64;
