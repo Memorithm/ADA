@@ -23,9 +23,11 @@ mod task_quality;
 pub use codec::{OBJECTIVE_TEXT_HEADER, OBJECTIVE_VECTOR_VERSION};
 pub use task_quality::{
     AlgorithmicError, CausalArgmaxCandidate, CausalArgmaxOracle, CausalArgmaxRetrievalTask,
-    LaneSeparatedEvidence, LaneSeparatedEvidenceSpec, QualityValueSource,
-    TASK_QUALITY_CONTRACT_HEADER, TASK_QUALITY_CONTRACT_VERSION, TaskQualityContract,
-    TaskQualityError, TaskQualityFill, TaskQualitySlot,
+    CopyTokenAttentionTask, CopyTokenCandidate, CopyTokenOracle, LaneSeparatedEvidence,
+    LaneSeparatedEvidenceSpec, MaskedPositionCandidate, MaskedPositionOracle,
+    MaskedPositionRetrievalTask, QualityValueSource, RelativeOffsetCandidate, RelativeOffsetOracle,
+    RelativeOffsetSelectionTask, TASK_QUALITY_CONTRACT_HEADER, TASK_QUALITY_CONTRACT_VERSION,
+    TaskQualityContract, TaskQualityError, TaskQualityFill, TaskQualitySlot,
 };
 
 /// Maximum number of task-quality dimensions in one objective vector.
