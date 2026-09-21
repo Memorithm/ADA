@@ -17,9 +17,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter, Write as _};
 
 use crate::{
-    CorrectnessStatus, EstimatedCost, LogicalCost, MAX_METRIC_NAME_BYTES, MAX_QUALITY_METRICS,
-    MeasuredCost, NumericalObjectives, ObjectiveDirection, ObjectiveError, ObjectiveVector,
-    QualityMetric,
+    AlgorithmicError, CorrectnessStatus, EstimatedCost, LogicalCost, MAX_METRIC_NAME_BYTES,
+    MAX_QUALITY_METRICS, MeasuredCost, NumericalObjectives, ObjectiveDirection, ObjectiveError,
+    ObjectiveVector, QualityMetric,
 };
 
 /// Version of the task-quality contract codec/schema.
@@ -170,30 +170,6 @@ impl QualityValueSource {
 impl Display for QualityValueSource {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(self.as_text())
-    }
-}
-
-/// Algorithmic / structural error lane, separate from floating-point numerical
-/// error and from task quality.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-pub struct AlgorithmicError {
-    /// Discrete support / index-set mismatches versus an oracle.
-    pub support_mismatches: Option<u64>,
-    /// Discrete selection / argmax failures versus an oracle.
-    pub selection_failures: Option<u64>,
-    /// Other structural invariant violations.
-    pub invariant_violations: Option<u64>,
-}
-
-impl AlgorithmicError {
-    /// Construct an empty algorithmic-error lane.
-    #[must_use]
-    pub const fn empty() -> Self {
-        Self {
-            support_mismatches: None,
-            selection_failures: None,
-            invariant_violations: None,
-        }
     }
 }
 
@@ -549,6 +525,7 @@ impl LaneSeparatedEvidence {
         // error into numerical or quality lanes.
         ObjectiveVector::from_parts(
             spec.correctness,
+            spec.algorithmic,
             spec.numerical,
             spec.logical,
             spec.estimated,
@@ -608,9 +585,8 @@ impl LaneSeparatedEvidence {
         &self.quality
     }
 
-    /// Project into an [`ObjectiveVector`]. Algorithmic error remains a
-    /// separate lane on this packet and is not folded into numerical error or
-    /// quality.
+    /// Project into an [`ObjectiveVector`], including the algorithmic-error
+    /// lane as its own dimension (not folded into numerical error or quality).
     ///
     /// # Errors
     ///
@@ -618,6 +594,7 @@ impl LaneSeparatedEvidence {
     pub fn to_objective_vector(&self) -> Result<ObjectiveVector, TaskQualityError> {
         Ok(ObjectiveVector::from_parts(
             self.correctness,
+            self.algorithmic,
             self.numerical,
             self.logical,
             self.estimated,

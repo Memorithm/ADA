@@ -1,9 +1,10 @@
 use super::{
-    BTreeSet, CegisResult, CorrectnessStatus, DiagnosticEvidenceKind, EstimatedCostReport,
-    EvidenceBoundQualification, EvidenceWorkloadFingerprint, GraduationError, GraduationObjectives,
-    LogicalCost, MAX_GRADUATION_EVIDENCE, MAX_GRADUATION_FIXTURES, NumericalObjectives,
-    ObjectiveVector, OracleFixtureArtifact, QUALIFICATION_CASE_VERSION, QualificationVerdict,
-    SemanticEvidenceRecord, SemanticProgram, SemanticWorkloadCase, WorkloadContract,
+    AlgorithmicError, BTreeSet, CegisResult, CorrectnessStatus, DiagnosticEvidenceKind,
+    EstimatedCostReport, EvidenceBoundQualification, EvidenceWorkloadFingerprint, GraduationError,
+    GraduationObjectives, LogicalCost, MAX_GRADUATION_EVIDENCE, MAX_GRADUATION_FIXTURES,
+    NumericalObjectives, ObjectiveVector, OracleFixtureArtifact, QUALIFICATION_CASE_VERSION,
+    QualificationVerdict, SemanticEvidenceRecord, SemanticProgram, SemanticWorkloadCase,
+    WorkloadContract,
 };
 
 pub(super) fn collect_oracle_fixtures(
@@ -59,6 +60,7 @@ pub(super) fn objectives_from_report(
 ) -> Result<ObjectiveVector, GraduationError> {
     ObjectiveVector::from_parts(
         CorrectnessStatus::Provisional,
+        AlgorithmicError::empty(),
         NumericalObjectives::default(),
         LogicalCost {
             flops: Some(report.logical_flops()),
