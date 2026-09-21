@@ -179,6 +179,31 @@ verified_current_state:
           f64 evaluate; fail-closed overflow/non-finite; hand-derived fixtures.
           Docs/matrix note. No usefulness/novelty/FLAT claims. Independent of
           ADA2 stack and of A11 exact mixer in PR 46.
+      - slice: ADA1_strengthened_online_softmax_reference
+        pull_request: 54
+        head_branch: research/ada1-online-softmax-exact
+        head_sha: fe01472
+        crate: ada-oracle
+        module: strengthened
+        state: open_pr_not_yet_merged
+        based_on: main
+        independent_of_pr:
+          - 46
+          - 47
+          - 48
+          - 49
+          - 50
+          - 51
+          - 52
+          - 53
+        notes: >-
+          online_softmax_strengthened for differential checks: exact singleton
+          path; exact equal-logit uniform weights 1/n with Neumaier value mix;
+          otherwise f64 online Softmax with Neumaier-compensated mass/value
+          accumulation and fail-closed f32 narrowing. Parity vs naive f32
+          baseline; hand fixtures; docs/matrix note. No usefulness/novelty/FLAT
+          claims. Independent of ADA2 stack, PR 53 semantic strengthened path,
+          and A11 exact mixer in PR 46.
       - slice: ADA2_attention_surface_and_task_quality_contracts
         pull_request: 49
         head_branch: research/ada2-workload-task-quality
@@ -262,9 +287,11 @@ verified_current_state:
       SemanticQualificationRecord Rust JSON codec on main. ADA1 has PR 46
       (persistable CegisRunArchive + exact A11-E1 mixer), PR 47 (bounded
       attention adversarial generators), PR 48 (mid-run CEGIS
-      checkpoint/resume), and PR 53 (strengthened ada-semantic reference
-      evaluator: exact dyadic affinity + equal-score weights + Neumaier)
-      in flight; 46/47/48/53 are mutually independent and independent of ADA2.
+      checkpoint/resume), PR 53 (strengthened ada-semantic reference
+      evaluator: exact dyadic affinity + equal-score weights + Neumaier), and
+      PR 54 (strengthened ada-oracle online Softmax: exact singleton/equal-logit
+      + Neumaier streaming) in flight; 46/47/48/53/54 are mutually independent
+      and independent of ADA2.
       ADA2 has PR 49 (AttentionSurfaceIdentity + TaskQualityContract + causal-argmax
       mechanistic fixture), stacked PR 50 (more mechanistic fixtures + graduation
       task-quality adapter; depends on #49), stacked PR 51 (ObjectiveVector
@@ -342,6 +369,10 @@ roadmap:
       strengthened_semantic_reference_evaluator_state: open_pr_not_yet_merged
       strengthened_semantic_reference_head_branch: research/ada1-exact-reference-oracles
       strengthened_semantic_reference_head_sha: 1a50f40
+      strengthened_online_softmax_reference_pr: 54
+      strengthened_online_softmax_reference_state: open_pr_not_yet_merged
+      strengthened_online_softmax_head_branch: research/ada1-online-softmax-exact
+      strengthened_online_softmax_head_sha: fe01472
       delivered_in_pr_46:
         - persistable_CegisRunArchive_completed_run_codec
         - exact_integer_scaled_A11_E1_mixer_evaluator
@@ -356,9 +387,13 @@ roadmap:
         - exact_equal_score_uniform_weights
         - Neumaier_compensated_softmax_and_value_mix
         - parity_vs_naive_f64_and_hand_derived_fixtures
+      delivered_in_pr_54:
+        - online_softmax_strengthened_exact_singleton_and_equal_logit
+        - Neumaier_compensated_f64_streaming_online_softmax
+        - fail_closed_f32_narrowing_parity_and_hand_fixtures
       still_open:
-        - merge_hygiene_for_open_ADA1_PRs_46_47_48_53
-        - optional_further_exact_domains_online_softmax_or_entmax_small_oracles
+        - merge_hygiene_for_open_ADA1_PRs_46_47_48_53_54
+        - optional_further_exact_domains_small_entmax_sparsemax_oracles
     goals:
       - strengthen_f64_or_exact_reference_evaluators
       - expand_adversarial_counterexample_generation
@@ -408,7 +443,7 @@ roadmap:
       still_open:
         - ADA2_polish_or_close_after_stack_merge
         - ADA3_conditional_after_TDI7_1_not_in_ADA_repo
-        - prefer_merge_hygiene_for_46_through_53_before_new_exact_domains
+        - prefer_merge_hygiene_for_46_through_54_before_additional_exact_domains
     goals:
       - version_attention_geometries_masks_and_modes
       - separate_algorithmic_error_numerical_error_cost_and_task_quality
