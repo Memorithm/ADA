@@ -5,6 +5,11 @@
 //! it does not execute tensors, infer a semantic, or claim that a declared
 //! precision is available on any physical device.
 //!
+//! [`AttentionSurfaceIdentity`] versions geometry + mask + mode with a
+//! canonical codec and fingerprint, independently of precision/layout/KV
+//! representation. Surface identity is not an oracle, semantic, survival
+//! claim, task-quality score, or FLAT adoption proof.
+//!
 //! Historical A1 fixtures can be adapted explicitly with
 //! `WorkloadContract::from_a1_case`. The adapter records that the fixture
 //! contains precomputed scalar logits rather than explicit Q/K vectors.
@@ -12,8 +17,14 @@
 #![forbid(unsafe_code)]
 
 mod canonical;
+mod surface;
 
 use std::fmt::{Display, Formatter};
+
+pub use surface::{
+    ATTENTION_SURFACE_HEADER, ATTENTION_SURFACE_VERSION, AttentionSurfaceError,
+    AttentionSurfaceIdentity,
+};
 
 /// Version of the canonical workload contract implemented by this crate.
 pub const WORKLOAD_CONTRACT_VERSION: u16 = 1;
@@ -129,7 +140,7 @@ fn validate_identifier(field: &'static str, identifier: &str) -> Result<(), Work
     Ok(())
 }
 
-fn parse_usize(field: &str, value: &str) -> Result<usize, WorkloadContractError> {
+pub(crate) fn parse_usize(field: &str, value: &str) -> Result<usize, WorkloadContractError> {
     value.parse::<usize>().map_err(|_| {
         WorkloadContractError::MalformedCanonicalText(format!(
             "{field} is not an unsigned decimal integer"
@@ -137,7 +148,7 @@ fn parse_usize(field: &str, value: &str) -> Result<usize, WorkloadContractError>
     })
 }
 
-fn parse_u16(field: &str, value: &str) -> Result<u16, WorkloadContractError> {
+pub(crate) fn parse_u16(field: &str, value: &str) -> Result<u16, WorkloadContractError> {
     value.parse::<u16>().map_err(|_| {
         WorkloadContractError::MalformedCanonicalText(format!(
             "{field} is not an unsigned 16-bit integer"
@@ -145,7 +156,10 @@ fn parse_u16(field: &str, value: &str) -> Result<u16, WorkloadContractError> {
     })
 }
 
-fn parse_usize_list(field: &str, value: &str) -> Result<Vec<usize>, WorkloadContractError> {
+pub(crate) fn parse_usize_list(
+    field: &str,
+    value: &str,
+) -> Result<Vec<usize>, WorkloadContractError> {
     if value.is_empty() {
         return Err(WorkloadContractError::MalformedCanonicalText(format!(
             "{field} cannot be empty"
@@ -157,7 +171,7 @@ fn parse_usize_list(field: &str, value: &str) -> Result<Vec<usize>, WorkloadCont
         .collect()
 }
 
-fn hex_encode(value: &str) -> String {
+pub(crate) fn hex_encode(value: &str) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut encoded = String::with_capacity(value.len() * 2);
     for byte in value.as_bytes() {
@@ -167,7 +181,10 @@ fn hex_encode(value: &str) -> String {
     encoded
 }
 
-fn hex_decode(field: &'static str, value: &str) -> Result<String, WorkloadContractError> {
+pub(crate) fn hex_decode(
+    field: &'static str,
+    value: &str,
+) -> Result<String, WorkloadContractError> {
     if value.len() % 2 != 0 {
         return Err(WorkloadContractError::MalformedCanonicalText(format!(
             "{field} has an odd-length hex value"
@@ -215,7 +232,7 @@ pub enum AttentionTopology {
 }
 
 impl AttentionTopology {
-    fn as_text(self) -> &'static str {
+    pub(crate) fn as_text(self) -> &'static str {
         match self {
             Self::SelfAttention => "self",
             Self::CrossAttention => "cross",
@@ -223,7 +240,7 @@ impl AttentionTopology {
         }
     }
 
-    fn from_text(value: &str) -> Result<Self, WorkloadContractError> {
+    pub(crate) fn from_text(value: &str) -> Result<Self, WorkloadContractError> {
         match value {
             "self" => Ok(Self::SelfAttention),
             "cross" => Ok(Self::CrossAttention),
@@ -292,7 +309,7 @@ impl HeadGrouping {
         }
     }
 
-    fn as_text(self) -> String {
+    pub(crate) fn as_text(self) -> String {
         match self {
             Self::MultiHead => "mha".into(),
             Self::MultiQuery => "mqa".into(),
@@ -300,7 +317,7 @@ impl HeadGrouping {
         }
     }
 
-    fn from_text(value: &str) -> Result<Self, WorkloadContractError> {
+    pub(crate) fn from_text(value: &str) -> Result<Self, WorkloadContractError> {
         match value {
             "mha" => Ok(Self::MultiHead),
             "mqa" => Ok(Self::MultiQuery),
@@ -412,11 +429,11 @@ impl SequenceLengths {
             || self.kv_lengths.windows(2).any(|pair| pair[0] != pair[1])
     }
 
-    fn query_lengths(&self) -> &[usize] {
+    pub(crate) fn query_lengths(&self) -> &[usize] {
         &self.query_lengths
     }
 
-    fn kv_lengths(&self) -> &[usize] {
+    pub(crate) fn kv_lengths(&self) -> &[usize] {
         &self.kv_lengths
     }
 }
@@ -1114,7 +1131,7 @@ pub enum WorkloadMode {
 }
 
 impl WorkloadMode {
-    fn as_text(self) -> &'static str {
+    pub(crate) fn as_text(self) -> &'static str {
         match self {
             Self::Prefill => "prefill",
             Self::Decode => "decode",
@@ -1124,7 +1141,7 @@ impl WorkloadMode {
         }
     }
 
-    fn from_text(value: &str) -> Result<Self, WorkloadContractError> {
+    pub(crate) fn from_text(value: &str) -> Result<Self, WorkloadContractError> {
         match value {
             "prefill" => Ok(Self::Prefill),
             "decode" => Ok(Self::Decode),
@@ -1200,7 +1217,7 @@ pub struct WorkloadContract {
 pub type ResearchWorkload = WorkloadContract;
 
 impl MaskSpec {
-    fn validate(&self) -> Result<(), WorkloadContractError> {
+    pub(crate) fn validate(&self) -> Result<(), WorkloadContractError> {
         if let MaskKind::External { identity } = &self.kind {
             validate_identifier("mask", identity)?;
         }
@@ -1460,7 +1477,7 @@ pub struct WorkloadFingerprint {
 }
 
 impl WorkloadFingerprint {
-    fn of_bytes(bytes: &[u8]) -> Self {
+    pub(crate) fn of_bytes(bytes: &[u8]) -> Self {
         const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
         const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
         const MIX_MULT: u64 = 0xff51_afd7_ed55_8ccd;
