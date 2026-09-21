@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 ada-search = { path = "../ada-search" }
+ada-semantic = { path = "../ada-semantic" }
 
 [dev-dependencies]
 ada-core = { path = "../ada-core" }
