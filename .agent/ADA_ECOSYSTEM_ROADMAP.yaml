@@ -212,6 +212,24 @@ verified_current_state:
           CEGIS survival/task_quality promotions. LaneSeparatedEvidence projects
           algorithmic into ObjectiveVector. Thin algorithmic_error_from_cegis_survival
           refusal. Not adoption, novelty, FLAT promotion, or deeper CEGIS TQ attachment.
+      - slice: ADA2_cegis_task_quality_attach
+        pull_request: 52
+        head_branch: research/ada2-cegis-task-quality-attach
+        head_sha: ecdadc6
+        crates:
+          - ada-graduation
+        state: open_pr_not_yet_merged
+        based_on: research/ada2-objective-algorithmic-error
+        depends_on_pr:
+          - 49
+          - 50
+          - 51
+        notes: >-
+          Fail-closed attach_task_quality / CegisTaskQualityAttachBuilder binds
+          explicit LaneSeparatedEvidence to a CEGIS outcome only when separate
+          mechanistic evaluation populated quality + algorithmic lanes. Rejects
+          survival-only, ITD/TDI/cost disguises, missing lanes, surface identity
+          mismatch. Not adoption, novelty, FLAT promotion, or training loop.
     current_boundary: >-
       ADA already has semantic identity, deterministic reference execution,
       bounded generation, CEGIS qualification, workload/evidence binding,
@@ -223,8 +241,9 @@ verified_current_state:
       checkpoint/resume) in flight; 46/47/48 are mutually independent.
       ADA2 has PR 49 (AttentionSurfaceIdentity + TaskQualityContract + causal-argmax
       mechanistic fixture), stacked PR 50 (more mechanistic fixtures + graduation
-      task-quality adapter; depends on #49), and stacked PR 51 (ObjectiveVector
-      algorithmic-error lane + V2 codec; depends on #50/#49) in flight, independent
+      task-quality adapter; depends on #49), stacked PR 51 (ObjectiveVector
+      algorithmic-error lane + V2 codec; depends on #50/#49), and stacked PR 52
+      (CEGIS→task-quality attach; depends on #51/#50/#49) in flight, independent
       of ADA1 open PRs.
       Do not create a second qualification lifecycle. Production lowering, GPU
       correctness, hardware qualification, and runtime selection remain outside ADA.
@@ -341,9 +360,19 @@ roadmap:
         - ADA_OBJECTIVE_V2_codec_round_trip
         - AlgorithmicErrorSource_fail_closed_gates
         - CEGIS_survival_explicitly_rejected_as_algorithmic_error
+      cegis_task_quality_attach_pr: 52
+      cegis_task_quality_attach_state: open_pr_not_yet_merged
+      cegis_task_quality_attach_head_branch: research/ada2-cegis-task-quality-attach
+      cegis_task_quality_attach_head_sha: ecdadc6
+      depends_on_pr_51: true
+      delivered_in_pr_52:
+        - attach_task_quality_CegisTaskQualityAttachBuilder
+        - requires_mechanistic_LaneSeparatedEvidence_and_algorithmic_lane
+        - rejects_survival_ITD_TDI_cost_missing_lanes_surface_mismatch
       still_open:
-        - deeper_CEGIS_result_path_task_quality_attachment_beyond_survival_refusal
-        - ADA3_conditional_after_TDI
+        - ADA2_polish_or_close_after_stack_merge
+        - ADA3_conditional_after_TDI7_1_not_in_ADA_repo
+        - ADA1_exact_oracle_leftover_if_ADA3_blocked
     goals:
       - version_attention_geometries_masks_and_modes
       - separate_algorithmic_error_numerical_error_cost_and_task_quality
