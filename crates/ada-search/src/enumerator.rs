@@ -281,7 +281,9 @@ impl SearchFingerprint {
         Self::of_bytes(text.as_bytes())
     }
 
-    pub(crate) const fn from_parts(primary: u64, secondary: u64, length: u64) -> Self {
+    /// Reconstruct a fingerprint from its three stable lanes.
+    #[must_use]
+    pub const fn from_parts(primary: u64, secondary: u64, length: u64) -> Self {
         Self {
             primary,
             secondary,
@@ -592,6 +594,56 @@ impl<S: SearchSpace> SearchEngine<S> {
             next_ordinal: checkpoint.next_ordinal,
             stats: checkpoint.stats,
             seen: checkpoint.seen,
+        })
+    }
+
+    /// Rematerialize a candidate that was already emitted in the checkpointed
+    /// prefix, without advancing the enumerator.
+    ///
+    /// Used by higher layers (CEGIS mid-run resume) to rebuild survivor and
+    /// rejection wrappers from ordinals bound into a checkpoint.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the ordinal is outside the generated prefix, the
+    /// candidate was statically rejected or duplicated, or reconstruction
+    /// disagrees with the retained deduplication set.
+    pub fn materialize_at(
+        &self,
+        ordinal: u64,
+    ) -> Result<SearchCandidate<S::Candidate>, SearchError> {
+        if ordinal >= self.next_ordinal {
+            return Err(SearchError::InvalidCheckpoint(
+                "materialize ordinal is outside the generated prefix".into(),
+            ));
+        }
+        let candidate = self.space.candidate_at(ordinal)?;
+        let cost = self.space.candidate_cost(&candidate);
+        if cost > self.budget.program_cost {
+            return Err(SearchError::InvalidCheckpoint(
+                "materialize ordinal was statically cost-rejected".into(),
+            ));
+        }
+        let canonical_text = self.space.candidate_canonical_text(&candidate);
+        if canonical_text.len() > MAX_CHECKPOINT_CANDIDATE_BYTES {
+            return Err(SearchError::ExceedsLimit {
+                field: "candidate.canonical_text_bytes",
+                value: u64::try_from(canonical_text.len()).unwrap_or(u64::MAX),
+                maximum: u64::try_from(MAX_CHECKPOINT_CANDIDATE_BYTES).unwrap_or(u64::MAX),
+            });
+        }
+        if !self.seen.contains(&canonical_text) {
+            return Err(SearchError::InvalidCheckpoint(
+                "materialize ordinal is absent from the deduplication set".into(),
+            ));
+        }
+        let fingerprint = SearchFingerprint::of_bytes(canonical_text.as_bytes());
+        Ok(SearchCandidate {
+            candidate,
+            ordinal,
+            canonical_text,
+            fingerprint,
+            cost,
         })
     }
 }
