@@ -175,6 +175,25 @@ verified_current_state:
           ITD/TDI diagnostics, cost fields, and CEGIS survival cannot fill task
           quality. Tiny CausalArgmaxRetrievalTask mechanistic fixture with oracle
           grading. Not LM benchmarks, adoption, novelty, or FLAT promotion.
+      - slice: ADA2_mechanistic_fixtures_and_graduation_task_quality_wiring
+        pull_request: 50
+        head_branch: research/ada2-mechanistic-fixtures-wiring
+        head_sha: 1bd5f55
+        crates:
+          - ada-objective
+          - ada-graduation
+        state: open_pr_not_yet_merged
+        based_on: research/ada2-workload-task-quality
+        depends_on_pr:
+          - 49
+        notes: >-
+          Additional mechanistic fixtures (MaskedPositionRetrievalTask,
+          RelativeOffsetSelectionTask, CopyTokenAttentionTask) reusing
+          TaskQualityContract / LaneSeparatedEvidence. Thin graduation adapter
+          accepts only validated lane evidence into GraduationObjectives;
+          CEGIS survival/rejection cannot fill task quality. ObjectiveVector
+          algorithmic-error codec extension deferred. Not LM benches, adoption,
+          novelty, or FLAT promotion.
     current_boundary: >-
       ADA already has semantic identity, deterministic reference execution,
       bounded generation, CEGIS qualification, workload/evidence binding,
@@ -185,9 +204,10 @@ verified_current_state:
       attention adversarial generators), and PR 48 (mid-run CEGIS
       checkpoint/resume) in flight; 46/47/48 are mutually independent.
       ADA2 has PR 49 (AttentionSurfaceIdentity + TaskQualityContract + causal-argmax
-      mechanistic fixture) on main, independent of ADA1 open PRs. Do not create a
-      second qualification lifecycle. Production lowering, GPU correctness,
-      hardware qualification, and runtime selection remain outside ADA.
+      mechanistic fixture) and stacked PR 50 (more mechanistic fixtures + graduation
+      task-quality adapter; depends on #49) in flight, independent of ADA1 open PRs.
+      Do not create a second qualification lifecycle. Production lowering, GPU
+      correctness, hardware qualification, and runtime selection remain outside ADA.
     open_issue_note: >-
       Issue 7 remains open as the umbrella A11 mission even though its E0-E4
       reference plumbing is materially implemented. Treat it as a reconciliation
@@ -277,15 +297,23 @@ roadmap:
       attention_surface_and_task_quality_contracts_state: open_pr_not_yet_merged
       head_branch: research/ada2-workload-task-quality
       head_sha: 5723c74
+      mechanistic_fixtures_and_graduation_wiring_pr: 50
+      mechanistic_fixtures_and_graduation_wiring_state: open_pr_not_yet_merged
+      mechanistic_fixtures_head_branch: research/ada2-mechanistic-fixtures-wiring
+      mechanistic_fixtures_head_sha: 1bd5f55
+      depends_on_pr_49: true
       delivered_in_pr_49:
         - AttentionSurfaceIdentity_geometry_mask_mode_codec_fingerprint
         - TaskQualityContract_fail_closed_lane_separation
         - AlgorithmicError_lane_separate_from_numerical_and_cost
         - CausalArgmaxRetrievalTask_mechanistic_fixture_with_oracle
+      delivered_in_pr_50:
+        - MaskedPositionRetrievalTask_RelativeOffsetSelectionTask_CopyTokenAttentionTask
+        - GraduationObjectives_from_lane_separated_adapter
+        - CEGIS_survival_explicitly_rejected_as_task_quality
       still_open:
-        - additional_mechanistic_task_fixtures_beyond_causal_argmax
-        - broader_task_quality_slots_wired_through_graduation_CEGIS
         - optional_ObjectiveVector_codec_extension_for_algorithmic_error
+        - deeper_CEGIS_result_path_task_quality_attachment_beyond_survival_refusal
     goals:
       - version_attention_geometries_masks_and_modes
       - separate_algorithmic_error_numerical_error_cost_and_task_quality
