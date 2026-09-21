@@ -10,7 +10,10 @@ small executable semantic IR, and a bounded cost-ordered semantic generator
 with canonical deduplication and checkpoint/resume. The semantic reference
 path currently covers single-batch, single-head, explicit-Q/K/V, full-KV,
 row-major f64 reference execution for scaled dot products, masking, bounded
-selection, softmax or signed weighting, and weighted value mixing. Generation
+selection, softmax or signed weighting, and weighted value mixing. A strengthened
+evaluator additionally provides exact integer/dyadic affinity, exact equal-score
+uniform weights, and Neumaier-compensated accumulation for differential checks.
+Generation
 is now consumable by a bounded generic CEGIS runner that checks explicit seed
 fixtures, asks a caller-owned adversarial generator for bounded fixtures,
 re-tests prior survivors, and retains candidate/counterexample artifacts. The
@@ -50,7 +53,7 @@ speedup is implied by the existence of a schedule.
 | --- | --- | --- |
 | Semantic identity | yes | semantic identity is independent from implementation/evidence |
 | Workload contract | yes | broad metadata contract; not every declared mode is executable |
-| Executable semantic IR | partial | bounded f64 single-batch/single-head reference domain |
+| Executable semantic IR | partial | bounded f64 single-batch/single-head reference domain; strengthened path adds exact integer/dyadic affinity, exact equal-score uniform weights, and Neumaier-compensated accumulation |
 | Deterministic semantic search | yes | bounded generation/dedup/checkpoint; survival is not qualification |
 | CEGIS / retained counterexamples | yes | bounded differential/adversarial orchestration; no proof claim |
 | Multi-objective/Pareto archive | yes | typed dimensions; no hidden scalar weighting |

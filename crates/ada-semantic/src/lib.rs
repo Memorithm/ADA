@@ -5,13 +5,19 @@
 //! evidence. The current grammar is intentionally small and supports a
 //! deterministic f64 reference path for scaled dot products, masking,
 //! bounded selection, softmax or signed-difference weighting, and weighted
-//! value mixing.
+//! value mixing. A strengthened evaluator adds exact integer/dyadic affinity,
+//! exact equal-score uniform weights, and Neumaier-compensated accumulation.
 //!
 //! Compressed KV, recurrent updates, backward execution, and implementation
 //! schedules remain later layers. Their absence here is explicit: an enum
 //! variant or a metadata field is not treated as executable support.
 
 #![forbid(unsafe_code)]
+
+mod strengthened_reference;
+pub use strengthened_reference::{
+    ExactAffinityError, exact_uniform_weight, scaled_dot_product_exact,
+};
 
 mod codec;
 
@@ -76,6 +82,8 @@ pub enum SemanticIrError {
     UnsupportedVersion(u16),
     /// Canonical text was malformed or incomplete.
     MalformedCanonicalText(String),
+    /// Exact or strengthened arithmetic overflowed a finite bound.
+    Overflow(&'static str),
 }
 
 impl Display for SemanticIrError {
@@ -112,6 +120,7 @@ impl Display for SemanticIrError {
             Self::MalformedCanonicalText(reason) => {
                 write!(formatter, "malformed semantic canonical text: {reason}")
             }
+            Self::Overflow(stage) => write!(formatter, "overflow at {stage}"),
         }
     }
 }
@@ -671,7 +680,30 @@ impl SemanticProgram {
         })
     }
 
-    fn validate_components(&self) -> Result<(), SemanticIrError> {
+    /// Evaluate with strengthened / exact reference arithmetic.
+    ///
+    /// Relative to [`Self::evaluate`], this path:
+    /// - uses exact `i128` scaled-dot products when Q/K entries are exact
+    ///   integers and the affinity scale is an exact non-positive power of two;
+    /// - uses exact uniform weights `1/n` when every selected score is bit-equal;
+    /// - otherwise accumulates softmax mass and value mixes with Neumaier
+    ///   compensation.
+    ///
+    /// Non-finite intermediates and exact-path overflows fail closed.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same class of contract errors as [`Self::evaluate`], plus
+    /// [`SemanticIrError::Overflow`] when an exact integer path exceeds the
+    /// finite bound.
+    pub fn evaluate_strengthened(
+        &self,
+        input: &ReferenceInput,
+    ) -> Result<ReferenceOutput, SemanticIrError> {
+        strengthened_reference::evaluate_strengthened(self, input)
+    }
+
+    pub(crate) fn validate_components(&self) -> Result<(), SemanticIrError> {
         self.affinity.validate()?;
         self.mask.validate()?;
         self.selection.validate()?;
@@ -962,7 +994,19 @@ impl ReferenceInput {
         self.value_dimension
     }
 
-    fn validate(&self) -> Result<(), SemanticIrError> {
+    /// Row-major value tensor.
+    #[must_use]
+    pub(crate) fn values(&self) -> &[f64] {
+        &self.values
+    }
+
+    /// Optional external visibility mask in row-major query/key order.
+    #[must_use]
+    pub(crate) fn external_mask(&self) -> Option<&[bool]> {
+        self.external_mask.as_deref()
+    }
+
+    pub(crate) fn validate(&self) -> Result<(), SemanticIrError> {
         validate_count("query_count", self.query_count, MAX_REFERENCE_QUERIES)?;
         validate_count("key_count", self.key_count, MAX_REFERENCE_KEYS)?;
         validate_count("q_dimension", self.q_dimension, MAX_REFERENCE_DIMENSION)?;
@@ -1061,7 +1105,7 @@ fn check_len(field: &'static str, expected: usize, actual: usize) -> Result<(), 
     }
 }
 
-fn transform_inputs(
+pub(crate) fn transform_inputs(
     transform: InputTransform,
     input: &ReferenceInput,
 ) -> Result<(Vec<f64>, Vec<f64>), SemanticIrError> {
@@ -1074,7 +1118,7 @@ fn transform_inputs(
     Ok((queries, keys))
 }
 
-fn center_rows(
+pub(crate) fn center_rows(
     values: &mut [f64],
     row_count: usize,
     dimension: usize,
@@ -1094,7 +1138,7 @@ fn center_rows(
     Ok(())
 }
 
-fn select_keys(
+pub(crate) fn select_keys(
     program: &SemanticProgram,
     input: &ReferenceInput,
     scores: &[f64],
@@ -1198,7 +1242,7 @@ impl std::hash::Hash for NormalizationSummary {
     }
 }
 
-fn weights_for(
+pub(crate) fn weights_for(
     rule: WeightRule,
     scores: &[f64],
 ) -> Result<(Vec<f64>, NormalizationSummary), SemanticIrError> {
@@ -1229,7 +1273,10 @@ fn weights_for(
     }
 }
 
-fn stable_softmax(scores: &[f64], scale: f64) -> Result<(Vec<f64>, f64), SemanticIrError> {
+pub(crate) fn stable_softmax(
+    scores: &[f64],
+    scale: f64,
+) -> Result<(Vec<f64>, f64), SemanticIrError> {
     let maximum = scores
         .iter()
         .copied()
@@ -1263,7 +1310,11 @@ fn stable_softmax(scores: &[f64], scale: f64) -> Result<(Vec<f64>, f64), Semanti
     Ok((weights, log_sum_exp))
 }
 
-fn scaled_maximum_for_lse(maximum: f64, scale: f64, sum: f64) -> Result<f64, SemanticIrError> {
+pub(crate) fn scaled_maximum_for_lse(
+    maximum: f64,
+    scale: f64,
+    sum: f64,
+) -> Result<f64, SemanticIrError> {
     let result = maximum * scale + sum.ln();
     if result.is_finite() {
         Ok(result)
@@ -1275,10 +1326,10 @@ fn scaled_maximum_for_lse(maximum: f64, scale: f64, sum: f64) -> Result<f64, Sem
 /// Reference output with weights and normalizer diagnostics retained.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReferenceOutput {
-    output: Vec<f64>,
-    weights: Vec<f64>,
-    normalizations: Vec<NormalizationSummary>,
-    selected_keys: Vec<Vec<usize>>,
+    pub(crate) output: Vec<f64>,
+    pub(crate) weights: Vec<f64>,
+    pub(crate) normalizations: Vec<NormalizationSummary>,
+    pub(crate) selected_keys: Vec<Vec<usize>>,
 }
 
 impl ReferenceOutput {
