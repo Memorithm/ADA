@@ -194,6 +194,24 @@ verified_current_state:
           CEGIS survival/rejection cannot fill task quality. ObjectiveVector
           algorithmic-error codec extension deferred. Not LM benches, adoption,
           novelty, or FLAT promotion.
+      - slice: ADA2_objective_vector_algorithmic_error_codec
+        pull_request: 51
+        head_branch: research/ada2-objective-algorithmic-error
+        head_sha: d23a7bd
+        crates:
+          - ada-objective
+          - ada-graduation
+        state: open_pr_not_yet_merged
+        based_on: research/ada2-mechanistic-fixtures-wiring
+        depends_on_pr:
+          - 49
+          - 50
+        notes: >-
+          ObjectiveVector gains first-class AlgorithmicError lane + ADA-OBJECTIVE-V2
+          codec; fail-closed AlgorithmicErrorSource rejects numerical/cost/ITD/TDI/
+          CEGIS survival/task_quality promotions. LaneSeparatedEvidence projects
+          algorithmic into ObjectiveVector. Thin algorithmic_error_from_cegis_survival
+          refusal. Not adoption, novelty, FLAT promotion, or deeper CEGIS TQ attachment.
     current_boundary: >-
       ADA already has semantic identity, deterministic reference execution,
       bounded generation, CEGIS qualification, workload/evidence binding,
@@ -204,8 +222,10 @@ verified_current_state:
       attention adversarial generators), and PR 48 (mid-run CEGIS
       checkpoint/resume) in flight; 46/47/48 are mutually independent.
       ADA2 has PR 49 (AttentionSurfaceIdentity + TaskQualityContract + causal-argmax
-      mechanistic fixture) and stacked PR 50 (more mechanistic fixtures + graduation
-      task-quality adapter; depends on #49) in flight, independent of ADA1 open PRs.
+      mechanistic fixture), stacked PR 50 (more mechanistic fixtures + graduation
+      task-quality adapter; depends on #49), and stacked PR 51 (ObjectiveVector
+      algorithmic-error lane + V2 codec; depends on #50/#49) in flight, independent
+      of ADA1 open PRs.
       Do not create a second qualification lifecycle. Production lowering, GPU
       correctness, hardware qualification, and runtime selection remain outside ADA.
     open_issue_note: >-
@@ -311,9 +331,19 @@ roadmap:
         - MaskedPositionRetrievalTask_RelativeOffsetSelectionTask_CopyTokenAttentionTask
         - GraduationObjectives_from_lane_separated_adapter
         - CEGIS_survival_explicitly_rejected_as_task_quality
+      objective_vector_algorithmic_error_codec_pr: 51
+      objective_vector_algorithmic_error_codec_state: open_pr_not_yet_merged
+      objective_vector_algorithmic_error_head_branch: research/ada2-objective-algorithmic-error
+      objective_vector_algorithmic_error_head_sha: d23a7bd
+      depends_on_pr_50: true
+      delivered_in_pr_51:
+        - ObjectiveVector_AlgorithmicError_lane
+        - ADA_OBJECTIVE_V2_codec_round_trip
+        - AlgorithmicErrorSource_fail_closed_gates
+        - CEGIS_survival_explicitly_rejected_as_algorithmic_error
       still_open:
-        - optional_ObjectiveVector_codec_extension_for_algorithmic_error
         - deeper_CEGIS_result_path_task_quality_attachment_beyond_survival_refusal
+        - ADA3_conditional_after_TDI
     goals:
       - version_attention_geometries_masks_and_modes
       - separate_algorithmic_error_numerical_error_cost_and_task_quality
