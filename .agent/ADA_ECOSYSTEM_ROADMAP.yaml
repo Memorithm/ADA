@@ -124,16 +124,31 @@ verified_current_state:
           runs (survival provisional only; not qualification/adoption/novelty).
           Exact integer-scaled A11-E1 mixer path with f64 parity. Mid-run CEGIS
           checkpoint/resume deferred as follow-up.
+      - slice: ADA1_bounded_attention_adversarial_generators
+        pull_request: 47
+        head_branch: research/ada1-adversarial-attention-generators
+        head_sha: f7b5341
+        crate: ada-cegis
+        module: attention_adversarial
+        state: open_pr_not_yet_merged
+        independent_of_pr: 46
+        notes: >-
+          Caller-owned seed-deterministic attention adversarial helpers
+          (extreme finite scores, causal mask boundary, all-equal, single-spike,
+          near-ties) with hard caps, fail-closed non-finite refusal, and
+          deterministic corpus growth. No usefulness/novelty/FLAT claims.
+          Mid-run CEGIS checkpoint/resume remains next leftover.
     current_boundary: >-
       ADA already has semantic identity, deterministic reference execution,
       bounded generation, CEGIS qualification, workload/evidence binding,
       fail-closed FLAT graduation artifacts, bit-exact replay, a machine-readable
       graduation JSON schema, and the merged ADA0 registry-row /
-      SemanticQualificationRecord Rust JSON codec on main. ADA1 is adding
-      persistable CEGIS rejection archives and exact reference evaluators
-      (PR 46 in flight). Do not create a second qualification lifecycle.
-      Production lowering, GPU correctness, hardware qualification, and runtime
-      selection remain outside ADA.
+      SemanticQualificationRecord Rust JSON codec on main. ADA1 has PR 46
+      (persistable CegisRunArchive + exact A11-E1 mixer) and PR 47 (bounded
+      attention adversarial generators) in flight, independent of each other.
+      Do not create a second qualification lifecycle. Production lowering, GPU
+      correctness, hardware qualification, and runtime selection remain outside
+      ADA.
     open_issue_note: >-
       Issue 7 remains open as the umbrella A11 mission even though its E0-E4
       reference plumbing is materially implemented. Treat it as a reconciliation
@@ -195,11 +210,15 @@ roadmap:
     evidence:
       cegis_rejection_archive_and_exact_a11_mixer_pr: 46
       cegis_rejection_archive_and_exact_a11_mixer_state: open_pr_not_yet_merged
+      bounded_attention_adversarial_generators_pr: 47
+      bounded_attention_adversarial_generators_state: open_pr_not_yet_merged
       delivered_in_pr_46:
         - persistable_CegisRunArchive_completed_run_codec
         - exact_integer_scaled_A11_E1_mixer_evaluator
+      delivered_in_pr_47:
+        - bounded_attention_specific_adversarial_helpers
+        - fail_closed_nonfinite_refusal_and_deterministic_corpus_growth
       still_open:
-        - expand_adversarial_counterexample_generation
         - mid_run_CEGIS_engine_checkpoint_resume
         - further_exact_or_strengthened_f64_reference_evaluators_beyond_A11_E1
     goals:
