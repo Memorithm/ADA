@@ -1,7 +1,7 @@
 schema_version: 1
 kind: ada_ecosystem_agent_roadmap
 status: active
-last_updated: "2026-09-13"
+last_updated: "2026-09-21"
 repository: Memorithm/ADA
 intended_consumer: autonomous_coding_agent
 merge_policy: never_merge_this_file_to_default_branch_unless_user_explicitly_requests
@@ -53,7 +53,7 @@ pipeline:
   - ADOPT_ADAPT_REJECT_OR_DISCOVER
 
 verified_current_state:
-  audited_main_sha: 4bd5f76f5646abe46fe655f21812d3e8f8719ee9
+  audited_main_sha: 6ca00ec85bdad1736f1d1eb8da19dc7453bfc77f
   A11:
     status: reference_pipeline_implemented_do_not_duplicate
     evidence:
@@ -104,18 +104,34 @@ verified_current_state:
         head_branch: research/ada0-registry-graduation-schema
         crate: ada-a10-evidence-schema
         module: graduation
-        state: open_pr_not_yet_merged
+        merge_commit: b27d2bb
+        state: merged
         notes: >-
           Dependency-free fail-closed SemanticQualificationRecord codec
           (schema_version 1). No automatic FlatGraduationBundle conversion;
           missing evidence fails closed. No usefulness/novelty/FLAT-adoption
           or speedup claims.
+      - slice: ADA1_cegis_rejection_archive_and_exact_a11_mixer
+        pull_request: 46
+        head_branch: research/ada1-cegis-rejection-archive
+        head_sha: 118b81d
+        crates:
+          - ada-cegis
+          - ada-a11-semantic-oracle
+        state: open_pr_not_yet_merged
+        notes: >-
+          Persistable fail-closed CegisRunArchive for completed falsification
+          runs (survival provisional only; not qualification/adoption/novelty).
+          Exact integer-scaled A11-E1 mixer path with f64 parity. Mid-run CEGIS
+          checkpoint/resume deferred as follow-up.
     current_boundary: >-
       ADA already has semantic identity, deterministic reference execution,
       bounded generation, CEGIS qualification, workload/evidence binding,
       fail-closed FLAT graduation artifacts, bit-exact replay, a machine-readable
-      graduation JSON schema on main, and an in-flight ADA0 Rust JSON codec/PR
-      for registry reconciliation. Do not create a second qualification lifecycle.
+      graduation JSON schema, and the merged ADA0 registry-row /
+      SemanticQualificationRecord Rust JSON codec on main. ADA1 is adding
+      persistable CEGIS rejection archives and exact reference evaluators
+      (PR 46 in flight). Do not create a second qualification lifecycle.
       Production lowering, GPU correctness, hardware qualification, and runtime
       selection remain outside ADA.
     open_issue_note: >-
@@ -166,16 +182,26 @@ roadmap:
       a11_registry_reconciliation_doc_pr: 41
       a11_graduation_json_schema_on_main: docs/ada-a11-flat-graduation-record.schema.json
       a11_registry_row_and_rust_codec_pr: 43
+      a11_registry_row_and_rust_codec_state: merged
       conservative_a11_registry_status: REFERENCE-PIPELINE-IMPLEMENTED / RESEARCH-ONLY / NOT-ADOPTED / NO-NOVELTY-CLAIM
     goals:
       - reconcile_ADA_A1_A18_registry_with_executable_current_code
       - record_qualified_rejected_and_open_candidates_without_erasing_negative_results
       - verify_semantic_vs_implementation_identity_boundaries
       - keep_this_roadmap_synchronized_with_already_merged_A11_and_later_foundations
-      - land_PR_43_A11_registry_row_and_SemanticQualificationRecord_json_codec
   - id: ADA1
     name: Complete exact semantic falsification ladder
     status: active_on_top_of_implemented_CEGIS_foundation
+    evidence:
+      cegis_rejection_archive_and_exact_a11_mixer_pr: 46
+      cegis_rejection_archive_and_exact_a11_mixer_state: open_pr_not_yet_merged
+      delivered_in_pr_46:
+        - persistable_CegisRunArchive_completed_run_codec
+        - exact_integer_scaled_A11_E1_mixer_evaluator
+      still_open:
+        - expand_adversarial_counterexample_generation
+        - mid_run_CEGIS_engine_checkpoint_resume
+        - further_exact_or_strengthened_f64_reference_evaluators_beyond_A11_E1
     goals:
       - strengthen_f64_or_exact_reference_evaluators
       - expand_adversarial_counterexample_generation
@@ -204,6 +230,7 @@ roadmap:
       replay_bundle_pr: 23
       machine_readable_graduation_record_schema: docs/ada-a11-flat-graduation-record.schema.json
       semantic_qualification_record_rust_codec_pr: 43
+      semantic_qualification_record_rust_codec_state: merged
       codec_location: crates/ada-a10-evidence-schema/src/graduation
     goals:
       - preserve_versioned_candidate_math_semantic_hash_reference_vectors_tolerances_and_known_failure_modes
