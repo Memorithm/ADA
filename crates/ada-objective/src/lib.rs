@@ -6,7 +6,7 @@
 //! score. Missing optional dimensions are incomparable rather than silently
 //! imputed.
 //!
-//! The [`task_quality`] module adds fail-closed [`TaskQualityContract`] rules:
+//! Fail-closed [`TaskQualityContract`] and [`LaneSeparatedEvidence`] rules ensure
 //! ITD/TDI diagnostics, cost fields, numerical diagnostics, and CEGIS
 //! survival/rejection cannot silently fill task-quality slots. Survival and
 //! adoption remain distinct from task quality.
