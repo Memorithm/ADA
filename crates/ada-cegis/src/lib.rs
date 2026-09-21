@@ -9,10 +9,18 @@
 #![forbid(unsafe_code)]
 
 mod archive;
+mod attention_adversarial;
 
 pub use archive::{
     ArchivedFixtureIdentity, ArchivedSurvivor, CEGIS_RUN_ARCHIVE_VERSION, CegisRunArchive,
     MAX_RUN_ARCHIVE_TEXT_BYTES,
+};
+pub use attention_adversarial::{
+    ATTENTION_ADVERSARIAL_PROBE_VERSION, AttentionAdversarialConfig, AttentionAdversarialGenerator,
+    AttentionProbeKind, EXTREME_FINITE_SCORE_MAGNITUDE, MAX_ATTENTION_ADVERSARIAL_DIM,
+    MAX_ATTENTION_ADVERSARIAL_FIXTURES, MAX_ATTENTION_ADVERSARIAL_KEYS,
+    MAX_ATTENTION_ADVERSARIAL_QUERIES, NEAR_TIE_RELATIVE_EPS, grow_attention_adversarial_corpus,
+    refuse_nonfinite_attention_probe,
 };
 
 use ada_search::{SearchCandidate, SearchEngine, SearchError, SearchFingerprint, SearchSpace};
