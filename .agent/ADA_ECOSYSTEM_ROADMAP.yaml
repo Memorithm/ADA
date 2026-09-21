@@ -123,7 +123,7 @@ verified_current_state:
           Persistable fail-closed CegisRunArchive for completed falsification
           runs (survival provisional only; not qualification/adoption/novelty).
           Exact integer-scaled A11-E1 mixer path with f64 parity. Mid-run CEGIS
-          checkpoint/resume deferred as follow-up.
+          checkpoint/resume delivered separately in PR 48 (independent of this PR).
       - slice: ADA1_bounded_attention_adversarial_generators
         pull_request: 47
         head_branch: research/ada1-adversarial-attention-generators
@@ -137,15 +137,33 @@ verified_current_state:
           (extreme finite scores, causal mask boundary, all-equal, single-spike,
           near-ties) with hard caps, fail-closed non-finite refusal, and
           deterministic corpus growth. No usefulness/novelty/FLAT claims.
-          Mid-run CEGIS checkpoint/resume remains next leftover.
+          Mid-run CEGIS checkpoint/resume delivered separately in PR 48.
+      - slice: ADA1_cegis_midrun_checkpoint_resume
+        pull_request: 48
+        head_branch: research/ada1-cegis-midrun-checkpoint
+        head_sha: b1cb3b8
+        crates:
+          - ada-cegis
+          - ada-search
+        state: open_pr_not_yet_merged
+        independent_of_pr:
+          - 46
+          - 47
+        notes: >-
+          Fail-closed versioned mid-run CegisCheckpoint with nested search
+          enumerator resume, config fingerprint/seed/bounds, active fixture
+          payloads, provisional survivors, rejected-so-far counterexamples, and
+          stats. Resume is bit-deterministic; checkpoint is not qualification,
+          adoption, or novelty. Based on main without requiring #46 archive APIs.
     current_boundary: >-
       ADA already has semantic identity, deterministic reference execution,
       bounded generation, CEGIS qualification, workload/evidence binding,
       fail-closed FLAT graduation artifacts, bit-exact replay, a machine-readable
       graduation JSON schema, and the merged ADA0 registry-row /
       SemanticQualificationRecord Rust JSON codec on main. ADA1 has PR 46
-      (persistable CegisRunArchive + exact A11-E1 mixer) and PR 47 (bounded
-      attention adversarial generators) in flight, independent of each other.
+      (persistable CegisRunArchive + exact A11-E1 mixer), PR 47 (bounded
+      attention adversarial generators), and PR 48 (mid-run CEGIS
+      checkpoint/resume) in flight; 46/47/48 are mutually independent.
       Do not create a second qualification lifecycle. Production lowering, GPU
       correctness, hardware qualification, and runtime selection remain outside
       ADA.
@@ -212,14 +230,18 @@ roadmap:
       cegis_rejection_archive_and_exact_a11_mixer_state: open_pr_not_yet_merged
       bounded_attention_adversarial_generators_pr: 47
       bounded_attention_adversarial_generators_state: open_pr_not_yet_merged
+      cegis_midrun_checkpoint_resume_pr: 48
+      cegis_midrun_checkpoint_resume_state: open_pr_not_yet_merged
       delivered_in_pr_46:
         - persistable_CegisRunArchive_completed_run_codec
         - exact_integer_scaled_A11_E1_mixer_evaluator
       delivered_in_pr_47:
         - bounded_attention_specific_adversarial_helpers
         - fail_closed_nonfinite_refusal_and_deterministic_corpus_growth
-      still_open:
+      delivered_in_pr_48:
         - mid_run_CEGIS_engine_checkpoint_resume
+        - search_materialize_at_for_deterministic_rematerialization
+      still_open:
         - further_exact_or_strengthened_f64_reference_evaluators_beyond_A11_E1
     goals:
       - strengthen_f64_or_exact_reference_evaluators
