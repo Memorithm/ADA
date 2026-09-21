@@ -489,9 +489,16 @@ mod tests {
         assert_bits(output.output()[0], 5.0);
         match output.normalizations()[0] {
             NormalizationSummary::Softmax { log_sum_exp } => {
-                // scores are all 1.0; LSE = 1 + ln(4)
+                // Scores are all 1.0; LSE = 1 + ln(4). Transcendental
+                // evaluation is allowed to differ by one ULP under Miri, while
+                // the exact uniform weights and mixed output above remain
+                // bit-exact.
                 let expected = 1.0_f64 + 4.0_f64.ln();
-                assert_bits(log_sum_exp, expected);
+                let ulp_distance = log_sum_exp.to_bits().abs_diff(expected.to_bits());
+                assert!(
+                    ulp_distance <= 1,
+                    "LSE {log_sum_exp} differs from {expected} by {ulp_distance} ULP"
+                );
             }
             NormalizationSummary::SignedDifference { .. } => {
                 panic!("unexpected signed-difference normalization")
