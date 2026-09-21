@@ -3,13 +3,17 @@
 //! This crate orchestrates the search layer without making a correctness or
 //! novelty claim for any generated candidate. Static rejection remains owned
 //! by [`ada_search`]. This layer adds deterministic fixture evaluation,
-//! adversarial fixture generation, survivor re-evaluation, and retained
-//! counterexample artifacts.
+//! adversarial fixture generation, survivor re-evaluation, retained
+//! counterexample artifacts, and fail-closed mid-run checkpoint/resume.
+//!
+//! A mid-run [`CegisCheckpoint`] is **not** qualification: resume continues a
+//! bounded falsification pass and does not create adoption or novelty claims.
 
 #![forbid(unsafe_code)]
 
 mod archive;
 mod attention_adversarial;
+mod checkpoint;
 
 pub use archive::{
     ArchivedFixtureIdentity, ArchivedSurvivor, CEGIS_RUN_ARCHIVE_VERSION, CegisRunArchive,
@@ -22,8 +26,14 @@ pub use attention_adversarial::{
     MAX_ATTENTION_ADVERSARIAL_QUERIES, NEAR_TIE_RELATIVE_EPS, grow_attention_adversarial_corpus,
     refuse_nonfinite_attention_probe,
 };
+pub use checkpoint::{
+    CEGIS_CHECKPOINT_VERSION, CegisCheckpoint, CheckpointFixture, CheckpointSurvivor,
+    MAX_CEGIS_CHECKPOINT_TEXT_BYTES,
+};
 
-use ada_search::{SearchCandidate, SearchEngine, SearchError, SearchFingerprint, SearchSpace};
+use ada_search::{
+    SearchCandidate, SearchCheckpoint, SearchEngine, SearchError, SearchFingerprint, SearchSpace,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter, Write as _};
 
@@ -66,6 +76,8 @@ pub enum CegisError {
     GeneratorFailure(String),
     /// A persisted counterexample artifact was malformed.
     InvalidArtifact(String),
+    /// A mid-run checkpoint was malformed, mismatched, or internally inconsistent.
+    InvalidCheckpoint(String),
     /// The underlying deterministic search layer rejected the operation.
     Search(SearchError),
 }
@@ -86,6 +98,9 @@ impl Display for CegisError {
             }
             Self::InvalidArtifact(reason) => {
                 write!(formatter, "invalid CEGIS counterexample artifact: {reason}")
+            }
+            Self::InvalidCheckpoint(reason) => {
+                write!(formatter, "invalid CEGIS checkpoint: {reason}")
             }
             Self::Search(error) => write!(formatter, "search layer failure: {error}"),
         }
@@ -383,7 +398,7 @@ impl CegisStats {
         self.survivors_admitted
     }
 
-    /// Reconstruct counters from an explicit ordered tuple (archive decode).
+    /// Reconstruct counters from an explicit ordered tuple (archive/checkpoint decode).
     #[must_use]
     pub const fn from_parts(values: [u64; 11]) -> Self {
         Self {
@@ -893,6 +908,161 @@ where
         self.stats
     }
 
+    /// Snapshot a fail-closed mid-run checkpoint.
+    ///
+    /// The checkpoint is evidence of progress through a bounded falsification
+    /// pass only. It is **not** qualification, adoption, novelty, or FLAT
+    /// readiness, and resume does not create those claims.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when live inventories disagree with counters or exceed
+    /// declared bounds.
+    pub fn checkpoint(&self) -> Result<CegisCheckpoint, CegisError> {
+        CegisCheckpoint::from_parts(
+            self.search.space().fingerprint(),
+            self.config,
+            &self.search.checkpoint(),
+            &self.active_fixtures,
+            &self.survivors,
+            &self.rejected,
+            self.stats,
+        )
+    }
+
+    /// Resume from a validated mid-run checkpoint.
+    ///
+    /// `rebuild_fixture` reconstructs typed fixture payloads from the
+    /// checkpointed identifier and canonical text. Resume is bit-deterministic
+    /// for the same search space, oracle/generator pair, seed/bounds, and
+    /// rebuilt payloads: continuing equals a fresh run from the same logical
+    /// point.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error on version/fingerprint mismatch, nested search
+    /// checkpoint failure, fixture rebuild failure, bound violations, or when
+    /// rematerialized candidates disagree with checkpoint inventories.
+    pub fn from_checkpoint<F>(
+        space: S,
+        oracle: O,
+        generator: G,
+        checkpoint: &CegisCheckpoint,
+        mut rebuild_fixture: F,
+    ) -> Result<Self, CegisError>
+    where
+        F: FnMut(&str, &str) -> Result<I, CegisError>,
+    {
+        if checkpoint.space_fingerprint() != space.fingerprint() {
+            return Err(CegisError::InvalidCheckpoint(
+                "checkpoint space fingerprint does not match the provided search space".into(),
+            ));
+        }
+        let search_checkpoint =
+            SearchCheckpoint::from_canonical_text(checkpoint.search_checkpoint_text()).map_err(
+                |error| CegisError::InvalidCheckpoint(format!("nested search checkpoint: {error}")),
+            )?;
+        let search = SearchEngine::from_checkpoint(space, search_checkpoint)?;
+        let config = CegisConfig::new(
+            checkpoint.config().seed,
+            checkpoint.config().max_active_fixtures,
+            checkpoint.config().max_counterexample_artifacts,
+            checkpoint.config().max_adversarial_outputs,
+        )?;
+        let (active_fixtures, active_keys) =
+            rebuild_active_fixtures(checkpoint, &mut rebuild_fixture)?;
+        let survivors = rematerialize_survivors(&search, checkpoint)?;
+        let rejected = rematerialize_rejections(&search, checkpoint, &mut rebuild_fixture)?;
+        let counterexamples = rejected
+            .iter()
+            .map(|item| item.counterexample().clone())
+            .collect();
+        Ok(Self {
+            search,
+            oracle,
+            generator,
+            config,
+            active_fixtures,
+            active_keys,
+            survivors,
+            rejected,
+            counterexamples,
+            stats: checkpoint.cegis_stats(),
+        })
+    }
+
+    /// Process one candidate from the search enumerator.
+    ///
+    /// Returns `Ok(true)` when a candidate was considered and `Ok(false)` when
+    /// the bounded search prefix is exhausted.
+    ///
+    /// # Errors
+    ///
+    /// Propagates search, oracle, generator, reason, or bound failures.
+    pub fn step(&mut self) -> Result<bool, CegisError> {
+        let Some(candidate) = self.search.next_candidate()? else {
+            return Ok(false);
+        };
+        self.stats.candidates_considered += 1;
+        if let Some((fixture, reason)) = self.check_active_candidate(&candidate)? {
+            self.reject_candidate(
+                candidate,
+                &fixture,
+                CounterexampleSource::InitialCorpus,
+                reason,
+            )?;
+            return Ok(true);
+        }
+
+        let active_snapshot = self.active_fixtures.clone();
+        let generated = self
+            .generator
+            .generate(self.config.seed, candidate.candidate(), &active_snapshot)
+            .map_err(|error| CegisError::GeneratorFailure(error.to_string()))?;
+        let generated_count = u64::try_from(generated.len()).unwrap_or(u64::MAX);
+        if generated_count > self.config.max_adversarial_outputs {
+            return Err(CegisError::ExceedsLimit {
+                field: "adversarial_outputs",
+                value: generated_count,
+                maximum: self.config.max_adversarial_outputs,
+            });
+        }
+        self.stats.adversarial_fixture_generated += generated_count;
+        if let Some((fixture, reason)) = self.check_adversarial_candidate(&candidate, generated)? {
+            self.insert_active_fixture(fixture.clone())?;
+            self.reject_candidate(
+                candidate,
+                &fixture,
+                CounterexampleSource::Adversarial,
+                reason,
+            )?;
+            self.revalidate_survivors(&fixture)?;
+        } else {
+            self.stats.survivors_admitted += 1;
+            self.survivors.push(candidate);
+        }
+        Ok(true)
+    }
+
+    /// Consider up to `max_candidates` additional candidates.
+    ///
+    /// Returns `Ok(true)` when the search prefix is exhausted and `Ok(false)`
+    /// when the step budget was consumed first.
+    ///
+    /// # Errors
+    ///
+    /// Propagates the same failures as [`Self::step`].
+    pub fn run_steps(&mut self, max_candidates: u64) -> Result<bool, CegisError> {
+        let mut considered = 0_u64;
+        while considered < max_candidates {
+            if !self.step()? {
+                return Ok(true);
+            }
+            considered += 1;
+        }
+        Ok(false)
+    }
+
     /// Run the bounded search to exhaustion and return all retained evidence.
     ///
     /// Every candidate is checked against the active corpus. A candidate that
@@ -905,49 +1075,7 @@ where
     /// Returns an error for search failure, oracle/generator failure, an
     /// invalid oracle reason, or an exceeded active/artifact bound.
     pub fn run_to_end(mut self) -> Result<CegisResult<S::Candidate, I>, CegisError> {
-        while let Some(candidate) = self.search.next_candidate()? {
-            self.stats.candidates_considered += 1;
-            if let Some((fixture, reason)) = self.check_active_candidate(&candidate)? {
-                self.reject_candidate(
-                    candidate,
-                    &fixture,
-                    CounterexampleSource::InitialCorpus,
-                    reason,
-                )?;
-                continue;
-            }
-
-            let active_snapshot = self.active_fixtures.clone();
-            let generated = self
-                .generator
-                .generate(self.config.seed, candidate.candidate(), &active_snapshot)
-                .map_err(|error| CegisError::GeneratorFailure(error.to_string()))?;
-            let generated_count = u64::try_from(generated.len()).unwrap_or(u64::MAX);
-            if generated_count > self.config.max_adversarial_outputs {
-                return Err(CegisError::ExceedsLimit {
-                    field: "adversarial_outputs",
-                    value: generated_count,
-                    maximum: self.config.max_adversarial_outputs,
-                });
-            }
-            self.stats.adversarial_fixture_generated += generated_count;
-            if let Some((fixture, reason)) =
-                self.check_adversarial_candidate(&candidate, generated)?
-            {
-                self.insert_active_fixture(fixture.clone())?;
-                self.reject_candidate(
-                    candidate,
-                    &fixture,
-                    CounterexampleSource::Adversarial,
-                    reason,
-                )?;
-                self.revalidate_survivors(&fixture)?;
-            } else {
-                self.stats.survivors_admitted += 1;
-                self.survivors.push(candidate);
-            }
-        }
-
+        while self.step()? {}
         Ok(CegisResult {
             config: self.config,
             space_fingerprint: self.search.space().fingerprint(),
@@ -1094,6 +1222,113 @@ where
         self.survivors = retained;
         Ok(())
     }
+}
+
+fn rebuild_active_fixtures<I, F>(
+    checkpoint: &CegisCheckpoint,
+    rebuild_fixture: &mut F,
+) -> Result<(Vec<Fixture<I>>, BTreeSet<String>), CegisError>
+where
+    I: Clone,
+    F: FnMut(&str, &str) -> Result<I, CegisError>,
+{
+    let mut active_fixtures = Vec::with_capacity(checkpoint.active_fixtures().len());
+    let mut active_keys = BTreeSet::new();
+    for recorded in checkpoint.active_fixtures() {
+        let input = rebuild_fixture(recorded.id(), recorded.canonical_text())?;
+        let fixture = Fixture::new(
+            recorded.id().to_owned(),
+            recorded.canonical_text().to_owned(),
+            input,
+        )?;
+        if fixture.fingerprint().to_string() != recorded.fingerprint() {
+            return Err(CegisError::InvalidCheckpoint(
+                "rebuilt active fixture fingerprint mismatch".into(),
+            ));
+        }
+        let key = fixture.identity_key();
+        if !active_keys.insert(key) {
+            return Err(CegisError::InvalidCheckpoint(
+                "checkpoint active fixtures contain duplicates".into(),
+            ));
+        }
+        active_fixtures.push(fixture);
+    }
+    Ok((active_fixtures, active_keys))
+}
+
+fn rematerialize_survivors<S: SearchSpace>(
+    search: &SearchEngine<S>,
+    checkpoint: &CegisCheckpoint,
+) -> Result<Vec<SearchCandidate<S::Candidate>>, CegisError> {
+    let mut survivors = Vec::with_capacity(checkpoint.survivors().len());
+    for recorded in checkpoint.survivors() {
+        let candidate = search.materialize_at(recorded.ordinal()).map_err(|error| {
+            CegisError::InvalidCheckpoint(format!("survivor rematerialize: {error}"))
+        })?;
+        if candidate.fingerprint().to_string() != recorded.fingerprint()
+            || candidate.canonical_text() != recorded.canonical_text()
+        {
+            return Err(CegisError::InvalidCheckpoint(
+                "survivor identity does not match rematerialized candidate".into(),
+            ));
+        }
+        survivors.push(candidate);
+    }
+    Ok(survivors)
+}
+
+fn rematerialize_rejections<S: SearchSpace, I, F>(
+    search: &SearchEngine<S>,
+    checkpoint: &CegisCheckpoint,
+    rebuild_fixture: &mut F,
+) -> Result<Vec<RejectedCandidate<S::Candidate, I>>, CegisError>
+where
+    I: Clone,
+    F: FnMut(&str, &str) -> Result<I, CegisError>,
+{
+    let mut rejected = Vec::with_capacity(checkpoint.rejections().len());
+    for artifact in checkpoint.rejections() {
+        let candidate = search
+            .materialize_at(artifact.candidate_ordinal())
+            .map_err(|error| {
+                CegisError::InvalidCheckpoint(format!("rejection rematerialize: {error}"))
+            })?;
+        if candidate.fingerprint().to_string() != artifact.candidate_fingerprint()
+            || candidate.canonical_text() != artifact.candidate_canonical_text()
+        {
+            return Err(CegisError::InvalidCheckpoint(
+                "rejection candidate identity does not match rematerialized candidate".into(),
+            ));
+        }
+        let input = rebuild_fixture(artifact.fixture_id(), artifact.fixture_canonical_text())?;
+        let fixture = Fixture::new(
+            artifact.fixture_id().to_owned(),
+            artifact.fixture_canonical_text().to_owned(),
+            input,
+        )?;
+        if fixture.fingerprint().to_string() != artifact.fixture_fingerprint() {
+            return Err(CegisError::InvalidCheckpoint(
+                "rejection fixture fingerprint mismatch".into(),
+            ));
+        }
+        let counterexample = Counterexample::new(
+            &candidate,
+            &fixture,
+            artifact.source(),
+            artifact.reason().to_owned(),
+        )?;
+        if counterexample.artifact() != *artifact {
+            return Err(CegisError::InvalidCheckpoint(
+                "rebuilt counterexample disagrees with checkpoint artifact".into(),
+            ));
+        }
+        rejected.push(RejectedCandidate {
+            candidate,
+            counterexample,
+        });
+    }
+    Ok(rejected)
 }
 
 const ARTIFACT_FIELDS: &[&str] = &[
@@ -1612,6 +1847,139 @@ mod tests {
                 .family()
                 == SemanticFamily::StandardSoftmax)
         );
+    }
+
+    fn rebuild_i32(id: &str, canonical_text: &str) -> Result<i32, CegisError> {
+        let Some(value_text) = canonical_text.strip_prefix("value=") else {
+            return Err(CegisError::InvalidCheckpoint(format!(
+                "cannot rebuild fixture {id}"
+            )));
+        };
+        value_text
+            .parse::<i32>()
+            .map_err(|_| CegisError::InvalidCheckpoint(format!("bad fixture payload for {id}")))
+    }
+
+    fn summarize(
+        result: &CegisResult<i32, i32>,
+    ) -> (
+        Vec<String>,
+        Vec<String>,
+        Vec<String>,
+        CegisStats,
+        ada_search::SearchStats,
+    ) {
+        (
+            result
+                .survivors()
+                .iter()
+                .map(|candidate| candidate.canonical_text().to_owned())
+                .collect(),
+            result
+                .rejected()
+                .iter()
+                .map(|rejected| rejected.candidate().canonical_text().to_owned())
+                .collect(),
+            result
+                .counterexamples()
+                .iter()
+                .map(Counterexample::to_canonical_text)
+                .collect(),
+            result.stats(),
+            result.search_stats(),
+        )
+    }
+
+    #[test]
+    fn midrun_checkpoint_round_trips_and_resume_matches_uninterrupted() {
+        let values = vec![0, 1, 2];
+        let config = CegisConfig::new(7, 8, 8, 4).unwrap();
+        let seed = vec![fixture("seed-low", -1)];
+
+        let uninterrupted = CegisEngine::new(
+            toy_search(values.clone()),
+            ToyOracle,
+            ToyGenerator,
+            config,
+            seed.clone(),
+        )
+        .unwrap()
+        .run_to_end()
+        .unwrap();
+
+        let mut partial = CegisEngine::new(
+            toy_search(values.clone()),
+            ToyOracle,
+            ToyGenerator,
+            config,
+            seed,
+        )
+        .unwrap();
+        assert!(!partial.run_steps(1).unwrap());
+        let checkpoint = partial.checkpoint().unwrap();
+        let text = checkpoint.to_canonical_text();
+        let decoded = CegisCheckpoint::from_canonical_text(&text).unwrap();
+        assert_eq!(decoded, checkpoint);
+
+        let resumed = CegisEngine::from_checkpoint(
+            ToySpace { values },
+            ToyOracle,
+            ToyGenerator,
+            &decoded,
+            rebuild_i32,
+        )
+        .unwrap()
+        .run_to_end()
+        .unwrap();
+        assert_eq!(summarize(&resumed), summarize(&uninterrupted));
+    }
+
+    #[test]
+    fn midrun_checkpoint_rejects_corrupt_mismatched_and_bound_violations() {
+        let mut engine = CegisEngine::new(
+            toy_search(vec![0, 1, 2]),
+            ToyOracle,
+            ToyGenerator,
+            CegisConfig::new(7, 8, 8, 4).unwrap(),
+            vec![fixture("seed-low", -1)],
+        )
+        .unwrap();
+        assert!(!engine.run_steps(1).unwrap());
+        let text = engine.checkpoint().unwrap().to_canonical_text();
+
+        assert!(CegisCheckpoint::from_canonical_text(&(text.clone() + "unknown=1\n")).is_err());
+        assert!(CegisCheckpoint::from_canonical_text(&text[..text.len() - 1]).is_err());
+        assert!(
+            CegisCheckpoint::from_canonical_text(
+                &text.replace("ADA-CEGIS-CHECKPOINT-V1", "ADA-CEGIS-CHECKPOINT-V2")
+            )
+            .is_err()
+        );
+
+        let lines: Vec<&str> = text.lines().collect();
+        let filtered: Vec<&str> = lines
+            .iter()
+            .copied()
+            .filter(|line| !line.starts_with("config_fingerprint="))
+            .collect();
+        let mut truncated = filtered.join("\n");
+        truncated.push('\n');
+        assert!(CegisCheckpoint::from_canonical_text(&truncated).is_err());
+
+        let decoded = CegisCheckpoint::from_canonical_text(&text).unwrap();
+        assert!(
+            CegisEngine::from_checkpoint(
+                ToySpace {
+                    values: vec![9, 8, 7],
+                },
+                ToyOracle,
+                ToyGenerator,
+                &decoded,
+                rebuild_i32,
+            )
+            .is_err()
+        );
+        assert!(CegisConfig::new(0, MAX_ACTIVE_FIXTURES + 1, 1, 1).is_err());
     }
 
     #[test]
