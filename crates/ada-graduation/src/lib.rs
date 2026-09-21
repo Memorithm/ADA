@@ -22,8 +22,8 @@ use ada_cost_model::{
 };
 use ada_implementation::ImplementationPlan;
 use ada_objective::{
-    CandidateKey, CorrectnessStatus, LogicalCost, MeasuredCost, NumericalObjectives,
-    ObjectiveError, ObjectiveVector, QualityMetric,
+    AlgorithmicError, CandidateKey, CorrectnessStatus, LogicalCost, MeasuredCost,
+    NumericalObjectives, ObjectiveError, ObjectiveVector, QualityMetric,
 };
 use ada_qualification::{
     EvidenceBoundQualification, QUALIFICATION_CASE_VERSION, SemanticWorkloadCase,
@@ -303,8 +303,8 @@ mod policy;
 mod task_quality;
 
 pub use task_quality::{
-    accept_lane_separated_quality, materialize_graduation_quality, reject_survival_fills,
-    task_quality_from_cegis_survival,
+    accept_lane_separated_quality, algorithmic_error_from_cegis_survival,
+    materialize_graduation_quality, reject_survival_fills, task_quality_from_cegis_survival,
 };
 
 impl FlatGraduationBundle {

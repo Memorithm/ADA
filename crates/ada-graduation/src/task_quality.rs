@@ -28,8 +28,9 @@ impl GraduationObjectives {
     ///
     /// The packet must already satisfy `contract` (same slot names/directions in
     /// order). Algorithmic, numerical, and cost lanes on the packet are ignored
-    /// here: A12 still owns logical/estimated cost inside the graduation bundle,
-    /// and algorithmic error is not yet an `ObjectiveVector` codec field.
+    /// here: A12 still owns logical/estimated cost inside the graduation bundle.
+    /// Algorithmic error is an `ObjectiveVector` codec lane but is not copied into
+    /// graduation quality metrics by this adapter.
     ///
     /// # Errors
     ///
@@ -105,6 +106,20 @@ pub fn task_quality_from_cegis_survival(
 ) -> Result<TaskQualityFill, GraduationError> {
     // Parameters document the forbidden mapping at the call site; no numeric
     // remapping to task quality is defined.
+    Err(GraduationError::SurvivalIsNotTaskQuality)
+}
+
+/// Explicit non-mapping: CEGIS survivor/rejection counts never become
+/// algorithmic-error lane values (nor task quality).
+///
+/// # Errors
+///
+/// Always returns [`GraduationError::SurvivalIsNotTaskQuality`].
+#[allow(unused_variables)]
+pub fn algorithmic_error_from_cegis_survival(
+    survivors: u64,
+    rejected: u64,
+) -> Result<ada_objective::AlgorithmicError, GraduationError> {
     Err(GraduationError::SurvivalIsNotTaskQuality)
 }
 
@@ -244,6 +259,18 @@ mod tests {
         assert_eq!(
             accept_lane_separated_quality(&contract, &ok).unwrap()[0].value(),
             Some(1.0)
+        );
+    }
+
+    #[test]
+    fn cegis_survival_cannot_become_algorithmic_error_or_task_quality() {
+        assert_eq!(
+            algorithmic_error_from_cegis_survival(3, 7),
+            Err(GraduationError::SurvivalIsNotTaskQuality)
+        );
+        assert_eq!(
+            task_quality_from_cegis_survival(3, 7, "exact_retrieval"),
+            Err(GraduationError::SurvivalIsNotTaskQuality)
         );
     }
 }

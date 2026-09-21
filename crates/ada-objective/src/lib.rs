@@ -22,12 +22,12 @@ mod task_quality;
 
 pub use codec::{OBJECTIVE_TEXT_HEADER, OBJECTIVE_VECTOR_VERSION};
 pub use task_quality::{
-    AlgorithmicError, CausalArgmaxCandidate, CausalArgmaxOracle, CausalArgmaxRetrievalTask,
-    CopyTokenAttentionTask, CopyTokenCandidate, CopyTokenOracle, LaneSeparatedEvidence,
-    LaneSeparatedEvidenceSpec, MaskedPositionCandidate, MaskedPositionOracle,
-    MaskedPositionRetrievalTask, QualityValueSource, RelativeOffsetCandidate, RelativeOffsetOracle,
-    RelativeOffsetSelectionTask, TASK_QUALITY_CONTRACT_HEADER, TASK_QUALITY_CONTRACT_VERSION,
-    TaskQualityContract, TaskQualityError, TaskQualityFill, TaskQualitySlot,
+    CausalArgmaxCandidate, CausalArgmaxOracle, CausalArgmaxRetrievalTask, CopyTokenAttentionTask,
+    CopyTokenCandidate, CopyTokenOracle, LaneSeparatedEvidence, LaneSeparatedEvidenceSpec,
+    MaskedPositionCandidate, MaskedPositionOracle, MaskedPositionRetrievalTask, QualityValueSource,
+    RelativeOffsetCandidate, RelativeOffsetOracle, RelativeOffsetSelectionTask,
+    TASK_QUALITY_CONTRACT_HEADER, TASK_QUALITY_CONTRACT_VERSION, TaskQualityContract,
+    TaskQualityError, TaskQualityFill, TaskQualitySlot,
 };
 
 /// Maximum number of task-quality dimensions in one objective vector.
@@ -74,6 +74,8 @@ pub enum ObjectiveError {
     ArchiveFull,
     /// A canonical objective artifact is malformed or non-canonical.
     MalformedCanonical(String),
+    /// An evidence lane cannot populate algorithmic error.
+    ForbiddenAlgorithmicSource(&'static str),
 }
 
 impl Display for ObjectiveError {
@@ -98,6 +100,12 @@ impl Display for ObjectiveError {
             Self::ArchiveFull => write!(formatter, "Pareto archive capacity is exhausted"),
             Self::MalformedCanonical(reason) => {
                 write!(formatter, "malformed objective canonical text: {reason}")
+            }
+            Self::ForbiddenAlgorithmicSource(source) => {
+                write!(
+                    formatter,
+                    "source {source} cannot populate algorithmic error"
+                )
             }
         }
     }
@@ -167,6 +175,130 @@ pub struct NumericalObjectives {
     pub max_ulp_error: Option<u64>,
     /// Absolute normalization or log-sum-exp error.
     pub normalization_error: Option<f64>,
+}
+
+/// Algorithmic / structural error lane, separate from floating-point numerical
+/// error, cost, ITD/TDI diagnostics, CEGIS survival, and task quality.
+///
+/// Counts are discrete oracle mismatches. They must never be silently aliased
+/// from [`NumericalObjectives`], cost fields, or [`QualityMetric`] values.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct AlgorithmicError {
+    /// Discrete support / index-set mismatches versus an oracle.
+    pub support_mismatches: Option<u64>,
+    /// Discrete selection / argmax failures versus an oracle.
+    pub selection_failures: Option<u64>,
+    /// Other structural invariant violations.
+    pub invariant_violations: Option<u64>,
+}
+
+impl AlgorithmicError {
+    /// Construct an empty algorithmic-error lane.
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self {
+            support_mismatches: None,
+            selection_failures: None,
+            invariant_violations: None,
+        }
+    }
+
+    /// Whether every dimension is unset.
+    #[must_use]
+    pub const fn is_empty(self) -> bool {
+        self.support_mismatches.is_none()
+            && self.selection_failures.is_none()
+            && self.invariant_violations.is_none()
+    }
+}
+
+/// Provenance labels that may or may not populate [`AlgorithmicError`].
+///
+/// Only mechanistic/oracle structural grading may fill the lane. Numerical
+/// error, cost, ITD/TDI diagnostics, CEGIS survival, and task-quality metrics
+/// are rejected fail-closed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AlgorithmicErrorSource {
+    /// Discrete structural grading against a mechanistic fixture oracle.
+    MechanisticOracleGrading,
+    /// Explicit structural invariant check declared by the experiment.
+    StructuralInvariantCheck,
+    /// Floating-point numerical objectives. Forbidden.
+    NumericalObjectives,
+    /// Logical / estimated / measured cost. Forbidden.
+    CostField,
+    /// ITD structural diagnostic. Forbidden.
+    ItdDiagnostic,
+    /// TDI recovery/intervention diagnostic. Forbidden.
+    TdiDiagnostic,
+    /// CEGIS survival or rejection disposition. Forbidden.
+    CegisSurvivalOrRejection,
+    /// Task-quality metric value. Forbidden.
+    TaskQualityMetric,
+}
+
+impl AlgorithmicErrorSource {
+    /// Whether this source may populate the algorithmic-error lane.
+    #[must_use]
+    pub const fn may_fill_algorithmic_error(self) -> bool {
+        matches!(
+            self,
+            Self::MechanisticOracleGrading | Self::StructuralInvariantCheck
+        )
+    }
+
+    /// Canonical source label.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::MechanisticOracleGrading => "mechanistic-oracle-grading",
+            Self::StructuralInvariantCheck => "structural-invariant-check",
+            Self::NumericalObjectives => "numerical-objectives",
+            Self::CostField => "cost-field",
+            Self::ItdDiagnostic => "itd-diagnostic",
+            Self::TdiDiagnostic => "tdi-diagnostic",
+            Self::CegisSurvivalOrRejection => "cegis-survival-or-rejection",
+            Self::TaskQualityMetric => "task-quality-metric",
+        }
+    }
+}
+
+impl std::fmt::Display for AlgorithmicErrorSource {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.label())
+    }
+}
+
+/// Accept an algorithmic-error value only from an allowed provenance.
+///
+/// # Errors
+///
+/// Returns [`ObjectiveError::ForbiddenAlgorithmicSource`] when `source` cannot
+/// populate the algorithmic-error lane.
+pub fn accept_algorithmic_error(
+    source: AlgorithmicErrorSource,
+    error: AlgorithmicError,
+) -> Result<AlgorithmicError, ObjectiveError> {
+    if source.may_fill_algorithmic_error() {
+        Ok(error)
+    } else {
+        Err(ObjectiveError::ForbiddenAlgorithmicSource(source.label()))
+    }
+}
+
+/// Explicit non-mapping: CEGIS survivor/rejection counts never become
+/// algorithmic error (nor task quality).
+///
+/// # Errors
+///
+/// Always returns [`ObjectiveError::ForbiddenAlgorithmicSource`].
+pub fn algorithmic_error_from_cegis_survival(
+    _survivors: u64,
+    _rejected: u64,
+) -> Result<AlgorithmicError, ObjectiveError> {
+    Err(ObjectiveError::ForbiddenAlgorithmicSource(
+        AlgorithmicErrorSource::CegisSurvivalOrRejection.label(),
+    ))
 }
 
 /// Logical operation-count objectives.
@@ -265,6 +397,7 @@ impl QualityMetric {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ObjectiveVector {
     correctness: CorrectnessStatus,
+    algorithmic: AlgorithmicError,
     numerical: NumericalObjectives,
     logical: LogicalCost,
     estimated: EstimatedCost,
@@ -278,6 +411,7 @@ impl ObjectiveVector {
     pub fn new(correctness: CorrectnessStatus) -> Self {
         Self {
             correctness,
+            algorithmic: AlgorithmicError::empty(),
             numerical: NumericalObjectives::default(),
             logical: LogicalCost::default(),
             estimated: EstimatedCost::default(),
@@ -295,6 +429,7 @@ impl ObjectiveVector {
     /// lexical order before the vector is stored.
     pub fn from_parts(
         correctness: CorrectnessStatus,
+        algorithmic: AlgorithmicError,
         numerical: NumericalObjectives,
         logical: LogicalCost,
         estimated: EstimatedCost,
@@ -312,6 +447,7 @@ impl ObjectiveVector {
         quality.sort_by(|left, right| left.name.cmp(&right.name));
         let vector = Self {
             correctness,
+            algorithmic,
             numerical,
             logical,
             estimated,
@@ -320,6 +456,20 @@ impl ObjectiveVector {
         };
         vector.validate()?;
         Ok(vector)
+    }
+
+    /// Replace algorithmic / structural error while preserving validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the resulting vector is invalid.
+    pub fn with_algorithmic(
+        mut self,
+        algorithmic: AlgorithmicError,
+    ) -> Result<Self, ObjectiveError> {
+        self.algorithmic = algorithmic;
+        self.validate()?;
+        Ok(self)
     }
 
     /// Replace numerical objectives while preserving validation.
@@ -393,6 +543,12 @@ impl ObjectiveVector {
     #[must_use]
     pub const fn correctness(&self) -> CorrectnessStatus {
         self.correctness
+    }
+
+    /// Algorithmic / structural error dimensions.
+    #[must_use]
+    pub const fn algorithmic(&self) -> AlgorithmicError {
+        self.algorithmic
     }
 
     /// Numerical error dimensions.
@@ -475,6 +631,27 @@ impl ObjectiveVector {
         compare_rank(
             self.correctness.rank(),
             other.correctness.rank(),
+            &mut not_worse,
+            &mut strictly_better,
+        );
+        compare_optional(
+            self.algorithmic.support_mismatches,
+            other.algorithmic.support_mismatches,
+            ObjectiveDirection::Minimize,
+            &mut not_worse,
+            &mut strictly_better,
+        );
+        compare_optional(
+            self.algorithmic.selection_failures,
+            other.algorithmic.selection_failures,
+            ObjectiveDirection::Minimize,
+            &mut not_worse,
+            &mut strictly_better,
+        );
+        compare_optional(
+            self.algorithmic.invariant_violations,
+            other.algorithmic.invariant_violations,
+            ObjectiveDirection::Minimize,
             &mut not_worse,
             &mut strictly_better,
         );
@@ -1108,6 +1285,7 @@ mod tests {
     fn vector(correctness: CorrectnessStatus, error: f64, flops: u64) -> ObjectiveVector {
         ObjectiveVector::from_parts(
             correctness,
+            AlgorithmicError::empty(),
             NumericalObjectives {
                 max_abs_error: Some(error),
                 max_ulp_error: Some(4),
@@ -1154,7 +1332,7 @@ mod tests {
         assert!(ObjectiveVector::from_canonical_text(&text[..text.len() - 1]).is_err());
         assert!(
             ObjectiveVector::from_canonical_text(
-                &text.replace(OBJECTIVE_TEXT_HEADER, "ADA-OBJECTIVE-V2")
+                &text.replace(OBJECTIVE_TEXT_HEADER, "ADA-OBJECTIVE-V1")
             )
             .is_err()
         );
@@ -1167,6 +1345,7 @@ mod tests {
         assert!(
             ObjectiveVector::from_parts(
                 CorrectnessStatus::Unknown,
+                AlgorithmicError::empty(),
                 NumericalObjectives {
                     max_abs_error: Some(-1.0),
                     ..NumericalObjectives::default()
@@ -1183,6 +1362,7 @@ mod tests {
         assert!(
             ObjectiveVector::from_parts(
                 CorrectnessStatus::Unknown,
+                AlgorithmicError::empty(),
                 NumericalObjectives::default(),
                 LogicalCost::default(),
                 EstimatedCost::default(),
@@ -1316,5 +1496,166 @@ mod tests {
             .insert(ParetoEntry::new(right, objectives, "tile-b").unwrap())
             .unwrap();
         assert_eq!(archive.len(), 2);
+    }
+
+    #[test]
+    fn algorithmic_error_lane_is_not_aliased_from_other_lanes() {
+        let numerical = NumericalObjectives {
+            max_abs_error: Some(0.5),
+            max_ulp_error: Some(8),
+            normalization_error: Some(0.25),
+        };
+        let logical = LogicalCost {
+            flops: Some(100),
+            ..LogicalCost::default()
+        };
+        let quality = vec![quality("task_accuracy", 0.9, ObjectiveDirection::Maximize)];
+        let algorithmic = AlgorithmicError {
+            support_mismatches: Some(2),
+            selection_failures: Some(1),
+            invariant_violations: Some(0),
+        };
+        let vector = ObjectiveVector::from_parts(
+            CorrectnessStatus::Provisional,
+            algorithmic,
+            numerical,
+            logical,
+            EstimatedCost::default(),
+            MeasuredCost::default(),
+            quality,
+        )
+        .unwrap();
+        assert_eq!(vector.algorithmic().support_mismatches, Some(2));
+        assert_eq!(vector.algorithmic().selection_failures, Some(1));
+        assert_eq!(vector.numerical().max_abs_error, Some(0.5));
+        assert_eq!(vector.logical().flops, Some(100));
+        assert_eq!(vector.quality()[0].value(), Some(0.9));
+        // Codec round-trip preserves the algorithmic lane distinctly.
+        let text = vector.to_canonical_text();
+        assert!(text.contains("algorithmic_support_mismatches=2"));
+        assert!(text.contains("max_abs_error="));
+        assert!(!text.contains("algorithmic_support_mismatches=3f"));
+        let decoded = ObjectiveVector::from_canonical_text(&text).unwrap();
+        assert_eq!(decoded.algorithmic(), algorithmic);
+        assert_eq!(decoded.numerical().max_abs_error, Some(0.5));
+        // Distinct lanes: algorithmic counts are not the numerical error bits.
+        assert_eq!(decoded.algorithmic().support_mismatches, Some(2));
+        assert_eq!(decoded.numerical().max_abs_error, Some(0.5));
+        assert!(
+            decoded
+                .to_canonical_text()
+                .contains("algorithmic_support_mismatches=2")
+        );
+        assert!(!decoded.to_canonical_text().contains("max_abs_error=2"));
+    }
+
+    #[test]
+    fn forbidden_sources_cannot_populate_algorithmic_error() {
+        let err = AlgorithmicError {
+            support_mismatches: Some(1),
+            selection_failures: None,
+            invariant_violations: None,
+        };
+        for source in [
+            AlgorithmicErrorSource::NumericalObjectives,
+            AlgorithmicErrorSource::CostField,
+            AlgorithmicErrorSource::ItdDiagnostic,
+            AlgorithmicErrorSource::TdiDiagnostic,
+            AlgorithmicErrorSource::CegisSurvivalOrRejection,
+            AlgorithmicErrorSource::TaskQualityMetric,
+        ] {
+            assert_eq!(
+                accept_algorithmic_error(source, err),
+                Err(ObjectiveError::ForbiddenAlgorithmicSource(source.label()))
+            );
+        }
+        assert_eq!(
+            accept_algorithmic_error(AlgorithmicErrorSource::MechanisticOracleGrading, err),
+            Ok(err)
+        );
+        assert_eq!(
+            algorithmic_error_from_cegis_survival(4, 9),
+            Err(ObjectiveError::ForbiddenAlgorithmicSource(
+                AlgorithmicErrorSource::CegisSurvivalOrRejection.label()
+            ))
+        );
+    }
+
+    #[test]
+    fn algorithmic_dominance_is_independent_of_numerical_and_quality() {
+        let base = ObjectiveVector::new(CorrectnessStatus::Provisional);
+        let low_algo = base
+            .clone()
+            .with_algorithmic(AlgorithmicError {
+                support_mismatches: Some(0),
+                selection_failures: Some(0),
+                invariant_violations: Some(0),
+            })
+            .unwrap();
+        let high_algo = base
+            .clone()
+            .with_algorithmic(AlgorithmicError {
+                support_mismatches: Some(3),
+                selection_failures: Some(0),
+                invariant_violations: Some(0),
+            })
+            .unwrap();
+        assert!(low_algo.dominates(&high_algo).unwrap());
+        assert!(!high_algo.dominates(&low_algo).unwrap());
+
+        let low_num = base
+            .clone()
+            .with_numerical(NumericalObjectives {
+                max_abs_error: Some(0.01),
+                ..NumericalObjectives::default()
+            })
+            .unwrap();
+        let high_num_low_algo = low_num
+            .clone()
+            .with_algorithmic(AlgorithmicError {
+                support_mismatches: Some(0),
+                ..AlgorithmicError::empty()
+            })
+            .unwrap()
+            .with_numerical(NumericalObjectives {
+                max_abs_error: Some(0.5),
+                ..NumericalObjectives::default()
+            })
+            .unwrap();
+        // Better algorithmic error cannot be erased by worse numerical alone into
+        // a silent alias; the vectors trade off and neither dominates.
+        let better_algo_worse_num = base
+            .with_algorithmic(AlgorithmicError {
+                support_mismatches: Some(0),
+                ..AlgorithmicError::empty()
+            })
+            .unwrap()
+            .with_numerical(NumericalObjectives {
+                max_abs_error: Some(0.5),
+                ..NumericalObjectives::default()
+            })
+            .unwrap();
+        let worse_algo_better_num = ObjectiveVector::new(CorrectnessStatus::Provisional)
+            .with_algorithmic(AlgorithmicError {
+                support_mismatches: Some(2),
+                ..AlgorithmicError::empty()
+            })
+            .unwrap()
+            .with_numerical(NumericalObjectives {
+                max_abs_error: Some(0.01),
+                ..NumericalObjectives::default()
+            })
+            .unwrap();
+        assert!(
+            !better_algo_worse_num
+                .dominates(&worse_algo_better_num)
+                .unwrap()
+        );
+        assert!(
+            !worse_algo_better_num
+                .dominates(&better_algo_worse_num)
+                .unwrap()
+        );
+        let _ = high_num_low_algo;
     }
 }

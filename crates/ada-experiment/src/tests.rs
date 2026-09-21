@@ -11,8 +11,8 @@ use ada_implementation::{
     ReductionTopology, SchedulePlan, TileShape, WorkPartition,
 };
 use ada_objective::{
-    CorrectnessStatus, EstimatedCost, LogicalCost, MeasuredCost, NumericalObjectives,
-    ObjectiveDirection, ObjectiveVector, QualityMetric,
+    AlgorithmicError, CorrectnessStatus, EstimatedCost, LogicalCost, MeasuredCost,
+    NumericalObjectives, ObjectiveDirection, ObjectiveVector, QualityMetric,
 };
 use ada_semantic::{MaskRule, SelectionRule, SemanticProgram};
 use ada_workload::{
@@ -106,6 +106,7 @@ fn experiment_round_trip_binds_all_identity_layers() {
     let (semantic, workload, implementation) = components();
     let objective = ObjectiveVector::from_parts(
         CorrectnessStatus::Provisional,
+        AlgorithmicError::empty(),
         NumericalObjectives {
             max_abs_error: Some(0.0),
             ..NumericalObjectives::default()

@@ -62,6 +62,7 @@ speedup is implied by the existence of a schedule.
 | Multi-objective/Pareto archive | yes | typed dimensions; no hidden scalar weighting |
 | Attention surface identity (geometry+mask+mode) | yes | versioned codec/fingerprint; not an oracle |
 | Task-quality contract / lane separation | yes | algorithmic vs numerical vs cost vs task quality; ITD/TDI/cost/survival cannot fill task quality |
+| ObjectiveVector algorithmic-error lane/codec | yes | ADA-OBJECTIVE-V2; AlgorithmicError cannot be aliased from numerical/cost/ITD/TDI/CEGIS/task_quality |
 | Graduation task-quality adapter | yes | LaneSeparatedEvidence → GraduationObjectives; CEGIS survival rejected |
 | Mechanistic task fixtures | partial | causal-argmax, masked-position, relative-offset, copy-token; not LM benches |
 | Implementation identity | yes | multiple implementation candidates may share one semantic |

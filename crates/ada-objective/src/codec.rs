@@ -1,20 +1,23 @@
 //! Strict canonical codec for objective vectors.
 
 use super::{
-    CorrectnessStatus, EstimatedCost, LogicalCost, MAX_OBJECTIVE_TEXT_BYTES, MAX_QUALITY_METRICS,
-    MeasuredCost, NumericalObjectives, ObjectiveDirection, ObjectiveError, ObjectiveVector,
-    QualityMetric,
+    AlgorithmicError, CorrectnessStatus, EstimatedCost, LogicalCost, MAX_OBJECTIVE_TEXT_BYTES,
+    MAX_QUALITY_METRICS, MeasuredCost, NumericalObjectives, ObjectiveDirection, ObjectiveError,
+    ObjectiveVector, QualityMetric,
 };
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 /// Canonical objective-vector header.
-pub const OBJECTIVE_TEXT_HEADER: &str = "ADA-OBJECTIVE-V1";
+pub const OBJECTIVE_TEXT_HEADER: &str = "ADA-OBJECTIVE-V2";
 /// Canonical objective-vector schema version.
-pub const OBJECTIVE_VECTOR_VERSION: u16 = 1;
+pub const OBJECTIVE_VECTOR_VERSION: u16 = 2;
 
 const BASE_FIELDS: &[&str] = &[
     "correctness",
+    "algorithmic_support_mismatches",
+    "algorithmic_selection_failures",
+    "algorithmic_invariant_violations",
     "max_abs_error",
     "max_ulp_error",
     "normalization_error",
@@ -38,6 +41,7 @@ impl ObjectiveVector {
     pub(crate) fn encode_canonical(&self) -> String {
         let mut text = format!("{OBJECTIVE_TEXT_HEADER}\n");
         append(&mut text, "correctness", self.correctness);
+        append_algorithmic(&mut text, self.algorithmic);
         append(
             &mut text,
             "max_abs_error",
@@ -172,6 +176,7 @@ impl ObjectiveVector {
         }
         let vector = ObjectiveVector::from_parts(
             parse_correctness(field(&fields, "correctness")?)?,
+            decode_algorithmic(&fields)?,
             NumericalObjectives {
                 max_abs_error: decode_float(field(&fields, "max_abs_error")?)?,
                 max_ulp_error: decode_u64(field(&fields, "max_ulp_error")?)?,
@@ -210,6 +215,32 @@ impl ObjectiveVector {
         }
         Ok(vector)
     }
+}
+
+fn append_algorithmic(text: &mut String, algorithmic: AlgorithmicError) {
+    append(
+        text,
+        "algorithmic_support_mismatches",
+        encode_u64(algorithmic.support_mismatches),
+    );
+    append(
+        text,
+        "algorithmic_selection_failures",
+        encode_u64(algorithmic.selection_failures),
+    );
+    append(
+        text,
+        "algorithmic_invariant_violations",
+        encode_u64(algorithmic.invariant_violations),
+    );
+}
+
+fn decode_algorithmic(fields: &BTreeMap<&str, &str>) -> Result<AlgorithmicError, ObjectiveError> {
+    Ok(AlgorithmicError {
+        support_mismatches: decode_u64(field(fields, "algorithmic_support_mismatches")?)?,
+        selection_failures: decode_u64(field(fields, "algorithmic_selection_failures")?)?,
+        invariant_violations: decode_u64(field(fields, "algorithmic_invariant_violations")?)?,
+    })
 }
 
 fn append(text: &mut String, key: &str, value: impl std::fmt::Display) {
