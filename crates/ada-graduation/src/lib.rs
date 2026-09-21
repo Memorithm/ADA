@@ -6,8 +6,9 @@
 //! research verdict into one deterministic artifact.
 //!
 //! Optional task-quality attachment goes through
-//! [`GraduationObjectives::from_lane_separated`]: CEGIS survival, ITD/TDI, and
-//! cost fields cannot silently fill task-quality slots.
+//! [`GraduationObjectives::from_lane_separated`] or the deeper
+//! [`attach_task_quality`] / [`CegisTaskQualityAttachBuilder`] path: CEGIS
+//! survival, ITD/TDI, and cost fields cannot silently fill task-quality slots.
 
 #![forbid(unsafe_code)]
 
@@ -84,6 +85,12 @@ pub enum GraduationError {
     TaskQualitySchemaMismatch,
     /// CEGIS survival / rejection disposition cannot fill task quality.
     SurvivalIsNotTaskQuality,
+    /// Attached evidence is missing a populated algorithmic-error lane.
+    MissingAlgorithmicLane,
+    /// Attached evidence is missing task-quality metrics.
+    MissingTaskQualityLane,
+    /// Expected vs claimed attention-surface / workload identity disagree.
+    AttachmentIdentityMismatch,
     /// Canonical graduation text is malformed or non-canonical.
     MalformedCanonical(String),
 }
@@ -129,6 +136,13 @@ impl Display for GraduationError {
             Self::SurvivalIsNotTaskQuality => {
                 formatter.write_str("CEGIS survival/rejection is not task quality")
             }
+            Self::MissingAlgorithmicLane => formatter.write_str(
+                "CEGIS task-quality attachment requires a populated algorithmic-error lane",
+            ),
+            Self::MissingTaskQualityLane => formatter
+                .write_str("CEGIS task-quality attachment requires populated task-quality metrics"),
+            Self::AttachmentIdentityMismatch => formatter
+                .write_str("attached task-quality evidence surface/workload identity mismatch"),
             Self::MalformedCanonical(reason) => {
                 write!(formatter, "malformed graduation artifact: {reason}")
             }
@@ -298,10 +312,15 @@ pub struct GraduationObjectives {
     pub quality: Vec<QualityMetric>,
 }
 
+mod cegis_attach;
 mod codec;
 mod policy;
 mod task_quality;
 
+pub use cegis_attach::{
+    CegisRunContext, CegisTaskQualityAttachBuilder, CegisTaskQualityAttachment,
+    attach_task_quality, attach_task_quality_from_survival_only,
+};
 pub use task_quality::{
     accept_lane_separated_quality, algorithmic_error_from_cegis_survival,
     materialize_graduation_quality, reject_survival_fills, task_quality_from_cegis_survival,
