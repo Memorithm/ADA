@@ -8,6 +8,13 @@
 
 #![forbid(unsafe_code)]
 
+mod archive;
+
+pub use archive::{
+    ArchivedFixtureIdentity, ArchivedSurvivor, CEGIS_RUN_ARCHIVE_VERSION, CegisRunArchive,
+    MAX_RUN_ARCHIVE_TEXT_BYTES,
+};
+
 use ada_search::{SearchCandidate, SearchEngine, SearchError, SearchFingerprint, SearchSpace};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter, Write as _};
@@ -94,7 +101,7 @@ pub struct FixtureFingerprint {
 }
 
 impl FixtureFingerprint {
-    fn of_bytes(bytes: &[u8]) -> Self {
+    pub(crate) fn of_bytes(bytes: &[u8]) -> Self {
         const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
         const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
         const MIX_MULT: u64 = 0xff51_afd7_ed55_8ccd;
@@ -366,6 +373,24 @@ impl CegisStats {
     #[must_use]
     pub const fn survivors_admitted(self) -> u64 {
         self.survivors_admitted
+    }
+
+    /// Reconstruct counters from an explicit ordered tuple (archive decode).
+    #[must_use]
+    pub const fn from_parts(values: [u64; 11]) -> Self {
+        Self {
+            candidates_considered: values[0],
+            active_fixture_checks: values[1],
+            adversarial_fixture_generated: values[2],
+            adversarial_fixture_checks: values[3],
+            survivors_retested: values[4],
+            survivors_falsified: values[5],
+            oracle_falsified: values[6],
+            adversarial_falsified: values[7],
+            active_fixtures_added: values[8],
+            counterexamples_recorded: values[9],
+            survivors_admitted: values[10],
+        }
     }
 }
 
@@ -687,6 +712,8 @@ impl<C, I> RejectedCandidate<C, I> {
 /// Completed CEGIS result with survivors, rejections, and retained artifacts.
 #[derive(Clone)]
 pub struct CegisResult<C, I> {
+    config: CegisConfig,
+    space_fingerprint: SearchFingerprint,
     survivors: Vec<SearchCandidate<C>>,
     rejected: Vec<RejectedCandidate<C, I>>,
     active_fixtures: Vec<Fixture<I>>,
@@ -696,7 +723,23 @@ pub struct CegisResult<C, I> {
 }
 
 impl<C, I> CegisResult<C, I> {
+    /// Configuration bounds and seed used for this completed run.
+    #[must_use]
+    pub const fn config(&self) -> CegisConfig {
+        self.config
+    }
+
+    /// Fingerprint of the search space that produced the candidates.
+    #[must_use]
+    pub const fn space_fingerprint(&self) -> SearchFingerprint {
+        self.space_fingerprint
+    }
+
     /// Candidates surviving all active-corpus and adversarial checks.
+    ///
+    /// Survival means only that the candidate was not falsified by the recorded
+    /// bounded fixture corpus and adversarial checks. It is **not** adoption,
+    /// qualification, novelty, or FLAT readiness.
     #[must_use]
     pub fn survivors(&self) -> &[SearchCandidate<C>] {
         &self.survivors
@@ -730,6 +773,17 @@ impl<C, I> CegisResult<C, I> {
     #[must_use]
     pub const fn search_stats(&self) -> ada_search::SearchStats {
         self.search_stats
+    }
+}
+
+impl<C, I: Clone> CegisResult<C, I> {
+    /// Build a persistable completed-run archive from this result.
+    ///
+    /// # Errors
+    ///
+    /// Propagates structural archive construction failures.
+    pub fn to_run_archive(&self) -> Result<CegisRunArchive, CegisError> {
+        CegisRunArchive::from_cegis_result(self)
     }
 }
 
@@ -887,6 +941,8 @@ where
         }
 
         Ok(CegisResult {
+            config: self.config,
+            space_fingerprint: self.search.space().fingerprint(),
             survivors: self.survivors,
             rejected: self.rejected,
             active_fixtures: self.active_fixtures,
@@ -1043,7 +1099,7 @@ const ARTIFACT_FIELDS: &[&str] = &[
     "reason",
 ];
 
-fn validate_fixture_id(value: &str) -> Result<(), CegisError> {
+pub(crate) fn validate_fixture_id(value: &str) -> Result<(), CegisError> {
     if value.is_empty() || value.len() > MAX_FIXTURE_ID_BYTES {
         return Err(CegisError::InvalidFixture(
             "fixture identifier is empty or oversized".into(),
@@ -1057,7 +1113,7 @@ fn validate_fixture_id(value: &str) -> Result<(), CegisError> {
     Ok(())
 }
 
-fn validate_fixture_text(value: &str) -> Result<(), CegisError> {
+pub(crate) fn validate_fixture_text(value: &str) -> Result<(), CegisError> {
     if value.is_empty() || value.len() > MAX_FIXTURE_TEXT_BYTES {
         return Err(CegisError::InvalidFixture(
             "fixture canonical text is empty or oversized".into(),
@@ -1080,7 +1136,7 @@ fn validate_reason(value: &str) -> Result<(), CegisError> {
     Ok(())
 }
 
-fn fixture_identity_key(id: &str, canonical_text: &str) -> String {
+pub(crate) fn fixture_identity_key(id: &str, canonical_text: &str) -> String {
     let mut key = String::with_capacity(id.len() + 1 + canonical_text.len());
     key.push_str(id);
     key.push('\n');
@@ -1088,7 +1144,7 @@ fn fixture_identity_key(id: &str, canonical_text: &str) -> String {
     key
 }
 
-fn append_field(text: &mut String, key: &str, value: impl Display) {
+pub(crate) fn append_field(text: &mut String, key: &str, value: impl Display) {
     let _ = writeln!(text, "{key}={value}");
 }
 
@@ -1134,24 +1190,33 @@ fn parse_artifact_fields(text: &str) -> Result<BTreeMap<&str, &str>, CegisError>
     Ok(fields)
 }
 
-fn field<'a>(fields: &'a BTreeMap<&str, &str>, key: &str) -> Result<&'a str, CegisError> {
+pub(crate) fn field<'a>(
+    fields: &'a BTreeMap<&str, &str>,
+    key: &str,
+) -> Result<&'a str, CegisError> {
     fields
         .get(key)
         .copied()
         .ok_or_else(|| CegisError::InvalidArtifact(format!("missing field {key}")))
 }
 
-fn parse_u64_field(fields: &BTreeMap<&str, &str>, key: &str) -> Result<u64, CegisError> {
+pub(crate) fn parse_u64_field(fields: &BTreeMap<&str, &str>, key: &str) -> Result<u64, CegisError> {
     field(fields, key)?.parse::<u64>().map_err(|_| {
         CegisError::InvalidArtifact(format!("{key} is not an unsigned decimal integer"))
     })
 }
 
-fn decode_text_field(fields: &BTreeMap<&str, &str>, key: &str) -> Result<String, CegisError> {
+pub(crate) fn decode_text_field(
+    fields: &BTreeMap<&str, &str>,
+    key: &str,
+) -> Result<String, CegisError> {
     hex_decode(field(fields, key)?)
 }
 
-fn validate_fingerprint_text(value: &str, field_name: &'static str) -> Result<(), CegisError> {
+pub(crate) fn validate_fingerprint_text(
+    value: &str,
+    field_name: &'static str,
+) -> Result<(), CegisError> {
     let mut parts = value.split('-');
     let valid = parts.by_ref().count() == 3
         && value.split('-').all(|part| {
@@ -1180,7 +1245,7 @@ fn parse_source(value: &str) -> Result<CounterexampleSource, CegisError> {
     }
 }
 
-fn hex_encode(value: &str) -> String {
+pub(crate) fn hex_encode(value: &str) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut encoded = String::with_capacity(value.len() * 2);
     for byte in value.as_bytes() {
@@ -1190,7 +1255,7 @@ fn hex_encode(value: &str) -> String {
     encoded
 }
 
-fn hex_decode(value: &str) -> Result<String, CegisError> {
+pub(crate) fn hex_decode(value: &str) -> Result<String, CegisError> {
     if value.is_empty() || value.len() % 2 != 0 {
         return Err(CegisError::InvalidArtifact(
             "hex field is empty or has odd length".into(),
@@ -1539,5 +1604,73 @@ mod tests {
                 .family()
                 == SemanticFamily::StandardSoftmax)
         );
+    }
+
+    #[test]
+    fn run_archive_round_trips_and_preserves_every_rejection() {
+        let result = CegisEngine::new(
+            toy_search(vec![0, 1, 2]),
+            ToyOracle,
+            ToyGenerator,
+            CegisConfig::new(7, 8, 8, 4).unwrap(),
+            vec![fixture("seed-low", -1)],
+        )
+        .unwrap()
+        .run_to_end()
+        .unwrap();
+        let archive = result.to_run_archive().expect("archive");
+        assert_eq!(archive.rejections().len(), result.counterexamples().len());
+        assert_eq!(archive.rejections().len(), result.rejected().len());
+        for (artifact, counterexample) in archive.rejections().iter().zip(result.counterexamples())
+        {
+            assert_eq!(artifact, &counterexample.artifact());
+        }
+        assert_eq!(archive.survivors().len(), result.survivors().len());
+        assert_eq!(archive.config().seed, 7);
+        assert_eq!(
+            archive.space_primary(),
+            result.space_fingerprint().primary()
+        );
+        // Survival is provisional only: archive has no adopted/qualified marker.
+        let text = archive.to_canonical_text();
+        assert!(!text.contains("adopted"));
+        assert!(!text.contains("qualified"));
+        assert!(!text.contains("novelty"));
+        let decoded = CegisRunArchive::from_canonical_text(&text).expect("decode");
+        assert_eq!(decoded, archive);
+        assert_eq!(decoded.to_canonical_text(), text);
+
+        assert!(CegisRunArchive::from_canonical_text(&(text.clone() + "unknown=1\n")).is_err());
+        assert!(CegisRunArchive::from_canonical_text(&text[..text.len() - 1]).is_err());
+        assert!(
+            CegisRunArchive::from_canonical_text(
+                &text.replace("ADA-CEGIS-RUN-ARCHIVE-V1", "ADA-CEGIS-RUN-ARCHIVE-V2")
+            )
+            .is_err()
+        );
+        let mut dropped = text.clone();
+        // Truncate one rejection field name to force incomplete field set.
+        dropped = dropped.replace("rejection_0=", "rejection_x=");
+        assert!(CegisRunArchive::from_canonical_text(&dropped).is_err());
+    }
+
+    #[test]
+    fn run_archive_rejects_silent_counterexample_drop() {
+        let result = CegisEngine::new(
+            toy_search(vec![0, 1, 2]),
+            ToyOracle,
+            ToyGenerator,
+            CegisConfig::new(7, 8, 8, 4).unwrap(),
+            vec![fixture("seed-low", -1)],
+        )
+        .unwrap()
+        .run_to_end()
+        .unwrap();
+        let archive = result.to_run_archive().unwrap();
+        let mut text = archive.to_canonical_text();
+        // Claim fewer rejections than embedded artifacts would require by lowering count
+        // without removing payload keys — field-set size check must fail closed.
+        text = text.replace("rejection_count=2", "rejection_count=1");
+        assert!(CegisRunArchive::from_canonical_text(&text).is_err());
     }
 }
