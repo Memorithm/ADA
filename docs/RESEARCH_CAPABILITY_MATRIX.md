@@ -13,12 +13,15 @@ row-major f64 reference execution for scaled dot products, masking, bounded
 selection, softmax or signed weighting, and weighted value mixing. A strengthened
 evaluator additionally provides exact integer/dyadic affinity, exact equal-score
 uniform weights, and Neumaier-compensated accumulation for differential checks.
-Generation
-is now consumable by a bounded generic CEGIS runner that checks explicit seed
-fixtures, asks a caller-owned adversarial generator for bounded fixtures,
-re-tests prior survivors, and retains candidate/counterexample artifacts. The
-semantic reference path and CEGIS runner still make no novelty or hardware
-claim. They do not turn any declared low-precision, latent-KV, recurrent,
+Separately, `ada-oracle` exposes a strengthened streaming online Softmax path
+(exact singleton / equal-logit uniform weights, otherwise Neumaier-compensated
+f64 accumulation with fail-closed f32 narrowing) alongside the historical naive
+f32 baseline. Generation is now consumable by a bounded generic CEGIS runner
+that checks explicit seed fixtures, asks a caller-owned adversarial generator
+for bounded fixtures, re-tests prior survivors, and retains
+candidate/counterexample artifacts. The semantic reference path, online Softmax
+oracle, and CEGIS runner still make no novelty or hardware claim. They do not
+turn any declared low-precision, latent-KV, recurrent,
 paged, or distributed field into an implementation. The objective layer now
 stores typed, independently directed dimensions and a bounded Pareto decision
 log; it does not collapse them into a scalar score or turn estimates into
@@ -34,7 +37,7 @@ speedup is implied by the existence of a schedule.
 
 | Research family | Semantic | Reference oracle | Searchable | Forward | Backward | Prefill | Decode | GQA/MQA | Paged KV | Low precision | Distributed | Hardware evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Exact dense / online softmax and FlashAttention-style blocking | partial | partial | partial | partial | no | partial | no | no | no | no | no | L1 |
+| Exact dense / online softmax and FlashAttention-style blocking | partial | partial (strengthened online Softmax in ada-oracle) | partial | partial | no | partial | no | no | no | no | no | L1 |
 | Static block sparse attention | no | no | no | no | no | no | no | no | no | no | no | none |
 | Dynamic sparse pattern selection | no | no | no | no | no | no | no | no | no | no | no | none |
 | Hierarchical / trainable sparse attention | no | no | no | no | no | no | no | no | no | no | no | none |
@@ -78,6 +81,9 @@ speedup is implied by the existence of a schedule.
   The historical A1 adapter in ada-workload is explicitly tagged as
   precomputed scalar logits and is not evidence that A1 has a general Q/K/V
   oracle.
+- The strengthened online Softmax path in `ada-oracle` is a differential
+  reference helper only. It does not promote FlashAttention-style blocking,
+  hardware evidence, or FLAT adoption.
 
 ## Current boundary
 

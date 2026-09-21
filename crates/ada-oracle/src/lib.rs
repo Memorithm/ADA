@@ -1,5 +1,9 @@
 #![forbid(unsafe_code)]
 
+mod strengthened;
+
+pub use strengthened::{exact_uniform_weight, online_softmax_strengthened};
+
 use ada_core::{AttentionCase, AttentionResult, LogicalMetrics};
 
 /// Baseline streaming online Softmax recurrence.
