@@ -155,6 +155,30 @@ verified_current_state:
           payloads, provisional survivors, rejected-so-far counterexamples, and
           stats. Resume is bit-deterministic; checkpoint is not qualification,
           adoption, or novelty. Based on main without requiring #46 archive APIs.
+      - slice: ADA1_strengthened_semantic_reference_evaluator
+        pull_request: 53
+        head_branch: research/ada1-exact-reference-oracles
+        head_sha: 1a50f40
+        crate: ada-semantic
+        module: strengthened_reference
+        state: open_pr_not_yet_merged
+        based_on: main
+        independent_of_pr:
+          - 46
+          - 47
+          - 48
+          - 49
+          - 50
+          - 51
+          - 52
+        notes: >-
+          SemanticProgram::evaluate_strengthened for CEGIS differential checks:
+          exact i128 dyadic scaled-dot affinity when Q/K are exact integers and
+          scale is 2^-k; exact equal-score uniform weights 1/n; otherwise
+          Neumaier-compensated softmax mass and value mixing. Parity vs naive
+          f64 evaluate; fail-closed overflow/non-finite; hand-derived fixtures.
+          Docs/matrix note. No usefulness/novelty/FLAT claims. Independent of
+          ADA2 stack and of A11 exact mixer in PR 46.
       - slice: ADA2_attention_surface_and_task_quality_contracts
         pull_request: 49
         head_branch: research/ada2-workload-task-quality
@@ -237,8 +261,10 @@ verified_current_state:
       graduation JSON schema, and the merged ADA0 registry-row /
       SemanticQualificationRecord Rust JSON codec on main. ADA1 has PR 46
       (persistable CegisRunArchive + exact A11-E1 mixer), PR 47 (bounded
-      attention adversarial generators), and PR 48 (mid-run CEGIS
-      checkpoint/resume) in flight; 46/47/48 are mutually independent.
+      attention adversarial generators), PR 48 (mid-run CEGIS
+      checkpoint/resume), and PR 53 (strengthened ada-semantic reference
+      evaluator: exact dyadic affinity + equal-score weights + Neumaier)
+      in flight; 46/47/48/53 are mutually independent and independent of ADA2.
       ADA2 has PR 49 (AttentionSurfaceIdentity + TaskQualityContract + causal-argmax
       mechanistic fixture), stacked PR 50 (more mechanistic fixtures + graduation
       task-quality adapter; depends on #49), stacked PR 51 (ObjectiveVector
@@ -312,6 +338,10 @@ roadmap:
       bounded_attention_adversarial_generators_state: open_pr_not_yet_merged
       cegis_midrun_checkpoint_resume_pr: 48
       cegis_midrun_checkpoint_resume_state: open_pr_not_yet_merged
+      strengthened_semantic_reference_evaluator_pr: 53
+      strengthened_semantic_reference_evaluator_state: open_pr_not_yet_merged
+      strengthened_semantic_reference_head_branch: research/ada1-exact-reference-oracles
+      strengthened_semantic_reference_head_sha: 1a50f40
       delivered_in_pr_46:
         - persistable_CegisRunArchive_completed_run_codec
         - exact_integer_scaled_A11_E1_mixer_evaluator
@@ -321,8 +351,14 @@ roadmap:
       delivered_in_pr_48:
         - mid_run_CEGIS_engine_checkpoint_resume
         - search_materialize_at_for_deterministic_rematerialization
+      delivered_in_pr_53:
+        - evaluate_strengthened_exact_i128_dyadic_affinity
+        - exact_equal_score_uniform_weights
+        - Neumaier_compensated_softmax_and_value_mix
+        - parity_vs_naive_f64_and_hand_derived_fixtures
       still_open:
-        - further_exact_or_strengthened_f64_reference_evaluators_beyond_A11_E1
+        - merge_hygiene_for_open_ADA1_PRs_46_47_48_53
+        - optional_further_exact_domains_online_softmax_or_entmax_small_oracles
     goals:
       - strengthen_f64_or_exact_reference_evaluators
       - expand_adversarial_counterexample_generation
@@ -372,7 +408,7 @@ roadmap:
       still_open:
         - ADA2_polish_or_close_after_stack_merge
         - ADA3_conditional_after_TDI7_1_not_in_ADA_repo
-        - ADA1_exact_oracle_leftover_if_ADA3_blocked
+        - prefer_merge_hygiene_for_46_through_53_before_new_exact_domains
     goals:
       - version_attention_geometries_masks_and_modes
       - separate_algorithmic_error_numerical_error_cost_and_task_quality
