@@ -1,7 +1,7 @@
 schema_version: 1
 kind: ada_ecosystem_agent_roadmap
 status: active
-last_updated: "2026-09-21"
+last_updated: "2026-09-23"
 repository: Memorithm/ADA
 intended_consumer: autonomous_coding_agent
 merge_policy: never_merge_this_file_to_default_branch_unless_user_explicitly_requests
@@ -53,7 +53,7 @@ pipeline:
   - ADOPT_ADAPT_REJECT_OR_DISCOVER
 
 verified_current_state:
-  audited_main_sha: 6ca00ec85bdad1736f1d1eb8da19dc7453bfc77f
+  audited_main_sha: 7385c6d42801a7dc38440eeb6a7d124a86a617aa
   A11:
     status: reference_pipeline_implemented_do_not_duplicate
     evidence:
@@ -118,7 +118,7 @@ verified_current_state:
         crates:
           - ada-cegis
           - ada-a11-semantic-oracle
-        state: open_pr_not_yet_merged
+        state: merged
         notes: >-
           Persistable fail-closed CegisRunArchive for completed falsification
           runs (survival provisional only; not qualification/adoption/novelty).
@@ -130,7 +130,7 @@ verified_current_state:
         head_sha: f7b5341
         crate: ada-cegis
         module: attention_adversarial
-        state: open_pr_not_yet_merged
+        state: merged
         independent_of_pr: 46
         notes: >-
           Caller-owned seed-deterministic attention adversarial helpers
@@ -145,7 +145,7 @@ verified_current_state:
         crates:
           - ada-cegis
           - ada-search
-        state: open_pr_not_yet_merged
+        state: merged
         independent_of_pr:
           - 46
           - 47
@@ -161,7 +161,7 @@ verified_current_state:
         head_sha: 1a50f40
         crate: ada-semantic
         module: strengthened_reference
-        state: open_pr_not_yet_merged
+        state: merged
         based_on: main
         independent_of_pr:
           - 46
@@ -185,7 +185,7 @@ verified_current_state:
         head_sha: fe01472
         crate: ada-oracle
         module: strengthened
-        state: open_pr_not_yet_merged
+        state: merged
         based_on: main
         independent_of_pr:
           - 46
@@ -211,7 +211,7 @@ verified_current_state:
         crates:
           - ada-workload
           - ada-objective
-        state: open_pr_not_yet_merged
+        state: merged
         based_on: main
         independent_of_pr:
           - 46
@@ -231,7 +231,7 @@ verified_current_state:
         crates:
           - ada-objective
           - ada-graduation
-        state: open_pr_not_yet_merged
+        state: merged
         based_on: research/ada2-workload-task-quality
         depends_on_pr:
           - 49
@@ -250,7 +250,7 @@ verified_current_state:
         crates:
           - ada-objective
           - ada-graduation
-        state: open_pr_not_yet_merged
+        state: merged
         based_on: research/ada2-mechanistic-fixtures-wiring
         depends_on_pr:
           - 49
@@ -267,7 +267,7 @@ verified_current_state:
         head_sha: ecdadc6
         crates:
           - ada-graduation
-        state: open_pr_not_yet_merged
+        state: merged
         based_on: research/ada2-objective-algorithmic-error
         depends_on_pr:
           - 49
@@ -279,27 +279,40 @@ verified_current_state:
           mechanistic evaluation populated quality + algorithmic lanes. Rejects
           survival-only, ITD/TDI/cost disguises, missing lanes, surface identity
           mismatch. Not adoption, novelty, FLAT promotion, or training loop.
+      - slice: ADA1_exact_integer_tau_domain
+        pull_request: 56
+        head_branch: research/ada1-exact-integer-tau
+        head_sha: 2b5bfd7c18555909f5a6f5d02cd5264ce850e1b1
+        merge_commit: 7385c6d42801a7dc38440eeb6a7d124a86a617aa
+        crate: ada-a6-tau-solvers
+        module: exact
+        state: merged
+        based_on: main
+        notes: >-
+          sparsemax_exact_i64 is reduced-rational alpha=2 for non-empty i64
+          scores with checked i128 prefix sums (no f64 rounding, no mass
+          renormalization). entmax15_exact_i64 is partial: equal scores of
+          perfect-square length, or a unique maximum with gap at least 2.
+          Out-of-domain 1.5 inputs fail closed with no bisection fallback.
+          A4 dense_entmax remains the general f64 oracle. No usefulness,
+          novelty, or FLAT-adoption claim.
     current_boundary: >-
       ADA already has semantic identity, deterministic reference execution,
       bounded generation, CEGIS qualification, workload/evidence binding,
       fail-closed FLAT graduation artifacts, bit-exact replay, a machine-readable
       graduation JSON schema, and the merged ADA0 registry-row /
-      SemanticQualificationRecord Rust JSON codec on main. ADA1 has PR 46
-      (persistable CegisRunArchive + exact A11-E1 mixer), PR 47 (bounded
-      attention adversarial generators), PR 48 (mid-run CEGIS
-      checkpoint/resume), PR 53 (strengthened ada-semantic reference
-      evaluator: exact dyadic affinity + equal-score weights + Neumaier), and
-      PR 54 (strengthened ada-oracle online Softmax: exact singleton/equal-logit
-      + Neumaier streaming) in flight; 46/47/48/53/54 are mutually independent
-      and independent of ADA2.
-      ADA2 has PR 49 (AttentionSurfaceIdentity + TaskQualityContract + causal-argmax
-      mechanistic fixture), stacked PR 50 (more mechanistic fixtures + graduation
-      task-quality adapter; depends on #49), stacked PR 51 (ObjectiveVector
-      algorithmic-error lane + V2 codec; depends on #50/#49), and stacked PR 52
-      (CEGIS→task-quality attach; depends on #51/#50/#49) in flight, independent
-      of ADA1 open PRs.
-      Do not create a second qualification lifecycle. Production lowering, GPU
-      correctness, hardware qualification, and runtime selection remain outside ADA.
+      SemanticQualificationRecord Rust JSON codec on main. ADA1 PRs 46, 47, 48,
+      53, and 54 are merged: persistable CegisRunArchive, exact A11-E1 mixer,
+      bounded attention adversarial generators, mid-run CEGIS checkpoint/resume,
+      strengthened ada-semantic reference, and strengthened ada-oracle online
+      Softmax. PR 56 adds the exact integer tau domain (full i64 sparsemax,
+      restricted rational 1.5-entmax). ADA2 PRs 49, 50, 51, and 52 are merged:
+      attention surface identity, task-quality lanes, mechanistic fixtures,
+      ObjectiveVector algorithmic-error codec, and fail-closed CEGIS task-quality
+      attach. Do not recreate those contracts. ADA3 stays conditional on TDI 7.1
+      and is not in this repository. Do not create a second qualification
+      lifecycle. Production lowering, GPU correctness, hardware qualification,
+      and runtime selection remain outside ADA.
     open_issue_note: >-
       Issue 7 remains open as the umbrella A11 mission even though its E0-E4
       reference plumbing is materially implemented. Treat it as a reconciliation
@@ -357,20 +370,20 @@ roadmap:
       - keep_this_roadmap_synchronized_with_already_merged_A11_and_later_foundations
   - id: ADA1
     name: Complete exact semantic falsification ladder
-    status: active_on_top_of_implemented_CEGIS_foundation
+    status: reference_ladder_on_main
     evidence:
       cegis_rejection_archive_and_exact_a11_mixer_pr: 46
-      cegis_rejection_archive_and_exact_a11_mixer_state: open_pr_not_yet_merged
+      cegis_rejection_archive_and_exact_a11_mixer_state: merged
       bounded_attention_adversarial_generators_pr: 47
-      bounded_attention_adversarial_generators_state: open_pr_not_yet_merged
+      bounded_attention_adversarial_generators_state: merged
       cegis_midrun_checkpoint_resume_pr: 48
-      cegis_midrun_checkpoint_resume_state: open_pr_not_yet_merged
+      cegis_midrun_checkpoint_resume_state: merged
       strengthened_semantic_reference_evaluator_pr: 53
-      strengthened_semantic_reference_evaluator_state: open_pr_not_yet_merged
+      strengthened_semantic_reference_evaluator_state: merged
       strengthened_semantic_reference_head_branch: research/ada1-exact-reference-oracles
       strengthened_semantic_reference_head_sha: 1a50f40
       strengthened_online_softmax_reference_pr: 54
-      strengthened_online_softmax_reference_state: open_pr_not_yet_merged
+      strengthened_online_softmax_reference_state: merged
       strengthened_online_softmax_head_branch: research/ada1-online-softmax-exact
       strengthened_online_softmax_head_sha: fe01472
       delivered_in_pr_46:
@@ -391,9 +404,18 @@ roadmap:
         - online_softmax_strengthened_exact_singleton_and_equal_logit
         - Neumaier_compensated_f64_streaming_online_softmax
         - fail_closed_f32_narrowing_parity_and_hand_fixtures
+      delivered_in_pr_56:
+        - sparsemax_exact_i64_reduced_rational_threshold_and_probabilities
+        - entmax15_exact_i64_perfect_square_equal_scores_or_unique_max_gap_at_least_2
+        - out_of_domain_1_5_inputs_fail_closed_without_bisection_fallback
+      exact_integer_tau_domain_pr: 56
+      exact_integer_tau_domain_state: merged
+      exact_integer_tau_head_branch: research/ada1-exact-integer-tau
+      exact_integer_tau_head_sha: 2b5bfd7c18555909f5a6f5d02cd5264ce850e1b1
+      exact_integer_tau_merge_commit: 7385c6d42801a7dc38440eeb6a7d124a86a617aa
       still_open:
-        - merge_hygiene_for_open_ADA1_PRs_46_47_48_53_54
-        - optional_further_exact_domains_small_entmax_sparsemax_oracles
+        - no_open_ADA1_merge_queue
+        - general_1_5_entmax_outside_the_rational_subset_remains_on_the_A4_f64_oracle
     goals:
       - strengthen_f64_or_exact_reference_evaluators
       - expand_adversarial_counterexample_generation
@@ -401,14 +423,14 @@ roadmap:
       - persist_rejection_artifacts
   - id: ADA2
     name: Attention workload and task-quality contracts
-    status: active
+    status: reference_contracts_on_main
     evidence:
       attention_surface_and_task_quality_contracts_pr: 49
-      attention_surface_and_task_quality_contracts_state: open_pr_not_yet_merged
+      attention_surface_and_task_quality_contracts_state: merged
       head_branch: research/ada2-workload-task-quality
       head_sha: 5723c74
       mechanistic_fixtures_and_graduation_wiring_pr: 50
-      mechanistic_fixtures_and_graduation_wiring_state: open_pr_not_yet_merged
+      mechanistic_fixtures_and_graduation_wiring_state: merged
       mechanistic_fixtures_head_branch: research/ada2-mechanistic-fixtures-wiring
       mechanistic_fixtures_head_sha: 1bd5f55
       depends_on_pr_49: true
@@ -422,7 +444,7 @@ roadmap:
         - GraduationObjectives_from_lane_separated_adapter
         - CEGIS_survival_explicitly_rejected_as_task_quality
       objective_vector_algorithmic_error_codec_pr: 51
-      objective_vector_algorithmic_error_codec_state: open_pr_not_yet_merged
+      objective_vector_algorithmic_error_codec_state: merged
       objective_vector_algorithmic_error_head_branch: research/ada2-objective-algorithmic-error
       objective_vector_algorithmic_error_head_sha: d23a7bd
       depends_on_pr_50: true
@@ -432,7 +454,7 @@ roadmap:
         - AlgorithmicErrorSource_fail_closed_gates
         - CEGIS_survival_explicitly_rejected_as_algorithmic_error
       cegis_task_quality_attach_pr: 52
-      cegis_task_quality_attach_state: open_pr_not_yet_merged
+      cegis_task_quality_attach_state: merged
       cegis_task_quality_attach_head_branch: research/ada2-cegis-task-quality-attach
       cegis_task_quality_attach_head_sha: ecdadc6
       depends_on_pr_51: true
@@ -441,9 +463,9 @@ roadmap:
         - requires_mechanistic_LaneSeparatedEvidence_and_algorithmic_lane
         - rejects_survival_ITD_TDI_cost_missing_lanes_surface_mismatch
       still_open:
-        - ADA2_polish_or_close_after_stack_merge
+        - no_open_ADA2_merge_queue
         - ADA3_conditional_after_TDI7_1_not_in_ADA_repo
-        - prefer_merge_hygiene_for_46_through_54_before_additional_exact_domains
+        - do_not_reopen_the_49_through_52_task_quality_stack
     goals:
       - version_attention_geometries_masks_and_modes
       - separate_algorithmic_error_numerical_error_cost_and_task_quality
