@@ -7,7 +7,7 @@
 | ADA-A3 | Certified error-budgeted Softmax | E0-CERTIFIED-BUDGET-CORRECTNESS (`ada-a3-certified-softmax`) |
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
 | ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED / E5C-NATURAL-GEOMETRY-ABLATION-QUALIFIED |
-| ADA-A6 | Specialized tau solvers | E0-SPARSEMAX-SORTED-RESEARCH (`ada-a6-tau-solvers`) |
+| ADA-A6 | Specialized tau solvers | E0-SPARSEMAX-SORTED-RESEARCH / E1-EXACT-INTEGER-TAU-DOMAIN (`ada-a6-tau-solvers`) |
 | ADA-A7 | Moment / composable Entmax | E0-COMPOSABLE-SPARSEMAX-RESEARCH (`ada-a7-composable-entmax`) |
 | ADA-A8 | Attention recurrence program synthesis | E0-IR-AND-SEARCH-RESEARCH (`ada-ir` + `ada-search`) |
 | ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) / E0-DISPATCH-PARITY (`ada-a9-dispatch`) |
@@ -46,6 +46,17 @@
 - None of these statuses means production-qualified, novel, or adopted by FLAT-ATTENTION.
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
+
+## 2026-09-23 follow-up: exact integer tau domain
+
+- `E1-EXACT-INTEGER-TAU-DOMAIN` (ADA-A6): `sparsemax_exact_i64` returns reduced
+  rational sparsemax probabilities and threshold for non-empty `i64` scores
+  whose checked prefix sums fit in `i128`, with no f64 rounding and no mass
+  renormalization. `entmax15_exact_i64` is partial: equal scores of perfect-square
+  length, or a unique maximum at least 2 above every other score. Out-of-domain
+  1.5 inputs, including equal length 2, fail closed with no bisection fallback.
+  See `docs/ADA1_EXACT_INTEGER_TAU.md`. This does not replace the A4 f64 oracle
+  and it is not a usefulness, novelty, hardware, or FLAT-adoption claim.
 
 ## 2026-08-26 follow-up 5: natural-trace campaigns (E5c + A9 dispatch)
 

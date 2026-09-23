@@ -16,7 +16,10 @@ uniform weights, and Neumaier-compensated accumulation for differential checks.
 Separately, `ada-oracle` exposes a strengthened streaming online Softmax path
 (exact singleton / equal-logit uniform weights, otherwise Neumaier-compensated
 f64 accumulation with fail-closed f32 narrowing) alongside the historical naive
-f32 baseline. Generation is now consumable by a bounded generic CEGIS runner
+f32 baseline. `ada-a6-tau-solvers` additionally exposes an exact integer tau
+domain: rational sparsemax for `i64` scores, and rational alpha = 1.5 entmax
+only for equal perfect-square lengths or a unique maximum with gap at least 2.
+Other 1.5 inputs fail closed rather than falling back to bisection. Generation is now consumable by a bounded generic CEGIS runner
 that checks explicit seed fixtures, asks a caller-owned adversarial generator
 for bounded fixtures, re-tests prior survivors, and retains
 candidate/counterexample artifacts. The semantic reference path, online Softmax
@@ -65,6 +68,7 @@ speedup is implied by the existence of a schedule.
 | ObjectiveVector algorithmic-error lane/codec | yes | ADA-OBJECTIVE-V2; AlgorithmicError cannot be aliased from numerical/cost/ITD/TDI/CEGIS/task_quality |
 | Graduation task-quality adapter | yes | LaneSeparatedEvidence → GraduationObjectives; CEGIS survival rejected |
 | CEGIS→task-quality attach (explicit) | yes | attach_task_quality requires mechanistic LaneSeparatedEvidence + algorithmic lane; survival/ITD/TDI/cost/identity-mismatch rejected |
+| Exact integer tau domain | partial | `i64` sparsemax rationals; 1.5-entmax only on the documented rational subset; not a general alpha solver |
 | Mechanistic task fixtures | partial | causal-argmax, masked-position, relative-offset, copy-token; not LM benches |
 | Implementation identity | yes | multiple implementation candidates may share one semantic |
 | Implementation/schedule/memory IR | yes | representation only; no backend lowering or performance claim |
@@ -87,6 +91,9 @@ speedup is implied by the existence of a schedule.
 - The strengthened online Softmax path in `ada-oracle` is a differential
   reference helper only. It does not promote FlashAttention-style blocking,
   hardware evidence, or FLAT adoption.
+- The exact integer tau path in `ada-a6-tau-solvers` is a differential
+  reference helper for alpha = 2 and a restricted alpha = 1.5 subset. It does
+  not replace the A4 f64 oracle and does not claim usefulness or adoption.
 
 ## Current boundary
 
