@@ -1,18 +1,24 @@
-//! ADA-A6 research candidate: a specialized tau solver for alpha = 2
-//! (sparsemax) based on the sorted projection algorithm instead of generic
-//! bisection.
+//! ADA-A6 research candidate: specialized tau solvers.
 //!
-//! Real-arithmetic fact (Martins & Astudillo 2016): for alpha = 2 the entmax
-//! threshold equals `(sum of the top-k scores - 1) / k`, where `k` is the
-//! largest prefix whose scores exceed that value. The candidate computes this
-//! in f64, normalizes the support exactly like the A4 finalizer, and is
-//! cross-checked against the canonical bisection oracle in tests.
+//! Two paths live in this crate:
+//! - [`sparsemax_sorted`]: f64 sorted-projection sparsemax (alpha = 2),
+//!   cross-checked against the canonical A4 bisection oracle, with a certified
+//!   extreme-magnitude fallback.
+//! - [`sparsemax_exact_i64`] and [`entmax15_exact_i64`]: exact rational
+//!   thresholds on integer scores. Sparsemax covers every non-empty `i64`
+//!   vector whose prefix sums fit in `i128`. The 1.5-entmax path is partial:
+//!   equal scores whose length is a perfect square, or a unique maximum at
+//!   least 2 above every other score. Every other 1.5 input fails closed.
 //!
-//! This crate is RESEARCH scaffolding: the canonical exact solver remains
-//! `ada-a4-entmax-bnb`. Divergences beyond documented tolerance are fail-closed
-//! errors here, not silent fallbacks.
+//! `ada_a4_entmax_bnb::dense_entmax` remains the general f64 oracle. Neither
+//! path claims usefulness, novelty, or FLAT adoption. Divergences beyond a
+//! documented tolerance are fail-closed errors, not silent fallbacks.
 
 #![forbid(unsafe_code)]
+
+mod exact;
+
+pub use exact::{ExactDistribution, ExactRational, entmax15_exact_i64, sparsemax_exact_i64};
 
 use ada_a4_entmax_bnb::EntmaxDistribution;
 
