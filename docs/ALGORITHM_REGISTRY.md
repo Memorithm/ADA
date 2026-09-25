@@ -8,7 +8,7 @@
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
 | ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED / E5C-NATURAL-GEOMETRY-ABLATION-QUALIFIED |
 | ADA-A6 | Specialized tau solvers | E0-SPARSEMAX-SORTED-RESEARCH / E1-EXACT-INTEGER-TAU-DOMAIN (`ada-a6-tau-solvers`) |
-| ADA-A7 | Moment / composable Entmax | E0-COMPOSABLE-SPARSEMAX-RESEARCH (`ada-a7-composable-entmax`) |
+| ADA-A7 | Moment / composable Entmax | E0-COMPOSABLE-SPARSEMAX-RESEARCH / E1-EXACT-INTEGER-COMPOSITION (`ada-a7-composable-entmax`) |
 | ADA-A8 | Attention recurrence program synthesis | E0-IR-AND-SEARCH-RESEARCH (`ada-ir` + `ada-search`) |
 | ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) / E0-DISPATCH-PARITY (`ada-a9-dispatch`) |
 | ADA-A10 | Reproducible numerical oracle/certification | E0-SCHEMA-VALIDATOR (`ada-a10-evidence-schema`) |
@@ -46,6 +46,15 @@
 - None of these statuses means production-qualified, novel, or adopted by FLAT-ATTENTION.
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
+
+## 2026-09-25 follow-up: exact integer sparsemax composition
+
+- `E1-EXACT-INTEGER-COMPOSITION` (ADA-A7): integer scores form a multiset
+  summary. Merging two parts is commutative and solves to the same reduced
+  rational distribution as `sparsemax_exact_i64` on the concatenated scores.
+  Equal-score plateaus are atomic. Checked overflow and empty parts fail
+  closed. The historical f64 summary solver is unchanged. This is not a
+  usefulness, novelty, hardware, or FLAT-adoption claim.
 
 ## 2026-09-23 follow-up: exact integer tau domain
 

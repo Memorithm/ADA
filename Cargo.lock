@@ -104,6 +104,7 @@ name = "ada-a7-composable-entmax"
 version = "0.1.0"
 dependencies = [
  "ada-a4-entmax-bnb",
+ "ada-a6-tau-solvers",
 ]
 
 [[package]]

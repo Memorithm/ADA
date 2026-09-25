@@ -12,8 +12,14 @@
 //! per-page summaries instead of reloading scores. This crate demonstrates it
 //! as research scaffolding (RESEARCH status, not a qualified mechanism):
 //! everything cross-checks against the canonical A4 oracle and fails closed.
+//! Integer scores additionally have an exact multiset composition path that
+//! matches `sparsemax_exact_i64` in reduced rationals.
 
 #![forbid(unsafe_code)]
+
+mod exact_compose;
+
+pub use exact_compose::{ExactLevel, ExactLevelSolution, IntegerSparsemaxSummary};
 
 use ada_a4_entmax_bnb::EntmaxDistribution;
 use std::collections::BTreeMap;
