@@ -8,6 +8,7 @@ publish = false
 
 [dependencies]
 ada-a4-entmax-bnb = { path = "../ada-a4-entmax-bnb" }
+ada-a6-tau-solvers = { path = "../ada-a6-tau-solvers" }
 
 [lints]
 workspace = true

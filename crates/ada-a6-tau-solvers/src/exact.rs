@@ -35,6 +35,15 @@ impl ExactRational {
         self.denominator
     }
 
+    /// Build a reduced rational. The sign is normalized onto the numerator.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the denominator is zero or reduction overflows.
+    pub fn reduced(numerator: i128, denominator: i128) -> Result<Self, &'static str> {
+        Self::from_parts(numerator, denominator)
+    }
+
     /// Narrow to binary64 when both parts are exact binary64 integers.
     ///
     /// The division itself may still round. Callers that need a bit-exact

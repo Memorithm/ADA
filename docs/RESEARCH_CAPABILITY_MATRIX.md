@@ -94,6 +94,8 @@ speedup is implied by the existence of a schedule.
 - The exact integer tau path in `ada-a6-tau-solvers` is a differential
   reference helper for alpha = 2 and a restricted alpha = 1.5 subset. It does
   not replace the A4 f64 oracle and does not claim usefulness or adoption.
+  `ada-a7-composable-entmax` composes those integer sparsemax multisets
+  exactly; composition is not a new semantic.
 
 ## Current boundary
 
