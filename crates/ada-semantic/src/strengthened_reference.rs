@@ -490,14 +490,15 @@ mod tests {
         match output.normalizations()[0] {
             NormalizationSummary::Softmax { log_sum_exp } => {
                 // Scores are all 1.0; LSE = 1 + ln(4). Transcendental
-                // evaluation is allowed to differ by one ULP under Miri, while
-                // the exact uniform weights and mixed output above remain
-                // bit-exact.
+                // implementations may differ by a few ULP across native and Miri
+                // libm paths. Keep a tight relative-error bound here while the
+                // exact uniform weights and mixed output above remain bit-exact.
                 let expected = 1.0_f64 + 4.0_f64.ln();
-                let ulp_distance = log_sum_exp.to_bits().abs_diff(expected.to_bits());
+                let error = (log_sum_exp - expected).abs();
+                let tolerance = 4.0 * f64::EPSILON * expected.abs().max(1.0);
                 assert!(
-                    ulp_distance <= 1,
-                    "LSE {log_sum_exp} differs from {expected} by {ulp_distance} ULP"
+                    error <= tolerance,
+                    "LSE {log_sum_exp} differs from {expected} by {error} (limit {tolerance})"
                 );
             }
             NormalizationSummary::SignedDifference { .. } => {
