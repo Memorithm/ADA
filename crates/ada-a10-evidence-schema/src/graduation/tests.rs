@@ -66,9 +66,9 @@ fn happy_path_round_trips_canonical_json() {
         SEMANTIC_QUALIFICATION_SCHEMA_VERSION
     );
     assert_eq!(record.verdict(), QualificationVerdictJson::ContinueResearch);
-    assert!(record.task_evidence().is_empty());
+    assert_eq!(record.task_evidence(), []);
     assert_eq!(record.external_diagnostics().itd.len(), 1);
-    assert!(record.external_diagnostics().tdi.is_empty());
+    assert_eq!(record.external_diagnostics().tdi, []);
 
     let json = record.to_canonical_json();
     assert!(json.starts_with('{'));
@@ -176,7 +176,7 @@ fn keeps_identity_diagnostics_cost_task_and_verdict_separate() {
         record.external_diagnostics().itd[0].artifact
     );
     // Task evidence, logical cost, diagnostics, and verdict remain distinct lanes.
-    assert!(record.task_evidence().is_empty());
+    assert_eq!(record.task_evidence(), []);
     assert_eq!(record.logical_cost_evidence().len(), 1);
     assert_eq!(
         record.prior_art_status().status,

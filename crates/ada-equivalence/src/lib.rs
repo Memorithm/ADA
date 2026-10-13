@@ -374,7 +374,7 @@ mod tests {
         };
         assert_ne!(witness.left_semantic(), witness.right_semantic());
         assert_eq!(witness.left_rules(), &[RewriteRule::ExhaustiveTopK]);
-        assert!(witness.right_rules().is_empty());
+        assert_eq!(witness.right_rules(), []);
         assert_eq!(witness.domain(), ArithmeticDomain::IeeeF64);
     }
 
@@ -442,6 +442,6 @@ mod tests {
             long_normalized.program().selection(),
             SelectionRule::TopK { k: 3 }
         );
-        assert!(long_normalized.applied_rules().is_empty());
+        assert_eq!(long_normalized.applied_rules(), []);
     }
 }

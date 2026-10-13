@@ -1278,7 +1278,7 @@ mod tests {
     fn static_cost_and_expansion_budgets_terminate_without_execution() {
         let space = SemanticSearchSpace::new(SemanticSearchConfig::default()).unwrap();
         let mut cost_limited = SearchEngine::new(space.clone(), budget(4, 4, 0)).unwrap();
-        assert!(cost_limited.run_to_end().unwrap().is_empty());
+        assert_eq!(cost_limited.run_to_end().unwrap(), Vec::new());
         assert_eq!(cost_limited.stats().generated(), 4);
         assert_eq!(cost_limited.stats().statically_rejected(), 4);
 

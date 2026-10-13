@@ -1833,7 +1833,7 @@ mod tests {
         let result = runner.run_to_end().unwrap();
         assert!(result.stats().candidates_considered() > 0);
         assert!(result.stats().oracle_falsified() > 0);
-        assert!(!result.counterexamples().is_empty());
+        assert_ne!(result.counterexamples(), &[]);
         assert!(
             result.counterexamples().iter().all(
                 |counterexample| counterexample.source() == CounterexampleSource::InitialCorpus
