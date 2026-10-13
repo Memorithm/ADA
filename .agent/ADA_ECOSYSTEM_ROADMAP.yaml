@@ -576,3 +576,39 @@ audit_global_remediation_2026_09_30:
       - ecosystem_adoption
       - novelty
   merge_policy_note: roadmap_branch_only_never_merge_to_main_without_explicit_user_request
+
+
+audit_global_remediation_cog_ada_002:
+  last_reconciled: "2026-10-13T17:22:00+02:00"
+  finding: COG-ADA-002
+  status: waiting_ci
+  pull_request: 60
+  base_branch: main
+  base_sha: 7958439630ff5e092d32ac8d618411785d885d59
+  candidate_sha: befffe859069e6478f406cd278299fc5a4edc6a9
+  owner_contracts:
+    SciRust_Hub_TaskSpec_and_workspace_evidence_v1: 01cf5f1e6d96573d57eef8d2aea22a5a8b0da02f
+    ElasticXxx_task_resource_envelope_v1: 958ce6301730ceeec4bb1252ff12222e5bb7d431
+  delivered:
+    - fail_closed_Hub_task_identity_and_exact_workspace_provenance_projection
+    - read_only_container_or_stronger_closed_network_admission
+    - ElasticXxx_budget_envelope_and_bounded_estimate_preflight
+    - destination_contract_fixtures
+    - CONTINUE_RESEARCH_only_dispatch_boundary
+  local_validation:
+    - cargo_fmt_all_check
+    - cargo_test_p_ada_graduation_all_targets_22_passed
+    - cargo_clippy_p_ada_graduation_all_targets_D_warnings
+    - git_diff_check
+  pending:
+    - exact_head_GitHub_Actions
+    - post_merge_default_branch_validation
+  scope:
+    does_not_prove:
+      - worker_capacity
+      - runtime_resource_enforcement
+      - sandbox_security
+      - performance
+      - adoption
+      - novelty
+  merge_policy_note: roadmap_branch_only_never_merge_to_main_without_explicit_user_request
