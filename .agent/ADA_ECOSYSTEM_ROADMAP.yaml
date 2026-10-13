@@ -579,9 +579,9 @@ audit_global_remediation_2026_09_30:
 
 
 audit_global_remediation_cog_ada_002:
-  last_reconciled: "2026-10-13T17:22:00+02:00"
+  last_reconciled: "2026-10-13T19:11:21+02:00"
   finding: COG-ADA-002
-  status: merged_waiting_integrated_Miri
+  status: integrated_contract_green_followup_action_pin_ci
   pull_request: 60
   base_branch: main
   base_sha: 7958439630ff5e092d32ac8d618411785d885d59
@@ -605,8 +605,8 @@ audit_global_remediation_cog_ada_002:
     - cargo_clippy_p_ada_graduation_all_targets_D_warnings
     - git_diff_check
   pending:
-    - integrated_Miri_gate
-    - no_closure_before_exact_target_run_finishes
+    - pull_request_61_exact_head_ci
+    - no_closure_before_full_SHA_action_pins_integrate
   scope:
     does_not_prove:
       - worker_capacity
@@ -620,5 +620,16 @@ audit_global_remediation_cog_ada_002:
   integrated_main_sha: 6e18b6330655bbd434776dccbda48b2777241a62
   integrated_run: 38428971673
   candidate_checks: 12_success
-  integrated_observation: 5_success_1_Miri_in_progress
-  last_observed_at: "2026-10-13T18:34:55.000+02:00"
+  integrated_observation: 6_success
+  integrated_Miri:
+    run: 38428971673
+    job: 115405807687
+    result: 338_passed_0_failed_2_ignored
+    completed_at: "2026-10-13T19:02:47+02:00"
+  follow_up:
+    pull_request: 61
+    candidate_sha: 13948fd971f59bd3f8d8928e9c88c4d9beba32a3
+    purpose: pin_all_external_workflow_actions_to_full_commit_SHAs
+    policy_gate: .github/scripts/verify-action-pins.sh
+    state: exact_head_CI_in_progress
+  last_observed_at: "2026-10-13T19:11:21+02:00"
