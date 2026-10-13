@@ -585,7 +585,11 @@ audit_global_remediation_cog_ada_002:
   pull_request: 60
   base_branch: main
   base_sha: 7958439630ff5e092d32ac8d618411785d885d59
-  candidate_sha: befffe859069e6478f406cd278299fc5a4edc6a9
+  candidate_sha: defee006145f86f5a0093f0d3ee481aa3408c2a5
+  review_corrections:
+    - admitted_handoff_fields_private_with_read_only_accessors
+    - preflight_validated_estimates_private_and_read_only
+  resolved_review_threads: 2
   owner_contracts:
     SciRust_Hub_TaskSpec_and_workspace_evidence_v1: 01cf5f1e6d96573d57eef8d2aea22a5a8b0da02f
     ElasticXxx_task_resource_envelope_v1: 958ce6301730ceeec4bb1252ff12222e5bb7d431
