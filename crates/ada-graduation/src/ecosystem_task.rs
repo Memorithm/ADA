@@ -198,10 +198,17 @@ pub struct ElasticTaskResourceEstimateV1 {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElasticTaskResourcePlanV1 {
     envelope_binding: String,
-    pub estimates: ElasticTaskResourceEstimateV1,
+    estimates: ElasticTaskResourceEstimateV1,
 }
 
 impl ElasticTaskResourcePlanV1 {
+    /// Estimates that passed preflight. They remain read-only so the plan
+    /// cannot be changed into an unvalidated resource request.
+    #[must_use]
+    pub const fn estimates(&self) -> ElasticTaskResourceEstimateV1 {
+        self.estimates
+    }
+
     /// Whether this plan was produced from the exact supplied envelope.
     #[must_use]
     pub fn is_bound_to(&self, envelope: &ElasticTaskResourceEnvelopeV1) -> bool {
@@ -308,15 +315,51 @@ impl ElasticTaskResourceEnvelopeV1 {
 /// Successfully admitted research-only handoff.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AdmittedAdaResearchTaskV1 {
-    pub task_id: String,
-    pub source_revision: String,
-    pub source_tree: String,
-    pub content_digest: String,
-    pub verdict: QualificationVerdict,
-    pub elastic_envelope: ElasticTaskResourceEnvelopeV1,
+    task_id: String,
+    source_revision: String,
+    source_tree: String,
+    content_digest: String,
+    verdict: QualificationVerdict,
+    elastic_envelope: ElasticTaskResourceEnvelopeV1,
 }
 
 impl AdmittedAdaResearchTaskV1 {
+    /// Hub task identity that passed admission.
+    #[must_use]
+    pub fn task_id(&self) -> &str {
+        &self.task_id
+    }
+
+    /// Exact source revision retained by the Hub workspace evidence.
+    #[must_use]
+    pub fn source_revision(&self) -> &str {
+        &self.source_revision
+    }
+
+    /// Exact source tree retained by the Hub workspace evidence.
+    #[must_use]
+    pub fn source_tree(&self) -> &str {
+        &self.source_tree
+    }
+
+    /// Hub content digest retained by the workspace evidence.
+    #[must_use]
+    pub fn content_digest(&self) -> &str {
+        &self.content_digest
+    }
+
+    /// Research-only qualification verdict accepted by the bridge.
+    #[must_use]
+    pub const fn verdict(&self) -> &QualificationVerdict {
+        &self.verdict
+    }
+
+    /// Validated `ElasticXxx` envelope bound to this admitted task.
+    #[must_use]
+    pub const fn elastic_envelope(&self) -> &ElasticTaskResourceEnvelopeV1 {
+        &self.elastic_envelope
+    }
+
     /// Canonical Hub-side destination fixture with immutable provenance.
     #[must_use]
     pub fn to_canonical_text(&self) -> String {
