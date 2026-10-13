@@ -581,7 +581,7 @@ audit_global_remediation_2026_09_30:
 audit_global_remediation_cog_ada_002:
   last_reconciled: "2026-10-13T17:22:00+02:00"
   finding: COG-ADA-002
-  status: waiting_ci
+  status: merged_waiting_integrated_Miri
   pull_request: 60
   base_branch: main
   base_sha: 7958439630ff5e092d32ac8d618411785d885d59
@@ -605,8 +605,8 @@ audit_global_remediation_cog_ada_002:
     - cargo_clippy_p_ada_graduation_all_targets_D_warnings
     - git_diff_check
   pending:
-    - exact_head_GitHub_Actions
-    - post_merge_default_branch_validation
+    - integrated_Miri_gate
+    - no_closure_before_exact_target_run_finishes
   scope:
     does_not_prove:
       - worker_capacity
@@ -616,3 +616,9 @@ audit_global_remediation_cog_ada_002:
       - adoption
       - novelty
   merge_policy_note: roadmap_branch_only_never_merge_to_main_without_explicit_user_request
+
+  integrated_main_sha: 6e18b6330655bbd434776dccbda48b2777241a62
+  integrated_run: 38428971673
+  candidate_checks: 12_success
+  integrated_observation: 5_success_1_Miri_in_progress
+  last_observed_at: "2026-10-13T18:34:55.000+02:00"
