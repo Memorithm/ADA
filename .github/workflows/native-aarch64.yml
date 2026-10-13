@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "crates/ada-a1-neon/**"
+      - "crates/ada-core/**"
       - "crates/ada-search/**"
       - "crates/ada-cegis/**"
       - "Cargo.toml"
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - "crates/ada-a1-neon/**"
+      - "crates/ada-core/**"
       - "crates/ada-search/**"
       - "crates/ada-cegis/**"
       - "Cargo.toml"
