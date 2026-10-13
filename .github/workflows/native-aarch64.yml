@@ -128,9 +128,9 @@ jobs:
           root = pathlib.Path.cwd()
           device_model = lscpu_value("Model name", required=False)
           device_tree_model = pathlib.Path("/proc/device-tree/model")
-          if not device_model and device_tree_model.is_file():
+          if (not device_model or device_model == "-") and device_tree_model.is_file():
               device_model = device_tree_model.read_bytes().rstrip(b"\0").decode("utf-8")
-          if not device_model:
+          if not device_model or device_model == "-":
               raise RuntimeError("missing bounded native device model provenance")
           features = next(
               (
