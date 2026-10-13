@@ -314,6 +314,7 @@ pub struct GraduationObjectives {
 
 mod cegis_attach;
 mod codec;
+pub mod ecosystem_task;
 mod policy;
 mod task_quality;
 

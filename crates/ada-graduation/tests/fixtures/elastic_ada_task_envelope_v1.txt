@@ -1,0 +1,11 @@
+ADA-ELASTIC-TASK-ENVELOPE-V1
+contract=elastic.task-resource-envelope@1.0.0
+elastic_source_commit=958ce6301730ceeec4bb1252ff12222e5bb7d431
+task_ref=ada-task:018f0f77-32d4-7a26-8e46-2d7049781234
+workspace_ref=ada-workspace:5a59bc0d5391a643ce75f9b9d27c7cb5bfa784c2f423d5b2f680184783f06ea1
+cpu_millis=2000
+memory_bytes=1073741824
+wall_clock_ms=60000
+gpu_devices=0
+model_tokens=4096
+concurrency=1
