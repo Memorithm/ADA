@@ -416,7 +416,7 @@ mod tests {
         assert_eq!(attachment.context().rejected_count(), 7);
         assert_eq!(attachment.evidence().quality()[0].value(), Some(1.0));
         assert_eq!(attachment.algorithmic().selection_failures, Some(0));
-        assert_ne!(attachment.algorithmic(), &[]);
+        assert_ne!(attachment.algorithmic(), AlgorithmicError::empty());
         // Survival counts were not remapped into quality.
         assert_ne!(
             attachment.evidence().quality()[0].value(),
@@ -522,7 +522,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(evidence.algorithmic(), []);
+        assert_eq!(evidence.algorithmic(), AlgorithmicError::empty());
         assert_eq!(
             attach_task_quality(CegisRunContext::from_counts(0, 0, 0, 0), contract, evidence),
             Err(GraduationError::MissingAlgorithmicLane)
