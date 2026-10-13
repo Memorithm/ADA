@@ -57,6 +57,7 @@ jobs:
           test -z "$(git status --porcelain)"
           uname -a
           lscpu
+          grep -qm1 -E '^Features[[:space:]]*:.*(^|[[:space:]])asimd([[:space:]]|$)' /proc/cpuinfo
 
       - name: Install the exact workspace MSRV
         uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
@@ -109,14 +110,34 @@ jobs:
                   stderr=subprocess.STDOUT,
               ).stdout.strip()
 
-          def lscpu_value(label: str) -> str:
+          def lscpu_value(label: str, *, required: bool = True):
               prefix = f"{label}:"
               for line in command("lscpu").splitlines():
                   if line.startswith(prefix):
                       return line.split(":", 1)[1].strip()
-              raise RuntimeError(f"missing lscpu field: {label}")
+              if required:
+                  raise RuntimeError(f"missing lscpu field: {label}")
+              return None
 
           root = pathlib.Path.cwd()
+          device_model = lscpu_value("Model name", required=False)
+          device_tree_model = pathlib.Path("/proc/device-tree/model")
+          if not device_model and device_tree_model.is_file():
+              device_model = device_tree_model.read_bytes().rstrip(b"\0").decode("utf-8")
+          if not device_model:
+              raise RuntimeError("missing bounded native device model provenance")
+          features = next(
+              (
+                  line.split(":", 1)[1].strip()
+                  for line in pathlib.Path("/proc/cpuinfo").read_text(
+                      encoding="utf-8", errors="replace"
+                  ).splitlines()
+                  if line.startswith("Features")
+              ),
+              None,
+          )
+          if not features or "asimd" not in features.split():
+              raise RuntimeError("native host does not report the required ASIMD feature")
           output = pathlib.Path(os.environ["EVIDENCE_DIR"])
           evidence = {
               "schema": "ada.native-aarch64-qualification.v1",
@@ -128,8 +149,9 @@ jobs:
                   "os": os.environ["RUNNER_OS"],
                   "arch": os.environ["RUNNER_ARCH"],
                   "machine": platform.machine(),
-                  "cpu_model": lscpu_value("Model name"),
+                  "cpu_model": device_model,
                   "cpu_count": lscpu_value("CPU(s)"),
+                  "cpu_features": features,
                   "byte_order": lscpu_value("Byte Order"),
               },
               "toolchain": {
