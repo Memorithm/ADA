@@ -1,7 +1,7 @@
 schema_version: 1
 kind: ada_ecosystem_agent_roadmap
 status: active
-last_updated: "2026-09-23"
+last_updated: "2026-10-13"
 repository: Memorithm/ADA
 intended_consumer: autonomous_coding_agent
 merge_policy: never_merge_this_file_to_default_branch_unless_user_explicitly_requests
@@ -539,3 +539,40 @@ ax_candidate_task_program:
     - generation_is_not_evidence
     - task_success_does_not_bypass_oracle_or_adversarial_gates
     - hardware_promotion_remains_environment_scoped
+
+
+audit_global_remediation_2026_09_30:
+  last_reconciled: "2026-10-13T16:10:48+02:00"
+  finding: COG-ADA-001
+  status: resolved
+  pull_request: 59
+  candidate_sha: 82e76d8a1f2f553234a86170ce7cbaaea25ad7e7
+  integrated_main_sha: 7958439630ff5e092d32ac8d618411785d885d59
+  validation:
+    candidate_generic_run: 38390334276
+    candidate_native_aarch64_run: 38390334287
+    integrated_generic_run: 38402316367
+    integrated_native_aarch64_run: 38402316537
+    generic_jobs:
+      - build_test_clippy
+      - msrv_1_85
+      - rustdoc
+      - fuzz_smoke
+      - miri
+      - supply_chain
+    native_environment: NVIDIA_Jetson_AGX_Thor_ARM64_aarch64_ASIMD
+    native_artifact_id: 11815467594
+    native_archive_sha256: d69f26b659a4cfcd675ecf13cc9448dbca58ae8a5823a6a68499f28c4d6df1d8
+    qualification_json_sha256: 30d8d1387bbc462de9fbda9e2498a09c20d6a6c14bcb742847076c29a28d6c25
+    manifest_and_ed25519_signature_verified: true
+  scope:
+    proves:
+      - exact_source_native_NEON_and_scalar_tail_correctness_on_declared_AArch64_environment
+      - generic_workspace_tests_and_Miri_on_exact_candidate_and_integrated_SHAs
+    does_not_prove:
+      - performance
+      - GPU_qualification
+      - production_readiness
+      - ecosystem_adoption
+      - novelty
+  merge_policy_note: roadmap_branch_only_never_merge_to_main_without_explicit_user_request
