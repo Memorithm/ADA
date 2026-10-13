@@ -628,8 +628,10 @@ audit_global_remediation_cog_ada_002:
     completed_at: "2026-10-13T19:02:47+02:00"
   follow_up:
     pull_request: 61
-    candidate_sha: 13948fd971f59bd3f8d8928e9c88c4d9beba32a3
+    candidate_sha: 48779bc080f1d36d5940a64e3b48a1431efbb01a
     purpose: pin_all_external_workflow_actions_to_full_commit_SHAs
     policy_gate: .github/scripts/verify-action-pins.sh
-    state: exact_head_CI_in_progress
-  last_observed_at: "2026-10-13T19:11:21+02:00"
+    state: exact_head_CI_pending_after_review_correction
+    review_corrections:
+      - scan_all_tracked_composite_action_manifests_for_transitive_external_uses
+  last_observed_at: "2026-10-13T19:16:13+02:00"
