@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "crates/ada-a1-neon/**"
+      - "crates/ada-search/**"
+      - "crates/ada-cegis/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - ".github/workflows/native-aarch64.yml"
@@ -13,6 +15,8 @@ on:
     branches: [main]
     paths:
       - "crates/ada-a1-neon/**"
+      - "crates/ada-search/**"
+      - "crates/ada-cegis/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - ".github/workflows/native-aarch64.yml"
