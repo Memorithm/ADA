@@ -631,7 +631,12 @@ audit_global_remediation_cog_ada_002:
     candidate_sha: 48779bc080f1d36d5940a64e3b48a1431efbb01a
     purpose: pin_all_external_workflow_actions_to_full_commit_SHAs
     policy_gate: .github/scripts/verify-action-pins.sh
-    state: exact_head_CI_pending_after_review_correction
+    state: merged_waiting_integrated_CI
     review_corrections:
       - scan_all_tracked_composite_action_manifests_for_transitive_external_uses
   last_observed_at: "2026-10-13T19:16:13+02:00"
+
+  action_pin_followup_integrated_sha: 28b7a18d9ae1ab062a890cb2edee819237e50cc0
+  action_pin_followup_candidate_checks: 12_success
+  action_pin_followup_merge: expected_head_sha_guarded
+  action_pin_followup_next_action: verify_all_six_integrated_gates_Miri_included_before_closure
