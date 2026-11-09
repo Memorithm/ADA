@@ -726,8 +726,11 @@ mod tests {
         let mut novel = 0_usize;
         let mut rejected = 0_usize;
         let mut dual = 0_usize;
-        for length in 1..=5_usize {
-            let bound = 4_i64;
+        // Full grid is 1364 vectors. Miri interprets every A4 oracle call, so
+        // it uses a smaller qualitative slice of the same scan.
+        let max_len = if cfg!(miri) { 3_usize } else { 5 };
+        let bound = if cfg!(miri) { 3_i64 } else { 4 };
+        for length in 1..=max_len {
             let states = bound.pow(u32::try_from(length).unwrap());
             for state in 0..states {
                 let mut scores = vec![0_i64; length];
@@ -763,6 +766,10 @@ mod tests {
         assert_eq!(accepted, legacy + novel);
         // Lengths 1..=5 over scores in {0,1,2,3}: 1364 vectors. The partition
         // is an algorithmic observation on that finite grid, not a hardware claim.
-        assert_eq!((accepted, legacy, novel, rejected), (195, 150, 45, 1169));
+        if cfg!(miri) {
+            assert!(accepted > 0 && legacy > 0 && rejected > 0);
+        } else {
+            assert_eq!((accepted, legacy, novel, rejected), (195, 150, 45, 1169));
+        }
     }
 }
