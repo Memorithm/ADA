@@ -4,16 +4,16 @@
 //! arithmetic: the threshold and every probability are reduced rationals, and
 //! the probabilities sum to one with no f64 rounding and no mass renormalization.
 //!
-//! `entmax15_exact_i64` is intentionally partial. It returns an exact rational
-//! alpha = 1.5 distribution only when:
-//! - every score is equal and the length is a perfect square, or
-//! - there is a unique maximum at least 2 above every other score
-//!   (one-hot support; the boundary gap of exactly 2 is included).
-//!
-//! Every other 1.5-entmax input fails closed. That includes the symmetric
-//! length-2 case, whose probabilities are `1/2` but whose threshold is
-//! irrational. This module does not replace `ada_a4_entmax_bnb::dense_entmax`
-//! and does not claim usefulness, novelty, or FLAT adoption.
+//! `entmax15_exact_i64` returns an exact rational alpha = 1.5 distribution
+//! when some support prefix of the descending scores has a perfect-square
+//! discriminant in the integer threshold quadratic and satisfies the
+//! complementary-support inequalities. That domain strictly contains the
+//! historical subset (equal scores of perfect-square length, or a unique
+//! maximum with gap at least 2). Every other 1.5-entmax input fails closed,
+//! including the symmetric length-2 case whose probabilities are `1/2` but
+//! whose threshold is irrational. This module does not replace
+//! `ada_a4_entmax_bnb::dense_entmax` and does not claim usefulness, novelty,
+//! or FLAT adoption.
 
 /// Reduced rational `numerator / denominator` with a positive denominator.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -107,7 +107,7 @@ impl ExactRational {
     }
 }
 
-/// Exact rational sparsemax or restricted 1.5-entmax distribution.
+/// Exact rational sparsemax or exact rational 1.5-entmax distribution.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExactDistribution {
     /// One reduced probability per input score, in input order.
@@ -202,102 +202,238 @@ pub fn sparsemax_exact_i64(scores: &[i64]) -> Result<ExactDistribution, &'static
     })
 }
 
-/// Exact alpha = 1.5 entmax on the documented rational subset of integer scores.
+/// Logical counters for one exact 1.5-entmax discriminant scan.
+///
+/// These count algorithmic steps. They are not hardware instruction, cycle,
+/// bandwidth, or wall-clock claims.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ExactEntmax15Cost {
+    /// Input scores placed into descending, index-stable order.
+    pub scores_sorted: usize,
+    /// Support prefixes whose first two moments and discriminant were formed.
+    pub candidate_supports_tested: usize,
+    /// Prefixes whose discriminant was a non-negative perfect square.
+    pub perfect_square_discriminants: usize,
+    /// Individual complementary score-versus-threshold inequality tests.
+    pub support_inequality_checks: usize,
+}
+
+/// Exact alpha = 1.5 entmax on the rational discriminant domain of integer scores.
+///
+/// A descending prefix of size `ρ` is accepted only when the threshold
+/// quadratic `ρ t² - 2 S₁ t + S₂ - 4 = 0` has a perfect-square discriminant
+/// `D = S₁² - ρ S₂ + 4ρ`, the smaller root `t = (S₁ - √D) / ρ` is rational,
+/// every prefix score is strictly above `t`, and every excluded score is at
+/// most `t`. Probabilities are then `pᵢ = (zᵢ - t)₊² / 4`.
 ///
 /// # Errors
 ///
-/// Returns an error on an empty input, on arithmetic overflow, or when the
-/// scores are outside the exact domain (fail closed; no bisection fallback).
+/// Returns an error on an empty input, on arithmetic overflow, when two
+/// prefixes both look admissible, or when no prefix is in the rational
+/// domain (fail closed; no bisection fallback).
 #[must_use = "the exact 1.5-entmax distribution should be checked"]
 pub fn entmax15_exact_i64(scores: &[i64]) -> Result<ExactDistribution, &'static str> {
+    let (distribution, _cost) = entmax15_exact_i64_accounted(scores)?;
+    Ok(distribution)
+}
+
+/// Exact alpha = 1.5 entmax together with logical scan counters.
+///
+/// # Errors
+///
+/// Same fail-closed conditions as [`entmax15_exact_i64`].
+#[must_use = "the exact 1.5-entmax distribution should be checked"]
+pub fn entmax15_exact_i64_accounted(
+    scores: &[i64],
+) -> Result<(ExactDistribution, ExactEntmax15Cost), &'static str> {
     if scores.is_empty() {
         return Err("ADA-A6 exact entmax15 requires at least one score");
     }
-    if scores.iter().all(|&score| score == scores[0]) {
-        return entmax15_equal(scores);
-    }
-    entmax15_unique_max(scores)
-}
 
-fn entmax15_equal(scores: &[i64]) -> Result<ExactDistribution, &'static str> {
-    let Some(root) = perfect_square_root(scores.len()) else {
+    let mut cost = ExactEntmax15Cost {
+        scores_sorted: scores.len(),
+        ..ExactEntmax15Cost::default()
+    };
+    let mut order: Vec<usize> = (0..scores.len()).collect();
+    order.sort_by(|&left, &right| scores[right].cmp(&scores[left]).then(left.cmp(&right)));
+
+    let mut accepted: Option<(usize, i128, i128)> = None;
+    let mut support_sum: i128 = 0;
+    let mut support_sq: i128 = 0;
+    for prefix in 1..=scores.len() {
+        let score = i128::from(scores[order[prefix - 1]]);
+        support_sum = support_sum
+            .checked_add(score)
+            .ok_or("ADA-A6 exact entmax15 support sum overflow")?;
+        let square = score
+            .checked_mul(score)
+            .ok_or("ADA-A6 exact entmax15 score square overflow")?;
+        support_sq = support_sq
+            .checked_add(square)
+            .ok_or("ADA-A6 exact entmax15 support square overflow")?;
+        cost.candidate_supports_tested = cost
+            .candidate_supports_tested
+            .checked_add(1)
+            .ok_or("ADA-A6 exact entmax15 cost overflow")?;
+
+        let Some((t_numerator, rho)) = perfect_square_threshold(support_sum, support_sq, prefix)?
+        else {
+            continue;
+        };
+        cost.perfect_square_discriminants = cost
+            .perfect_square_discriminants
+            .checked_add(1)
+            .ok_or("ADA-A6 exact entmax15 cost overflow")?;
+        if !prefix_respects_threshold(scores, &order, prefix, t_numerator, rho, &mut cost)? {
+            continue;
+        }
+        if accepted.is_some() {
+            return Err("ADA-A6 exact entmax15 found multiple rational supports");
+        }
+        accepted = Some((prefix, t_numerator, rho));
+    }
+
+    let Some((support, t_numerator, rho)) = accepted else {
         return Err("ADA-A6 exact entmax15 is outside the rational domain");
     };
-    let score = i128::from(scores[0]);
-    let root_i = i128::from(root);
-    let tau_numerator = score
-        .checked_mul(root_i)
-        .and_then(|product| product.checked_sub(2))
+    let distribution = assemble_entmax15(scores, &order, support, t_numerator, rho)?;
+    Ok((distribution, cost))
+}
+
+fn perfect_square_threshold(
+    support_sum: i128,
+    support_sq: i128,
+    prefix: usize,
+) -> Result<Option<(i128, i128)>, &'static str> {
+    let rho = i128::try_from(prefix).map_err(|_| "ADA-A6 exact entmax15 support index overflow")?;
+    let four_rho = rho
+        .checked_mul(4)
+        .ok_or("ADA-A6 exact entmax15 discriminant overflow")?;
+    let rho_sq = rho
+        .checked_mul(support_sq)
+        .ok_or("ADA-A6 exact entmax15 discriminant overflow")?;
+    let sum_sq = support_sum
+        .checked_mul(support_sum)
+        .ok_or("ADA-A6 exact entmax15 discriminant overflow")?;
+    let Some(discriminant) = sum_sq
+        .checked_sub(rho_sq)
+        .and_then(|value| value.checked_add(four_rho))
+    else {
+        return Err("ADA-A6 exact entmax15 discriminant overflow");
+    };
+    if discriminant < 0 {
+        return Ok(None);
+    }
+    let discriminant =
+        u128::try_from(discriminant).map_err(|_| "ADA-A6 exact entmax15 discriminant overflow")?;
+    let Some(root) = perfect_square_root_u128(discriminant) else {
+        return Ok(None);
+    };
+    let root =
+        i128::try_from(root).map_err(|_| "ADA-A6 exact entmax15 discriminant root overflow")?;
+    let t_numerator = support_sum
+        .checked_sub(root)
         .ok_or("ADA-A6 exact entmax15 threshold overflow")?;
-    let tau_denominator = root_i
+    Ok(Some((t_numerator, rho)))
+}
+
+fn assemble_entmax15(
+    scores: &[i64],
+    order: &[usize],
+    support: usize,
+    t_numerator: i128,
+    rho: i128,
+) -> Result<ExactDistribution, &'static str> {
+    let tau_denominator = rho
         .checked_mul(2)
         .ok_or("ADA-A6 exact entmax15 threshold overflow")?;
-    let length = i128::try_from(scores.len())
-        .map_err(|_| "ADA-A6 exact entmax15 length does not fit i128")?;
-    let probability = ExactRational::from_parts(1, length)?;
-    Ok(ExactDistribution {
-        probabilities: vec![probability; scores.len()],
-        tau: ExactRational::from_parts(tau_numerator, tau_denominator)?,
-        support_size: scores.len(),
-    })
-}
-
-fn entmax15_unique_max(scores: &[i64]) -> Result<ExactDistribution, &'static str> {
-    let mut maximum = i64::MIN;
-    let mut max_index = 0_usize;
-    let mut max_count = 0_usize;
-    for (index, &score) in scores.iter().enumerate() {
-        if score > maximum {
-            maximum = score;
-            max_index = index;
-            max_count = 1;
-        } else if score == maximum {
-            max_count += 1;
-        }
-    }
-    if max_count != 1 {
-        return Err("ADA-A6 exact entmax15 is outside the rational domain");
-    }
-    let limit = i128::from(maximum) - 2;
-    if scores
-        .iter()
-        .any(|&score| score != maximum && i128::from(score) > limit)
-    {
-        return Err("ADA-A6 exact entmax15 is outside the rational domain");
-    }
+    let probability_denominator = rho
+        .checked_mul(rho)
+        .and_then(|value| value.checked_mul(4))
+        .ok_or("ADA-A6 exact entmax15 probability overflow")?;
 
     let mut probabilities = vec![ExactRational::zero(); scores.len()];
-    probabilities[max_index] = ExactRational::from_parts(1, 1)?;
-    let tau_numerator = i128::from(maximum) - 2;
+    let mut numerator_sum: i128 = 0;
+    for &index in &order[..support] {
+        let shifted = rho
+            .checked_mul(i128::from(scores[index]))
+            .and_then(|product| product.checked_sub(t_numerator))
+            .ok_or("ADA-A6 exact entmax15 probability overflow")?;
+        if shifted <= 0 {
+            return Err("ADA-A6 exact entmax15 support member is not strictly positive");
+        }
+        let numerator = shifted
+            .checked_mul(shifted)
+            .ok_or("ADA-A6 exact entmax15 probability overflow")?;
+        numerator_sum = numerator_sum
+            .checked_add(numerator)
+            .ok_or("ADA-A6 exact entmax15 probability sum overflow")?;
+        probabilities[index] = ExactRational::from_parts(numerator, probability_denominator)?;
+    }
+    if numerator_sum != probability_denominator {
+        return Err("ADA-A6 exact entmax15 probabilities do not sum to one");
+    }
     Ok(ExactDistribution {
         probabilities,
-        tau: ExactRational::from_parts(tau_numerator, 2)?,
-        support_size: 1,
+        tau: ExactRational::from_parts(t_numerator, tau_denominator)?,
+        support_size: support,
     })
 }
 
-fn perfect_square_root(length: usize) -> Option<u32> {
-    let length = u64::try_from(length).ok()?;
-    let root_u = integer_sqrt_u64(length);
-    if root_u.checked_mul(root_u) == Some(length) {
-        u32::try_from(root_u).ok()
-    } else {
-        None
+fn prefix_respects_threshold(
+    scores: &[i64],
+    order: &[usize],
+    prefix: usize,
+    t_numerator: i128,
+    rho: i128,
+    cost: &mut ExactEntmax15Cost,
+) -> Result<bool, &'static str> {
+    for &index in &order[..prefix] {
+        cost.support_inequality_checks = cost
+            .support_inequality_checks
+            .checked_add(1)
+            .ok_or("ADA-A6 exact entmax15 cost overflow")?;
+        let left = rho
+            .checked_mul(i128::from(scores[index]))
+            .ok_or("ADA-A6 exact entmax15 threshold comparison overflow")?;
+        if left <= t_numerator {
+            return Ok(false);
+        }
+    }
+    for &index in &order[prefix..] {
+        cost.support_inequality_checks = cost
+            .support_inequality_checks
+            .checked_add(1)
+            .ok_or("ADA-A6 exact entmax15 cost overflow")?;
+        let left = rho
+            .checked_mul(i128::from(scores[index]))
+            .ok_or("ADA-A6 exact entmax15 threshold comparison overflow")?;
+        if left > t_numerator {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn perfect_square_root_u128(value: u128) -> Option<u128> {
+    let root = integer_sqrt_u128(value);
+    match root.checked_mul(root) {
+        Some(square) if square == value => Some(root),
+        _ => None,
     }
 }
 
-fn integer_sqrt_u64(value: u64) -> u64 {
-    if value == 0 {
-        return 0;
+fn integer_sqrt_u128(value: u128) -> u128 {
+    if value <= 1 {
+        return value;
     }
-    let target = u128::from(value);
-    let mut x = target;
-    let mut y = x.div_ceil(2);
+    let mut x = value;
+    let mut y = value / 2;
     while y < x {
         x = y;
-        y = u128::midpoint(x, target / x);
+        y = u128::midpoint(x, value / x);
     }
-    u64::try_from(x).unwrap_or(u64::MAX)
+    x
 }
 
 fn abs_i128(value: i128) -> Result<u128, &'static str> {
@@ -350,6 +486,45 @@ mod tests {
                 .count(),
             support
         );
+    }
+
+    fn is_legacy_entmax15_domain(scores: &[i64]) -> bool {
+        if scores.is_empty() {
+            return false;
+        }
+        if scores.iter().all(|&score| score == scores[0]) {
+            let length = u64::try_from(scores.len()).ok();
+            return length
+                .is_some_and(|value| perfect_square_root_u128(u128::from(value)).is_some());
+        }
+        let maximum = scores.iter().copied().max().unwrap();
+        let max_count = scores.iter().filter(|&&score| score == maximum).count();
+        max_count == 1
+            && scores
+                .iter()
+                .filter(|&&score| score != maximum)
+                .all(|&score| i128::from(score) <= i128::from(maximum) - 2)
+    }
+
+    fn assert_matches_dense_oracle(scores: &[i64], exact: &ExactDistribution) {
+        let f64_scores: Vec<f64> = scores.iter().copied().map(i64_to_f64).collect();
+        let oracle = dense_entmax(&f64_scores, 1.5).unwrap();
+        for (rational, &approx) in exact.probabilities.iter().zip(&oracle.probabilities) {
+            let rendered = rational.to_f64().unwrap();
+            assert!(
+                (rendered - approx).abs() <= 1.0e-9,
+                "{rendered} != {approx} for {scores:?}"
+            );
+        }
+        let tau = exact.tau.to_f64().unwrap();
+        let mut objective = -1.0_f64;
+        for score in &f64_scores {
+            let shifted = 0.5 * score - tau;
+            if shifted > 0.0 {
+                objective += shifted * shifted;
+            }
+        }
+        assert!(objective.abs() <= 1.0e-9, "objective {objective} at {tau}");
     }
 
     #[test]
@@ -468,27 +643,59 @@ mod tests {
     }
 
     #[test]
+    fn entmax15_new_unit_spike_family_is_exact() {
+        let spike5 = entmax15_exact_i64(&[1, 0, 0, 0, 0]).unwrap();
+        assert_distribution(
+            &spike5,
+            &[
+                rat(16, 25),
+                rat(9, 100),
+                rat(9, 100),
+                rat(9, 100),
+                rat(9, 100),
+            ],
+            rat(-3, 10),
+            5,
+        );
+
+        let permuted = entmax15_exact_i64(&[0, 0, 1, 0, 0]).unwrap();
+        assert_eq!(permuted.probabilities[2], rat(16, 25));
+        assert_eq!(permuted.probabilities[0], rat(9, 100));
+        assert_eq!(permuted.tau, rat(-3, 10));
+        assert_eq!(permuted.support_size, 5);
+
+        let translated = entmax15_exact_i64(&[4, 3, 3, 3, 3]).unwrap();
+        assert_eq!(translated.probabilities, spike5.probabilities);
+        assert_eq!(translated.tau, rat(6, 5));
+
+        let spike8 = entmax15_exact_i64(&[1, 0, 0, 0, 0, 0, 0, 0]).unwrap();
+        assert_eq!(spike8.probabilities[0], rat(9, 16));
+        assert_eq!(spike8.probabilities[7], rat(1, 16));
+        assert_eq!(spike8.tau, rat(-1, 4));
+        assert_eq!(spike8.support_size, 8);
+
+        let partial = entmax15_exact_i64(&[1, 0, 0, 0, 0, -1]).unwrap();
+        assert_eq!(partial.support_size, 5);
+        assert_eq!(partial.probabilities[0], rat(16, 25));
+        assert_eq!(partial.probabilities[5], rat(0, 1));
+        assert_eq!(partial.tau, rat(-3, 10));
+    }
+
+    #[test]
     fn entmax15_matches_dense_oracle_inside_the_domain() {
-        for scores in [vec![7_i64], vec![4, 2, -3], vec![0, 0, 0, 0], vec![1; 9]] {
+        for scores in [
+            vec![7_i64],
+            vec![4, 2, -3],
+            vec![0, 0, 0, 0],
+            vec![1; 9],
+            vec![1, 0, 0, 0, 0],
+            vec![0, 0, 1, 0, 0],
+            vec![4, 3, 3, 3, 3],
+            vec![1, 0, 0, 0, 0, 0, 0, 0],
+            vec![1, 0, 0, 0, 0, -1],
+        ] {
             let exact = entmax15_exact_i64(&scores).unwrap();
-            let f64_scores: Vec<f64> = scores.iter().copied().map(i64_to_f64).collect();
-            let oracle = dense_entmax(&f64_scores, 1.5).unwrap();
-            for (rational, &approx) in exact.probabilities.iter().zip(&oracle.probabilities) {
-                let rendered = rational.to_f64().unwrap();
-                assert!(
-                    (rendered - approx).abs() <= 1.0e-9,
-                    "{rendered} != {approx}"
-                );
-            }
-            let tau = exact.tau.to_f64().unwrap();
-            let mut objective = -1.0_f64;
-            for score in &f64_scores {
-                let shifted = 0.5 * score - tau;
-                if shifted > 0.0 {
-                    objective += shifted * shifted;
-                }
-            }
-            assert!(objective.abs() <= 1.0e-9, "objective {objective} at {tau}");
+            assert_matches_dense_oracle(&scores, &exact);
         }
     }
 
@@ -499,5 +706,63 @@ mod tests {
         assert!(entmax15_exact_i64(&[3, 2]).is_err());
         assert!(entmax15_exact_i64(&[1, 1, 0]).is_err());
         assert!(entmax15_exact_i64(&[4, 4, 0]).is_err());
+        assert!(entmax15_exact_i64(&[2, 1, 0]).is_err());
+        assert!(entmax15_exact_i64(&[5, 5, 3]).is_err());
+    }
+
+    #[test]
+    fn entmax15_reports_logical_cost_without_hardware_claims() {
+        let (_distribution, cost) = entmax15_exact_i64_accounted(&[1, 0, 0, 0, 0]).unwrap();
+        assert_eq!(cost.scores_sorted, 5);
+        assert_eq!(cost.candidate_supports_tested, 5);
+        assert_eq!(cost.perfect_square_discriminants, 2);
+        assert_eq!(cost.support_inequality_checks, 7);
+    }
+
+    #[test]
+    fn entmax15_exhaustive_small_grid_matches_oracle_and_expands_legacy_domain() {
+        let mut accepted = 0_usize;
+        let mut legacy = 0_usize;
+        let mut novel = 0_usize;
+        let mut rejected = 0_usize;
+        let mut dual = 0_usize;
+        for length in 1..=5_usize {
+            let bound = 4_i64;
+            let states = bound.pow(u32::try_from(length).unwrap());
+            for state in 0..states {
+                let mut scores = vec![0_i64; length];
+                let mut cursor = state;
+                for slot in &mut scores {
+                    *slot = cursor % bound;
+                    cursor /= bound;
+                }
+                match entmax15_exact_i64(&scores) {
+                    Ok(exact) => {
+                        accepted += 1;
+                        if is_legacy_entmax15_domain(&scores) {
+                            legacy += 1;
+                        } else {
+                            novel += 1;
+                        }
+                        assert_matches_dense_oracle(&scores, &exact);
+                    }
+                    Err(message) => {
+                        if message == "ADA-A6 exact entmax15 found multiple rational supports" {
+                            dual += 1;
+                        }
+                        assert!(
+                            !is_legacy_entmax15_domain(&scores),
+                            "legacy domain rejected for {scores:?}: {message}"
+                        );
+                        rejected += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(dual, 0);
+        assert_eq!(accepted, legacy + novel);
+        // Lengths 1..=5 over scores in {0,1,2,3}: 1364 vectors. The partition
+        // is an algorithmic observation on that finite grid, not a hardware claim.
+        assert_eq!((accepted, legacy, novel, rejected), (195, 150, 45, 1169));
     }
 }
