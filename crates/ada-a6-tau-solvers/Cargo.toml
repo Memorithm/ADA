@@ -9,5 +9,8 @@ publish = false
 [dependencies]
 ada-a4-entmax-bnb = { path = "../ada-a4-entmax-bnb" }
 
+[dev-dependencies]
+ada-objective = { path = "../ada-objective" }
+
 [lints]
 workspace = true

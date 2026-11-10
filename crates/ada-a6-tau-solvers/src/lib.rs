@@ -14,8 +14,12 @@
 //!   fails closed.
 //! - [`quantized_lattice_attention`]: a total attention operator that
 //!   quantizes real scores onto the integer lattice and applies
-//!   [`lattice_entmax_i64`], with deterministic gap completion when the
-//!   rounded vector is outside the rational domain.
+//!   [`lattice_entmax_i64`], with deterministic one-hot gap completion
+//!   when the rounded vector is outside the rational domain.
+//! - [`multi_support_quantized_lattice_attention`]: the follow-up that
+//!   optionally adapts the scale to the top-plateau gap and, on a miss,
+//!   keeps every quantized maximum (plateau completion, then exact
+//!   uniform on the argmax set) instead of one-hotting the first peak.
 //!
 //! `ada_a4_entmax_bnb::dense_entmax` remains the general f64 oracle. Neither
 //! path claims usefulness, novelty, or FLAT adoption. Divergences beyond a
@@ -25,6 +29,7 @@
 
 mod exact;
 mod lattice;
+mod multi_support;
 mod quantized;
 
 pub use exact::{
@@ -37,6 +42,11 @@ pub use lattice::{LatticeEntmaxCost, lattice_entmax_i64, lattice_entmax_i64_acco
 pub use quantized::{
     QlaCost, QlaDistribution, QlaPath, quantized_lattice_attention,
     quantized_lattice_attention_accounted, stable_softmax,
+};
+
+pub use multi_support::{
+    MsqlaCost, MsqlaDistribution, MsqlaPath, MsqlaScaleMode,
+    multi_support_quantized_lattice_attention, multi_support_quantized_lattice_attention_accounted,
 };
 
 use ada_a4_entmax_bnb::EntmaxDistribution;

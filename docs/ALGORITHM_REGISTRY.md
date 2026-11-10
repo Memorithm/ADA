@@ -47,6 +47,19 @@
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
 
+## 2026-11-10 follow-up: multi-support quantized lattice attention
+
+- Research reference (ADA-A6): `multi_support_quantized_lattice_attention`
+  optionally raises the scale to protect the top-plateau gap, applies
+  `lattice_entmax_i64`, plateau-completes while keeping every quantized
+  maximum, and falls back to the exact uniform distribution on the
+  quantized argmax set when the completed vector is still outside the
+  rational domain. Independent-oracle parity holds on lattice hits and
+  on the uniform path. Mechanistic unique-needle / pair-interpolation
+  comparisons and ADA2 causal-argmax / copy-token grades are recorded
+  in `docs/ADA1_MULTI_SUPPORT_QLA.md`. This is not a usefulness,
+  novelty, hardware, or FLAT-adoption claim.
+
 ## 2026-11-10 follow-up: quantized lattice attention
 
 - Research reference (ADA-A6): `quantized_lattice_attention` rounds
