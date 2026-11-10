@@ -20,11 +20,14 @@
 #![forbid(unsafe_code)]
 
 mod exact;
+mod lattice;
 
 pub use exact::{
     ExactDistribution, ExactEntmax15Cost, ExactRational, entmax15_exact_i64,
     entmax15_exact_i64_accounted, sparsemax_exact_i64,
 };
+
+pub use lattice::{LatticeEntmaxCost, lattice_entmax_i64, lattice_entmax_i64_accounted};
 
 use ada_a4_entmax_bnb::EntmaxDistribution;
 
