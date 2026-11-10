@@ -12,7 +12,10 @@
 //! skip rule but bounds each block from its maximum, second maximum and
 //! minimum. [`certified_qk_box_two_stat_softmax`] composes that rule with
 //! A4 coordinate boxes and a depth-1 A5 half-split, so a block can be
-//! skipped without materializing every scaled `q · k` score. Those
+//! skipped without materializing every scaled `q · k` score.
+//! [`certified_qk_box_hierarchical_softmax`] continues the splits to
+//! depth `D` and skips at leaf granularity, so the cold half of a mixed
+//! block can be omitted even when the warm half must be kept. Those
 //! certificates are algorithmic (approximation by omission) rather than
 //! floating-point rounding certificates.
 
@@ -20,6 +23,7 @@
 
 mod block_sparse;
 mod qk_box;
+mod qk_hierarchy;
 mod two_stat;
 
 pub use block_sparse::{
@@ -30,6 +34,10 @@ pub use qk_box::{
     QkBoxBoundMode, QkBoxCost, QkBoxSoftmax, certified_qk_box_first_order_softmax_accounted,
     certified_qk_box_two_stat_softmax, certified_qk_box_two_stat_softmax_accounted,
     dense_qk_scores,
+};
+pub use qk_hierarchy::{
+    QkHierarchyCost, QkHierarchySoftmax, certified_qk_box_hierarchical_softmax,
+    certified_qk_box_hierarchical_softmax_accounted,
 };
 pub use two_stat::{
     TwoStatCost, TwoStatSoftmax, certified_two_stat_softmax, certified_two_stat_softmax_accounted,
