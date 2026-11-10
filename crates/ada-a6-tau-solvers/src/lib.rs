@@ -6,9 +6,12 @@
 //!   extreme-magnitude fallback.
 //! - [`sparsemax_exact_i64`] and [`entmax15_exact_i64`]: exact rational
 //!   thresholds on integer scores. Sparsemax covers every non-empty `i64`
-//!   vector whose prefix sums fit in `i128`. The 1.5-entmax path is partial:
-//!   equal scores whose length is a perfect square, or a unique maximum at
-//!   least 2 above every other score. Every other 1.5 input fails closed.
+//!   vector whose prefix sums fit in `i128`. The 1.5-entmax path accepts a
+//!   vector when a descending support prefix has a perfect-square
+//!   discriminant and satisfies the complementary threshold inequalities.
+//!   That includes the historical equal-perfect-square and unique-max-gap
+//!   cases, plus a strictly larger rational family. Every other 1.5 input
+//!   fails closed.
 //!
 //! `ada_a4_entmax_bnb::dense_entmax` remains the general f64 oracle. Neither
 //! path claims usefulness, novelty, or FLAT adoption. Divergences beyond a
@@ -18,7 +21,10 @@
 
 mod exact;
 
-pub use exact::{ExactDistribution, ExactRational, entmax15_exact_i64, sparsemax_exact_i64};
+pub use exact::{
+    ExactDistribution, ExactEntmax15Cost, ExactRational, entmax15_exact_i64,
+    entmax15_exact_i64_accounted, sparsemax_exact_i64,
+};
 
 use ada_a4_entmax_bnb::EntmaxDistribution;
 

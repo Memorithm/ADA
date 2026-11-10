@@ -7,7 +7,7 @@
 | ADA-A3 | Certified error-budgeted Softmax | E0-CERTIFIED-BUDGET-CORRECTNESS (`ada-a3-certified-softmax`) |
 | ADA-A4 | Exact Entmax branch-and-bound | CPU-E0-CORRECTNESS / E1-QK-BOX-CORRECTNESS / E2-SYNTHETIC-SURVEY-QUALIFIED |
 | ADA-A5 | Hierarchical safe Pre-KV bounds | E0-HIERARCHICAL-BOUND-CORRECTNESS / E1-CONTIGUOUS-HIERARCHY-SURVEY-QUALIFIED / E2-CONTENT-AWARE-HYBRID-CORRECTNESS / E3-THREE-WAY-SYNTHETIC-SURVEY-QUALIFIED / E4-TRACE-CONTRACT-CORRECTNESS / E4-NATURAL-QK-SLICE-QUALIFIED / E5-LAZY-COST-FRONTIER-MIXED / E5B-PRIORITY-FRONTIER-FOCUSED-NATURAL-QUALIFIED / E5C-NATURAL-GEOMETRY-ABLATION-QUALIFIED |
-| ADA-A6 | Specialized tau solvers | E0-SPARSEMAX-SORTED-RESEARCH / E1-EXACT-INTEGER-TAU-DOMAIN (`ada-a6-tau-solvers`) |
+| ADA-A6 | Specialized tau solvers | E0-SPARSEMAX-SORTED-RESEARCH / E1-EXACT-INTEGER-TAU-DOMAIN / E2-EXACT-INTEGER-ENTMAX15-DISCRIMINANT (`ada-a6-tau-solvers`) |
 | ADA-A7 | Moment / composable Entmax | E0-COMPOSABLE-SPARSEMAX-RESEARCH / E1-EXACT-INTEGER-COMPOSITION (`ada-a7-composable-entmax`) |
 | ADA-A8 | Attention recurrence program synthesis | E0-IR-AND-SEARCH-RESEARCH (`ada-ir` + `ada-search`) |
 | ADA-A9 | Distribution-aware execution selection | E0-SIGNAL-RULES-RESEARCH (`ada-a9-plan-selector`) / E0-DISPATCH-PARITY (`ada-a9-dispatch`) |
@@ -46,6 +46,20 @@
 - None of these statuses means production-qualified, novel, or adopted by FLAT-ATTENTION.
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
+
+## 2026-11-10 follow-up: exact integer 1.5-entmax discriminant
+
+- `E2-EXACT-INTEGER-ENTMAX15-DISCRIMINANT` (ADA-A6): `entmax15_exact_i64`
+  accepts an integer vector when a descending support prefix has a
+  perfect-square discriminant `D = S₁² - ρ S₂ + 4ρ` and the smaller
+  threshold root satisfies the complementary support inequalities.
+  Probabilities are reduced rationals `pᵢ = (zᵢ - t)₊² / 4`. The historical
+  E1 subset is preserved and strictly extended (unit-spike family, including
+  `[1, 0, 0, 0, 0]` and `[1, 0⁷]`, plus translations, permutations, and
+  compatible partial supports). Out-of-domain inputs still fail closed with
+  no bisection fallback. See `docs/ADA1_EXACT_INTEGER_ENTMAX15_DISCRIMINANT.md`.
+  This does not replace the A4 f64 oracle and it is not a usefulness,
+  novelty, hardware, or FLAT-adoption claim.
 
 ## 2026-09-25 follow-up: exact integer sparsemax composition
 
