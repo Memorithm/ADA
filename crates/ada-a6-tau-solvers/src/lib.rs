@@ -1,6 +1,6 @@
 //! ADA-A6 research candidate: specialized tau solvers.
 //!
-//! Two paths live in this crate:
+//! Three paths live in this crate:
 //! - [`sparsemax_sorted`]: f64 sorted-projection sparsemax (alpha = 2),
 //!   cross-checked against the canonical A4 bisection oracle, with a certified
 //!   extreme-magnitude fallback.
@@ -12,6 +12,10 @@
 //!   That includes the historical equal-perfect-square and unique-max-gap
 //!   cases, plus a strictly larger rational family. Every other 1.5 input
 //!   fails closed.
+//! - [`quantized_lattice_attention`]: a total attention operator that
+//!   quantizes real scores onto the integer lattice and applies
+//!   [`lattice_entmax_i64`], with deterministic gap completion when the
+//!   rounded vector is outside the rational domain.
 //!
 //! `ada_a4_entmax_bnb::dense_entmax` remains the general f64 oracle. Neither
 //! path claims usefulness, novelty, or FLAT adoption. Divergences beyond a
@@ -21,6 +25,7 @@
 
 mod exact;
 mod lattice;
+mod quantized;
 
 pub use exact::{
     ExactDistribution, ExactEntmax15Cost, ExactRational, entmax15_exact_i64,
@@ -28,6 +33,11 @@ pub use exact::{
 };
 
 pub use lattice::{LatticeEntmaxCost, lattice_entmax_i64, lattice_entmax_i64_accounted};
+
+pub use quantized::{
+    QlaCost, QlaDistribution, QlaPath, quantized_lattice_attention,
+    quantized_lattice_attention_accounted, stable_softmax,
+};
 
 use ada_a4_entmax_bnb::EntmaxDistribution;
 

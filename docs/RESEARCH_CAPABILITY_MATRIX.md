@@ -70,7 +70,7 @@ speedup is implied by the existence of a schedule.
 | ObjectiveVector algorithmic-error lane/codec | yes | ADA-OBJECTIVE-V2; AlgorithmicError cannot be aliased from numerical/cost/ITD/TDI/CEGIS/task_quality |
 | Graduation task-quality adapter | yes | LaneSeparatedEvidence → GraduationObjectives; CEGIS survival rejected |
 | CEGIS→task-quality attach (explicit) | yes | attach_task_quality requires mechanistic LaneSeparatedEvidence + algorithmic lane; survival/ITD/TDI/cost/identity-mismatch rejected |
-| Exact integer tau domain | partial | `i64` sparsemax rationals; 1.5-entmax on the perfect-square discriminant domain; not a general alpha solver |
+| Exact integer tau domain | partial | `i64` sparsemax rationals; 1.5-entmax on the perfect-square discriminant domain; quantized lattice attention is a total (gap-completed) operator on real scores; not a general alpha solver |
 | Mechanistic task fixtures | partial | causal-argmax, masked-position, relative-offset, copy-token; not LM benches |
 | Implementation identity | yes | multiple implementation candidates may share one semantic |
 | Implementation/schedule/memory IR | yes | representation only; no backend lowering or performance claim |

@@ -47,6 +47,18 @@
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
 
+## 2026-11-10 follow-up: quantized lattice attention
+
+- Research reference (ADA-A6): `quantized_lattice_attention` rounds
+  max-shifted real scores onto the integer lattice, applies
+  `lattice_entmax_i64` (`alpha = 1 + 1/k`), and gap-completes to a unique
+  maximum of gap at least `k` when the rounded vector is outside the
+  rational domain. The operator is total on finite inputs (overflow and
+  invalid arguments fail closed). Independent-oracle parity holds on
+  lattice hits. Mechanistic task comparisons against softmax and
+  sparsemax are recorded in `docs/ADA1_QUANTIZED_LATTICE_ATTENTION.md`.
+  This is not a usefulness, novelty, hardware, or FLAT-adoption claim.
+
 ## 2026-11-10 follow-up: exact integer 1.5-entmax discriminant
 
 - `E2-EXACT-INTEGER-ENTMAX15-DISCRIMINANT` (ADA-A6): `entmax15_exact_i64`
