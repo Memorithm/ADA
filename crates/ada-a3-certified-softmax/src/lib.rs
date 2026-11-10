@@ -8,16 +8,22 @@
 //!
 //! A separate research path, [`certified_block_sparse_softmax`], skips
 //! contiguous score blocks whose conservative mass bound fits inside an
-//! L1 budget. That certificate is algorithmic (approximation by omission)
-//! rather than a floating-point rounding certificate.
+//! L1 budget. [`certified_two_stat_softmax`] keeps the same partition and
+//! skip rule but bounds each block from its maximum, second maximum and
+//! minimum. Those certificates are algorithmic (approximation by omission)
+//! rather than floating-point rounding certificates.
 
 #![forbid(unsafe_code)]
 
 mod block_sparse;
+mod two_stat;
 
 pub use block_sparse::{
     BlockSparseCost, BlockSparseSoftmax, certified_block_sparse_softmax,
     certified_block_sparse_softmax_accounted,
+};
+pub use two_stat::{
+    TwoStatCost, TwoStatSoftmax, certified_two_stat_softmax, certified_two_stat_softmax_accounted,
 };
 
 use ada_core::{AttentionCase, AttentionResult, LogicalMetrics};

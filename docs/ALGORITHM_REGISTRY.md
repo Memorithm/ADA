@@ -47,6 +47,16 @@
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
 
+## 2026-11-10 follow-up: two-statistic certified block-sparse softmax
+
+- Research reference (ADA-A3): `certified_two_stat_softmax` keeps the
+  contiguous block partition and greedy L1 skip rule of
+  `certified_block_sparse_softmax`, but bounds each block from its
+  maximum, second maximum and minimum. Independent dense-softmax oracle
+  parity and a first-order comparison (including a warm-outlier witness)
+  are recorded in `docs/ADA3_TWO_STAT_BLOCK_SPARSE_SOFTMAX.md`. This is
+  not a usefulness, novelty, hardware, or FLAT-adoption claim.
+
 ## 2026-11-10 follow-up: certified block-sparse softmax
 
 - Research reference (ADA-A3): `certified_block_sparse_softmax` partitions

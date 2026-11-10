@@ -43,7 +43,7 @@ speedup is implied by the existence of a schedule.
 | Research family | Semantic | Reference oracle | Searchable | Forward | Backward | Prefill | Decode | GQA/MQA | Paged KV | Low precision | Distributed | Hardware evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Exact dense / online softmax and FlashAttention-style blocking | partial | partial (strengthened online Softmax in ada-oracle) | partial | partial | no | partial | no | no | no | no | no | L1 |
-| Static block sparse attention | partial (contiguous score-level block skip) | partial (dense softmax L1 certificate) | no | partial | no | no | no | no | no | no | no | none |
+| Static block sparse attention | partial (contiguous score-level block skip; first-order and two-stat bounds) | partial (dense softmax L1 certificate) | no | partial | no | no | no | no | no | no | no | none |
 | Dynamic sparse pattern selection | no | no | no | no | no | no | no | no | no | no | no | none |
 | Hierarchical / trainable sparse attention | no | no | no | no | no | no | no | no | no | no | no | none |
 | Routed block selection | no | no | no | no | no | no | no | no | no | no | no | none |
@@ -100,9 +100,10 @@ speedup is implied by the existence of a schedule.
   `ada-a7-composable-entmax` composes those integer sparsemax multisets
   exactly; composition is not a new semantic.
 - The certified block-sparse softmax path in `ada-a3-certified-softmax`
-  is a score-level approximation with an explicit L1 omission certificate.
-  It does not replace dense softmax, `budgeted_softmax`, or A5 support
-  pruning, and it is not a hardware or adoption claim.
+  is a score-level approximation with an explicit L1 omission certificate
+  (first-order max-only bounds, and a two-statistic max/second-max/min
+  tightening). It does not replace dense softmax, `budgeted_softmax`, or
+  A5 support pruning, and it is not a hardware or adoption claim.
 
 ## Current boundary
 
