@@ -5,8 +5,20 @@
 //! the achieved relative error from documented floating-point constants, and
 //! FAILS CLOSED when the bound exceeds `epsilon`. The certificate is analytic:
 //! it does not rely on sampling or on comparing against a reference oracle.
+//!
+//! A separate research path, [`certified_block_sparse_softmax`], skips
+//! contiguous score blocks whose conservative mass bound fits inside an
+//! L1 budget. That certificate is algorithmic (approximation by omission)
+//! rather than a floating-point rounding certificate.
 
 #![forbid(unsafe_code)]
+
+mod block_sparse;
+
+pub use block_sparse::{
+    BlockSparseCost, BlockSparseSoftmax, certified_block_sparse_softmax,
+    certified_block_sparse_softmax_accounted,
+};
 
 use ada_core::{AttentionCase, AttentionResult, LogicalMetrics};
 
