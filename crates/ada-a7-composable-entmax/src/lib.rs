@@ -17,7 +17,10 @@
 
 #![forbid(unsafe_code)]
 
+mod entmax15_compose;
 mod exact_compose;
+
+pub use entmax15_compose::{Entmax15Summary, MAX_EXPANDED_SOLVE, PruneCost};
 
 pub use exact_compose::{ExactLevel, ExactLevelSolution, IntegerSparsemaxSummary};
 
