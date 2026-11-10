@@ -10,17 +10,26 @@
 //! contiguous score blocks whose conservative mass bound fits inside an
 //! L1 budget. [`certified_two_stat_softmax`] keeps the same partition and
 //! skip rule but bounds each block from its maximum, second maximum and
-//! minimum. Those certificates are algorithmic (approximation by omission)
-//! rather than floating-point rounding certificates.
+//! minimum. [`certified_qk_box_two_stat_softmax`] composes that rule with
+//! A4 coordinate boxes and a depth-1 A5 half-split, so a block can be
+//! skipped without materializing every scaled `q · k` score. Those
+//! certificates are algorithmic (approximation by omission) rather than
+//! floating-point rounding certificates.
 
 #![forbid(unsafe_code)]
 
 mod block_sparse;
+mod qk_box;
 mod two_stat;
 
 pub use block_sparse::{
     BlockSparseCost, BlockSparseSoftmax, certified_block_sparse_softmax,
     certified_block_sparse_softmax_accounted,
+};
+pub use qk_box::{
+    QkBoxBoundMode, QkBoxCost, QkBoxSoftmax, certified_qk_box_first_order_softmax_accounted,
+    certified_qk_box_two_stat_softmax, certified_qk_box_two_stat_softmax_accounted,
+    dense_qk_scores,
 };
 pub use two_stat::{
     TwoStatCost, TwoStatSoftmax, certified_two_stat_softmax, certified_two_stat_softmax_accounted,
