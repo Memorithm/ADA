@@ -20,7 +20,7 @@ Checked i128 everywhere; i64 extremes fail closed (moments overflow).
 Oracles: unpruned `entmax15_exact_i64` (exact) and `ada_a4_entmax_bnb::dense_entmax(.., 1.5)` (f64, independent).
 
 ## Results (observed, `cargo test -- --nocapture`)
-- Exhaustive: lengths 2..=6, scores {0..3}, every split point: **25488** splits, **0** failures of `merge(l,r) == merge(r,l) == direct summary`.
+- (Sous Miri la grille est réduite : longueurs ≤4, domaine ≤2, 10 cas aléatoires ; chiffres ci-dessous = exécution native.) Exhaustive: lengths 2..=6, scores {0..3}, every split point: **25488** splits, **0** failures of `merge(l,r) == merge(r,l) == direct summary`.
 - 734 vectors in the rational domain: pruned solve equals unpruned exact solve (identical reduced rationals), f64 oracle parity <= 1e-9, mass = 1 within 1e-9, support never larger than retained set.
 - 300 random multi-block cases (2-5 blocks, 1-12 scores, range -4..4): left-fold, right-fold and direct all identical (associativity).
 - Pruning active on **5172** of the 5456 enumerated vectors (length>=2).

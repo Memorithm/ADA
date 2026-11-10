@@ -257,7 +257,8 @@ mod tests {
         let mut checked = 0_u32;
         let mut rational = 0_u32;
         let mut pruned_somewhere = 0_u32;
-        for len in 2..=6_usize {
+        let max_len = if cfg!(miri) { 4 } else { 6 };
+        for len in 2..=max_len {
             let total = 4_u32.pow(u32::try_from(len).unwrap());
             for code in 0..total {
                 let mut v = Vec::new();
@@ -305,7 +306,7 @@ mod tests {
     #[test]
     fn random_blocks_associativity_and_oracle() {
         let mut state = 7_u64;
-        for _ in 0..300 {
+        for _ in 0..(if cfg!(miri) { 10 } else { 300 }) {
             let blocks = 2 + (lcg(&mut state) % 4) as usize;
             let mut all = Vec::new();
             let mut parts = Vec::new();
@@ -366,8 +367,9 @@ mod tests {
         let mut part_ok_union_bad = 0_u32;
         let mut union_ok_part_bad = 0_u32;
         let mut pairs = 0_u32;
-        for ll in 1..=3_usize {
-            for lr in 1..=3_usize {
+        let dom_max = if cfg!(miri) { 2 } else { 3 };
+        for ll in 1..=dom_max {
+            for lr in 1..=dom_max {
                 for lc in 0..4_u32.pow(u32::try_from(ll).unwrap()) {
                     for rc in 0..4_u32.pow(u32::try_from(lr).unwrap()) {
                         let dec = |mut c: u32, n: usize| -> Vec<i64> {
@@ -409,8 +411,10 @@ mod tests {
         println!(
             "ADA7-E15 domain pairs={pairs} parts_ok_union_bad={part_ok_union_bad} union_ok_parts_bad={union_ok_part_bad}"
         );
-        assert!(part_ok_union_bad > 0, "closure unexpectedly holds");
-        assert!(union_ok_part_bad > 0);
+        if !cfg!(miri) {
+            assert!(part_ok_union_bad > 0, "closure unexpectedly holds");
+            assert!(union_ok_part_bad > 0);
+        }
     }
 
     #[test]
@@ -419,7 +423,7 @@ mod tests {
         for &(block, range) in &[(64_usize, 64_i64), (256, 64), (256, 1024)] {
             let mut kept = 0_u64;
             let mut total = 0_u64;
-            for _ in 0..200 {
+            for _ in 0..(if cfg!(miri) { 3 } else { 200 }) {
                 let v: Vec<i64> = (0..block)
                     .map(|_| (lcg(&mut state) % range as u64) as i64)
                     .collect();
