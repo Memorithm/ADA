@@ -47,6 +47,17 @@
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
 
+## 2026-11-10 follow-up: certified block-sparse softmax
+
+- Research reference (ADA-A3): `certified_block_sparse_softmax` partitions
+  finite scores into contiguous blocks, bounds each block's unnormalized
+  mass from its maximum, and greedily skips cold blocks while a
+  conservative L1 certificate `2 * sum U_b / L` stays inside a caller
+  budget. Top-plateau blocks are never skipped. Independent dense-softmax
+  oracle parity (L1 versus the certificate) and unique-needle / equal-pair
+  checks are recorded in `docs/ADA3_CERTIFIED_BLOCK_SPARSE_SOFTMAX.md`.
+  This is not a usefulness, novelty, hardware, or FLAT-adoption claim.
+
 ## 2026-11-10 follow-up: multi-support quantized lattice attention
 
 - Research reference (ADA-A6): `multi_support_quantized_lattice_attention`
