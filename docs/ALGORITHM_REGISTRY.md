@@ -47,6 +47,17 @@
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
 
+## 2026-11-10 follow-up: two-statistic QK-box certified block-sparse softmax
+
+- Research reference (ADA-A3): `certified_qk_box_two_stat_softmax` composes
+  the certified L1 block-skip rule with A4 coordinate boxes and a depth-1
+  A5 half-split, so a contiguous key block can be omitted without
+  materializing every scaled `q · k` score. A first-order single-box
+  baseline is exposed for comparison. Independent dense-softmax oracle
+  parity and a mixed-block witness are recorded in
+  `docs/ADA3_QK_BOX_TWO_STAT_SOFTMAX.md`. This is not a usefulness,
+  novelty, hardware, or FLAT-adoption claim.
+
 ## 2026-11-10 follow-up: two-statistic certified block-sparse softmax
 
 - Research reference (ADA-A3): `certified_two_stat_softmax` keeps the
