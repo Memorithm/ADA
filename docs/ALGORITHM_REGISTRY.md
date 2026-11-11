@@ -47,6 +47,17 @@
 
 Statuses are research administration only; they are not claims of novelty or feasibility.
 
+## 2026-11-10 follow-up: hierarchical QK-box certified block-sparse softmax
+
+- Research reference (ADA-A3): `certified_qk_box_hierarchical_softmax`
+  continues the A4/A5 QK-box certificate of
+  `certified_qk_box_two_stat_softmax` to depth `D` and skips at leaf
+  granularity, so a cold half (or quarter) of a mixed block can be
+  omitted without materializing every scaled `q · k` score. Independent
+  dense-softmax oracle parity and mixed-block / pair-interleaved
+  witnesses are recorded in `docs/ADA3_QK_BOX_HIERARCHICAL_SOFTMAX.md`.
+  This is not a usefulness, novelty, hardware, or FLAT-adoption claim.
+
 ## 2026-11-10 follow-up: two-statistic QK-box certified block-sparse softmax
 
 - Research reference (ADA-A3): `certified_qk_box_two_stat_softmax` composes
