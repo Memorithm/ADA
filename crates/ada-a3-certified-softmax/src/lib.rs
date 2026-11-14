@@ -22,6 +22,7 @@
 #![forbid(unsafe_code)]
 
 mod block_sparse;
+mod cone_bucket;
 mod norm_order;
 mod qk_box;
 mod qk_hierarchy;
@@ -30,6 +31,10 @@ mod two_stat;
 pub use block_sparse::{
     BlockSparseCost, BlockSparseSoftmax, certified_block_sparse_softmax,
     certified_block_sparse_softmax_accounted,
+};
+pub use cone_bucket::{
+    ConeBucketCost, ConeBucketSoftmax, certified_cone_bucket_softmax,
+    certified_cone_bucket_softmax_accounted,
 };
 pub use norm_order::{
     NormOrderCost, NormOrderSoftmax, certified_norm_order_softmax,
