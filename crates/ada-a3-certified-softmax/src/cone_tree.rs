@@ -513,7 +513,8 @@ mod tests {
         let queries: [[f64; 2]; 3] = [[1.0, 0.0], [-0.5, 1.5], [0.0, 0.0]];
         let mut cases = 0;
         let mut skipped = 0;
-        for len in 1..=5usize {
+        let max_len = if cfg!(miri) { 2_usize } else { 5 };
+        for len in 1..=max_len {
             let total = 5usize.pow(len as u32);
             for code in 0..total {
                 let mut keys = Vec::new();
@@ -535,15 +536,18 @@ mod tests {
                 }
             }
         }
-        assert!(cases > 50_000);
-        assert!(skipped > 0);
+        assert!(cases > if cfg!(miri) { 100 } else { 50_000 });
+        if !cfg!(miri) {
+            assert!(skipped > 0);
+        }
         eprintln!("grid cases={cases} skipped={skipped}");
     }
 
     #[test]
     fn random_adversarial_sweep_has_no_violation() {
         let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
-        for _ in 0..400 {
+        let iters = if cfg!(miri) { 12 } else { 400 };
+        for _ in 0..iters {
             let d = 1 + (rng.next() * 8.0) as usize;
             let n = 1 + (rng.next() * 60.0) as usize;
             let heavy = rng.next() < 0.5;
