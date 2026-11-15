@@ -24,6 +24,7 @@
 mod block_sparse;
 mod cone_bucket;
 mod norm_order;
+mod proj_order;
 mod qk_box;
 mod qk_hierarchy;
 mod two_stat;
@@ -39,6 +40,10 @@ pub use cone_bucket::{
 pub use norm_order::{
     NormOrderCost, NormOrderSoftmax, certified_norm_order_softmax,
     certified_norm_order_softmax_accounted,
+};
+pub use proj_order::{
+    ProjOrderCost, ProjOrderSoftmax, certified_proj_order_softmax,
+    certified_proj_order_softmax_accounted,
 };
 pub use qk_box::{
     QkBoxBoundMode, QkBoxCost, QkBoxSoftmax, certified_qk_box_first_order_softmax_accounted,
