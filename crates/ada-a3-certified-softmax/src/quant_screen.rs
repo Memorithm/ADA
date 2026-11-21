@@ -158,11 +158,16 @@ pub fn certified_quant_screen_softmax_accounted(
     }
     let mut order: Vec<usize> = (0..n).collect();
     order.sort_by(|&a, &b| hi[b].total_cmp(&hi[a]).then(a.cmp(&b)));
-    let h_max = hi[order[0]];
-    // suffix[j] = Σ_{r ≥ j} exp(h_{order[r]} − h_max)
-    let mut suffix = vec![0.0_f64; n + 1];
+    // ln_suffix[j] = ln Σ_{r ≥ j} e^{h_{order[r]}}, accumulated in log domain
+    // so that a loose, huge `h_max` cannot underflow the unread mass to zero.
+    let mut ln_suffix = vec![f64::NEG_INFINITY; n + 1];
     for r in (0..n).rev() {
-        suffix[r] = suffix[r + 1] + (hi[order[r]] - h_max).exp();
+        let (a, b) = (hi[order[r]], ln_suffix[r + 1]);
+        ln_suffix[r] = if b == f64::NEG_INFINITY {
+            a
+        } else {
+            a.max(b) + (-(a - b).abs()).exp().ln_1p()
+        };
     }
 
     let mut cost = QuantScreenCost {
@@ -207,7 +212,7 @@ pub fn certified_quant_screen_softmax_accounted(
         }
         // ln S and ln T in the same absolute units.
         let ln_s = running_max + mass.ln();
-        let ln_t = h_max + (suffix[read_so_far] * (1.0 + MASS_INFLATION)).ln();
+        let ln_t = ln_suffix[read_so_far] + MASS_INFLATION.ln_1p();
         cost.transcendental_evaluations += 3;
         let cert = 2.0 / (1.0 + (ln_s - ln_t).exp());
         if cert <= epsilon {
@@ -263,7 +268,8 @@ pub fn certified_quant_screen_softmax(
     clippy::many_single_char_names,
     clippy::cast_precision_loss,
     clippy::cast_possible_truncation,
-    clippy::cast_lossless
+    clippy::cast_lossless,
+    clippy::cast_sign_loss
 )]
 mod tests {
     use super::{
@@ -374,6 +380,36 @@ mod tests {
         assert_eq!(c.exact_rows_skipped, 63);
         assert!(r.probabilities[0] > 0.999);
         assert!(l1(&r.probabilities, &oracle(&q, &keys, d, 1.0)) <= r.certified_l1_bound + 1e-12);
+    }
+
+    #[test]
+    fn loose_huge_upper_bound_does_not_underflow_unread_mass() {
+        // Regression: a row whose screen bound h is thousands of nats above all
+        // other bounds made the max-shifted suffix sum underflow to 0, so the
+        // certificate was reported as 0 while a heavy row was skipped.
+        let d = 3;
+        let mut rng = Rng(0xBAD);
+        let mut checked = 0;
+        for _ in 0..if cfg!(miri) { 20 } else { 600 } {
+            let n = 2 + (rng.next() * 30.0) as usize;
+            let mut keys: Vec<f64> = (0..n * d).map(|_| rng.gauss()).collect();
+            for i in 0..n {
+                if rng.next() < 0.3 {
+                    keys[i * d + d - 1] *= 1000.0;
+                }
+            }
+            let q: Vec<f64> = (0..d).map(|_| rng.gauss() * 1000.0).collect();
+            let scale = 0.05 + rng.next();
+            for bits in [2_u32, 3] {
+                let Ok(r) = certified_quant_screen_softmax(&q, &keys, d, scale, 0.0, bits) else {
+                    continue;
+                };
+                let err = l1(&r.probabilities, &oracle(&q, &keys, d, scale));
+                assert!(err <= r.certified_l1_bound + 1e-12, "viol {err}");
+                checked += 1;
+            }
+        }
+        assert!(checked > 10);
     }
 
     #[test]
