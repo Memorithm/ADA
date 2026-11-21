@@ -22,6 +22,7 @@
 #![forbid(unsafe_code)]
 
 mod block_sparse;
+mod centered;
 mod cone_bucket;
 mod cone_tree;
 mod norm_order;
@@ -38,6 +39,9 @@ mod value_radius;
 pub use block_sparse::{
     BlockSparseCost, BlockSparseSoftmax, certified_block_sparse_softmax,
     certified_block_sparse_softmax_accounted,
+};
+pub use centered::{
+    CenteredCost, CenteredSoftmax, certified_centered_softmax, certified_centered_softmax_accounted,
 };
 pub use cone_bucket::{
     ConeBucketCost, ConeBucketSoftmax, certified_cone_bucket_softmax,
