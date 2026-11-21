@@ -404,8 +404,13 @@ mod tests {
     fn exhaustive_grid_has_no_violation() {
         let vals = [-2.0, 0.0, 1.5];
         let mut skipped = 0_usize;
-        for n in 1..=3_usize {
-            for code in 0..3_usize.pow(u32::try_from(2 * n).unwrap()) {
+        let (max_n, stride) = if cfg!(miri) {
+            (2_usize, 5_usize)
+        } else {
+            (3, 1)
+        };
+        for n in 1..=max_n {
+            for code in (0..3_usize.pow(u32::try_from(2 * n).unwrap())).step_by(stride) {
                 let keys: Vec<f64> = (0..2 * n)
                     .map(|p| vals[(code / 3_usize.pow(p as u32)) % 3])
                     .collect();
@@ -431,13 +436,13 @@ mod tests {
                 }
             }
         }
-        assert!(skipped > 0);
+        assert!(cfg!(miri) || skipped > 0);
     }
 
     #[test]
     fn adversarial_sweep_has_no_violation() {
         let mut rng = Rng(0xA11CE);
-        for t in 0..300 {
+        for t in 0..if cfg!(miri) { 6 } else { 300 } {
             let n = 2 + (rng.next() * 40.0) as usize;
             let (d, dv) = (
                 1 + (rng.next() * 6.0) as usize,
