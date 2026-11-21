@@ -519,8 +519,8 @@ mod tests {
                     err <= res.certified_l1_bound + 1e-12,
                     "t={t} eps={eps} err={err}"
                 );
-                assert!(cost.rows_completed + cost.rows_skipped == n);
-                assert!(cost.completion_macs == cost.rows_completed * d);
+                assert_eq!(cost.rows_completed + cost.rows_skipped, n);
+                assert_eq!(cost.completion_macs, cost.rows_completed * d);
             }
         }
     }
