@@ -31,6 +31,7 @@ mod qk_hierarchy;
 mod quant_screen;
 mod split_dim;
 mod two_stat;
+mod value_radius;
 
 pub use block_sparse::{
     BlockSparseCost, BlockSparseSoftmax, certified_block_sparse_softmax,
@@ -71,6 +72,10 @@ pub use split_dim::{
 };
 pub use two_stat::{
     TwoStatCost, TwoStatSoftmax, certified_two_stat_softmax, certified_two_stat_softmax_accounted,
+};
+pub use value_radius::{
+    ValueRadiusCost, ValueRadiusInput, ValueRadiusMode, ValueRadiusOutput,
+    certified_value_radius_attention, certified_value_radius_attention_accounted,
 };
 
 use ada_core::{AttentionCase, AttentionResult, LogicalMetrics};
