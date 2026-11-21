@@ -25,6 +25,7 @@ mod block_sparse;
 mod cone_bucket;
 mod cone_tree;
 mod norm_order;
+mod norm_sum;
 mod proj_order;
 mod qk_box;
 mod qk_hierarchy;
@@ -49,6 +50,9 @@ pub use cone_tree::{
 pub use norm_order::{
     NormOrderCost, NormOrderSoftmax, certified_norm_order_softmax,
     certified_norm_order_softmax_accounted,
+};
+pub use norm_sum::{
+    NormSumCost, NormSumSoftmax, certified_norm_sum_softmax, certified_norm_sum_softmax_accounted,
 };
 pub use proj_order::{
     ProjOrderCost, ProjOrderSoftmax, certified_proj_order_softmax,
