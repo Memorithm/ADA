@@ -29,6 +29,7 @@ mod proj_order;
 mod qk_box;
 mod qk_hierarchy;
 mod quant_screen;
+mod split_dim;
 mod two_stat;
 
 pub use block_sparse::{
@@ -63,6 +64,10 @@ pub use qk_hierarchy::{
 pub use quant_screen::{
     QuantScreenCost, QuantScreenSoftmax, certified_quant_screen_softmax,
     certified_quant_screen_softmax_accounted,
+};
+pub use split_dim::{
+    SplitDimCost, SplitDimSoftmax, certified_split_dim_softmax,
+    certified_split_dim_softmax_accounted,
 };
 pub use two_stat::{
     TwoStatCost, TwoStatSoftmax, certified_two_stat_softmax, certified_two_stat_softmax_accounted,
