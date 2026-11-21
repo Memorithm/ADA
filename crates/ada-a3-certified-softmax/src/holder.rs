@@ -95,6 +95,7 @@ fn norm(row: &[f64]) -> f64 {
 /// non-positive `score_scale`, a negative or non-finite `epsilon`, or a
 /// non-finite score or mass.
 #[must_use = "the certified distribution should be checked"]
+#[allow(clippy::too_many_lines)]
 pub fn certified_holder_softmax_accounted(
     query: &[f64],
     keys: &[f64],
@@ -285,7 +286,11 @@ mod tests {
         for i in 0..n {
             let s = (sigma * rng.gauss()).exp();
             for _ in 0..m {
-                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                #[allow(
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    clippy::cast_precision_loss
+                )]
                 let j = (rng.unit() * d as f64) as usize % d;
                 keys[i * d + j] = s * rng.gauss();
             }
