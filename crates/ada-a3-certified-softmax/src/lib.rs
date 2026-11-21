@@ -32,6 +32,7 @@ mod proj_order;
 mod qk_box;
 mod qk_hierarchy;
 mod quant_screen;
+mod reduced_rank;
 mod split_dim;
 mod temporal_anchor;
 mod two_stat;
@@ -76,6 +77,10 @@ pub use qk_hierarchy::{
 pub use quant_screen::{
     QuantScreenCost, QuantScreenSoftmax, certified_quant_screen_softmax,
     certified_quant_screen_softmax_accounted,
+};
+pub use reduced_rank::{
+    ReducedRankCost, ReducedRankSoftmax, certified_reduced_rank_softmax_accounted,
+    reduced_rank_basis,
 };
 pub use split_dim::{
     SplitDimCost, SplitDimSoftmax, certified_split_dim_softmax,
