@@ -70,7 +70,6 @@ pub struct SplitDimSoftmax {
 /// Returns an error for an inconsistent layout, non-finite input, invalid
 /// `split`, `score_scale` or `epsilon`, or a non-finite score.
 #[must_use = "the certified distribution should be checked"]
-#[allow(clippy::too_many_lines, clippy::too_many_arguments)]
 pub fn certified_split_dim_softmax_accounted(
     query: &[f64],
     keys: &[f64],
@@ -78,6 +77,33 @@ pub fn certified_split_dim_softmax_accounted(
     score_scale: f64,
     epsilon: f64,
     split: usize,
+) -> Result<(SplitDimSoftmax, SplitDimCost), &'static str> {
+    split_dim_core(
+        query,
+        keys,
+        head_dim,
+        score_scale,
+        epsilon,
+        split,
+        1.0e-11,
+        None,
+    )
+}
+
+/// Shared implementation; `dot_slack` is the relative (to `‖q‖‖k‖`) slack
+/// covering f64 dot rounding. `original_norms = (‖q‖, ‖k_i‖ per key, rel)` adds
+/// `s·rel·‖q‖‖k_i‖` per key for callers whose scored vectors are a transform
+/// of the originals (the transform error is relative to the ORIGINAL norms).
+#[allow(clippy::too_many_lines, clippy::too_many_arguments)]
+pub(crate) fn split_dim_core(
+    query: &[f64],
+    keys: &[f64],
+    head_dim: usize,
+    score_scale: f64,
+    epsilon: f64,
+    split: usize,
+    dot_slack: f64,
+    original_norms: Option<(f64, &[f64], f64)>,
 ) -> Result<(SplitDimSoftmax, SplitDimCost), &'static str> {
     if head_dim == 0 || head_dim > MAX_HEAD_DIM {
         return Err("ADA-A3 split-dim head_dim must be in 1..=4096");
@@ -102,13 +128,11 @@ pub fn certified_split_dim_softmax_accounted(
     }
     let n = keys.len() / head_dim;
     let q_tail = query[split..].iter().map(|v| v * v).sum::<f64>().sqrt();
-    // f64 dot rounding slack, relative to s‖q‖‖k‖ (d ≤ 4096).
-    let dot_slack = 1.0e-11;
     let q_norm = query.iter().map(|v| v * v).sum::<f64>().sqrt();
 
     let mut prefix = Vec::with_capacity(n);
     let mut hi = Vec::with_capacity(n);
-    for row in keys.chunks_exact(head_dim) {
+    for (i, row) in keys.chunks_exact(head_dim).enumerate() {
         let p: f64 = query[..split]
             .iter()
             .zip(&row[..split])
@@ -118,8 +142,9 @@ pub fn certified_split_dim_softmax_accounted(
         // r_i is the prefill-stored tail norm.
         let r = row[split..].iter().map(|v| v * v).sum::<f64>().sqrt();
         let k_norm = row.iter().map(|v| v * v).sum::<f64>().sqrt();
-        let delta =
-            score_scale * (q_tail * r * (1.0 + DELTA_INFLATION) + dot_slack * q_norm * k_norm);
+        let extra = original_norms.map_or(0.0, |(qn, kn, rel)| rel * qn * kn[i]);
+        let delta = score_scale
+            * (q_tail * r * (1.0 + DELTA_INFLATION) + dot_slack * q_norm * k_norm + extra);
         let h = p + delta;
         if !h.is_finite() {
             return Err("ADA-A3 split-dim scores must be finite");
