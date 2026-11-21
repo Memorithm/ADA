@@ -466,7 +466,7 @@ mod tests {
                         r.certified_l1_bound
                     );
                     assert!(r.certified_l1_bound <= eps || r.read.iter().all(|&x| x));
-                    assert!(c.rows_completed + c.rows_skipped == c.keys);
+                    assert_eq!(c.rows_completed + c.rows_skipped, c.keys);
                 }
                 // advance the real history with a moderate epsilon
                 if s.step(&q, &keys, 1e-3).is_err() {
