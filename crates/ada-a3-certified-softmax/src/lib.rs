@@ -30,6 +30,7 @@ mod qk_box;
 mod qk_hierarchy;
 mod quant_screen;
 mod split_dim;
+mod temporal_anchor;
 mod two_stat;
 mod value_radius;
 
@@ -70,6 +71,7 @@ pub use split_dim::{
     SplitDimCost, SplitDimSoftmax, certified_split_dim_softmax,
     certified_split_dim_softmax_accounted,
 };
+pub use temporal_anchor::{TemporalAnchorCost, TemporalAnchorScreen, TemporalAnchorSoftmax};
 pub use two_stat::{
     TwoStatCost, TwoStatSoftmax, certified_two_stat_softmax, certified_two_stat_softmax_accounted,
 };
