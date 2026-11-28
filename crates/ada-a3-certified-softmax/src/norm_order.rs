@@ -361,7 +361,11 @@ mod tests {
     #[test]
     fn measured_regimes_versus_contiguous_two_stat() {
         let mut rng = Rng(0xD1B5_4A32_D192_ED03);
-        let (d, n, b): (usize, usize, usize) = (16, 256, 16);
+        let (d, n, b): (usize, usize, usize) = if cfg!(miri) {
+            (8, 64, 8)
+        } else {
+            (16, 256, 16)
+        };
         let samples: usize = if cfg!(miri) { 2 } else { 60 };
         for sigma in [0.0, 0.5, 1.0, 1.5] {
             for &eps in &[1e-4, 1e-2, 1e-1] {

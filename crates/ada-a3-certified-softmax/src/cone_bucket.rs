@@ -571,7 +571,11 @@ mod tests {
     #[test]
     fn measured_regimes_versus_norm_order() {
         let mut rng = Rng(0xD1B5_4A32_D192_ED03);
-        let (d, clusters, per) = (16usize, 8usize, 32usize);
+        let (d, clusters, per) = if cfg!(miri) {
+            (8usize, 4usize, 8usize)
+        } else {
+            (16usize, 8usize, 32usize)
+        };
         let n = clusters * per;
         let samples: usize = if cfg!(miri) { 1 } else { 40 };
         for (label, jitter, norm) in [
