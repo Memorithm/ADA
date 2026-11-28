@@ -25,6 +25,7 @@ mod block_sparse;
 mod centered;
 mod cone_bucket;
 mod cone_tree;
+mod holder;
 mod norm_order;
 mod norm_sum;
 mod pca_rotate;
@@ -53,6 +54,9 @@ pub use cone_bucket::{
 pub use cone_tree::{
     ConeTreeCost, ConeTreeSoftmax, certified_cone_tree_softmax,
     certified_cone_tree_softmax_accounted,
+};
+pub use holder::{
+    HolderCost, HolderSoftmax, certified_holder_softmax, certified_holder_softmax_accounted,
 };
 pub use norm_order::{
     NormOrderCost, NormOrderSoftmax, certified_norm_order_softmax,
